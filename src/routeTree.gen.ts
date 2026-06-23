@@ -18,6 +18,7 @@ import { Route as AuthenticatedMissionsNewRouteImport } from './routes/_authenti
 import { Route as AuthenticatedMissionsMissionIdRouteImport } from './routes/_authenticated/missions.$missionId'
 import { Route as AuthenticatedMissionsMissionIdIndexRouteImport } from './routes/_authenticated/missions.$missionId.index'
 import { Route as AuthenticatedMissionsMissionIdTargetsRouteImport } from './routes/_authenticated/missions.$missionId.targets'
+import { Route as AuthenticatedMissionsMissionIdDocumentRouteImport } from './routes/_authenticated/missions.$missionId.document'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -68,6 +69,12 @@ const AuthenticatedMissionsMissionIdTargetsRoute =
     path: '/targets',
     getParentRoute: () => AuthenticatedMissionsMissionIdRoute,
   } as any)
+const AuthenticatedMissionsMissionIdDocumentRoute =
+  AuthenticatedMissionsMissionIdDocumentRouteImport.update({
+    id: '/document',
+    path: '/document',
+    getParentRoute: () => AuthenticatedMissionsMissionIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions/': typeof AuthenticatedMissionsIndexRoute
+  '/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
   '/missions/$missionId/': typeof AuthenticatedMissionsMissionIdIndexRoute
 }
@@ -85,6 +93,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions': typeof AuthenticatedMissionsIndexRoute
+  '/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdIndexRoute
 }
@@ -97,6 +106,7 @@ export interface FileRoutesById {
   '/_authenticated/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/_authenticated/missions/new': typeof AuthenticatedMissionsNewRoute
   '/_authenticated/missions/': typeof AuthenticatedMissionsIndexRoute
+  '/_authenticated/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/_authenticated/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
   '/_authenticated/missions/$missionId/': typeof AuthenticatedMissionsMissionIdIndexRoute
 }
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/missions/$missionId'
     | '/missions/new'
     | '/missions/'
+    | '/missions/$missionId/document'
     | '/missions/$missionId/targets'
     | '/missions/$missionId/'
   fileRoutesByTo: FileRoutesByTo
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/missions/new'
     | '/missions'
+    | '/missions/$missionId/document'
     | '/missions/$missionId/targets'
     | '/missions/$missionId'
   id:
@@ -129,6 +141,7 @@ export interface FileRouteTypes {
     | '/_authenticated/missions/$missionId'
     | '/_authenticated/missions/new'
     | '/_authenticated/missions/'
+    | '/_authenticated/missions/$missionId/document'
     | '/_authenticated/missions/$missionId/targets'
     | '/_authenticated/missions/$missionId/'
   fileRoutesById: FileRoutesById
@@ -204,16 +217,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMissionsMissionIdTargetsRouteImport
       parentRoute: typeof AuthenticatedMissionsMissionIdRoute
     }
+    '/_authenticated/missions/$missionId/document': {
+      id: '/_authenticated/missions/$missionId/document'
+      path: '/document'
+      fullPath: '/missions/$missionId/document'
+      preLoaderRoute: typeof AuthenticatedMissionsMissionIdDocumentRouteImport
+      parentRoute: typeof AuthenticatedMissionsMissionIdRoute
+    }
   }
 }
 
 interface AuthenticatedMissionsMissionIdRouteChildren {
+  AuthenticatedMissionsMissionIdDocumentRoute: typeof AuthenticatedMissionsMissionIdDocumentRoute
   AuthenticatedMissionsMissionIdTargetsRoute: typeof AuthenticatedMissionsMissionIdTargetsRoute
   AuthenticatedMissionsMissionIdIndexRoute: typeof AuthenticatedMissionsMissionIdIndexRoute
 }
 
 const AuthenticatedMissionsMissionIdRouteChildren: AuthenticatedMissionsMissionIdRouteChildren =
   {
+    AuthenticatedMissionsMissionIdDocumentRoute:
+      AuthenticatedMissionsMissionIdDocumentRoute,
     AuthenticatedMissionsMissionIdTargetsRoute:
       AuthenticatedMissionsMissionIdTargetsRoute,
     AuthenticatedMissionsMissionIdIndexRoute:
