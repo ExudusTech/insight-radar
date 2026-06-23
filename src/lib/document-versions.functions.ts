@@ -114,5 +114,5 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
       .eq("id", data.versionId);
     if (updErr) throw updErr;
 
-    return { ok: true, extracted };
+    return { ok: true } as const;
   });
