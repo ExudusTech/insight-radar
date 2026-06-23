@@ -14,16 +14,772 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          mission_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          mission_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          mission_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      change_requests: {
+        Row: {
+          affects_deadline: boolean
+          affects_deliverables: boolean
+          affects_evidences: boolean
+          affects_questionnaire: boolean
+          affects_targets: boolean
+          approved_at: string | null
+          approved_by: string | null
+          change_type: string | null
+          created_at: string
+          description: string
+          estimated_impact: string | null
+          id: string
+          justification: string | null
+          mission_id: string
+          observations: string | null
+          requestor_id: string | null
+          status: Database["public"]["Enums"]["change_request_status"]
+        }
+        Insert: {
+          affects_deadline?: boolean
+          affects_deliverables?: boolean
+          affects_evidences?: boolean
+          affects_questionnaire?: boolean
+          affects_targets?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type?: string | null
+          created_at?: string
+          description: string
+          estimated_impact?: string | null
+          id?: string
+          justification?: string | null
+          mission_id: string
+          observations?: string | null
+          requestor_id?: string | null
+          status?: Database["public"]["Enums"]["change_request_status"]
+        }
+        Update: {
+          affects_deadline?: boolean
+          affects_deliverables?: boolean
+          affects_evidences?: boolean
+          affects_questionnaire?: boolean
+          affects_targets?: boolean
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type?: string | null
+          created_at?: string
+          description?: string
+          estimated_impact?: string | null
+          id?: string
+          justification?: string | null
+          mission_id?: string
+          observations?: string | null
+          requestor_id?: string | null
+          status?: Database["public"]["Enums"]["change_request_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_requests_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_requests_requestor_id_fkey"
+            columns: ["requestor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_data: {
+        Row: {
+          block: Database["public"]["Enums"]["collection_block"]
+          field_key: string
+          field_value: Json | null
+          id: string
+          mission_id: string
+          target_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          block: Database["public"]["Enums"]["collection_block"]
+          field_key: string
+          field_value?: Json | null
+          id?: string
+          mission_id: string
+          target_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          block?: Database["public"]["Enums"]["collection_block"]
+          field_key?: string
+          field_value?: Json | null
+          id?: string
+          mission_id?: string
+          target_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_data_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_data_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_data_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          author_id: string | null
+          change_summary: string | null
+          created_at: string
+          extracted_data: Json | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          mission_id: string
+          reason: string | null
+          status: Database["public"]["Enums"]["doc_version_status"]
+          version_number: number
+        }
+        Insert: {
+          author_id?: string | null
+          change_summary?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          mission_id: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["doc_version_status"]
+          version_number: number
+        }
+        Update: {
+          author_id?: string | null
+          change_summary?: string | null
+          created_at?: string
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          mission_id?: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["doc_version_status"]
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_versions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidences: {
+        Row: {
+          caption: string | null
+          captured_at: string | null
+          created_at: string
+          created_by: string | null
+          drive_url: string | null
+          evidence_type: string
+          file_url: string | null
+          id: string
+          interaction_id: string | null
+          mission_id: string
+          synced_at: string | null
+          tags: string[] | null
+          target_id: string
+        }
+        Insert: {
+          caption?: string | null
+          captured_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          drive_url?: string | null
+          evidence_type: string
+          file_url?: string | null
+          id?: string
+          interaction_id?: string | null
+          mission_id: string
+          synced_at?: string | null
+          tags?: string[] | null
+          target_id: string
+        }
+        Update: {
+          caption?: string | null
+          captured_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          drive_url?: string | null
+          evidence_type?: string
+          file_url?: string | null
+          id?: string
+          interaction_id?: string | null
+          mission_id?: string
+          synced_at?: string | null
+          tags?: string[] | null
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidences_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidences_interaction_id_fkey"
+            columns: ["interaction_id"]
+            isOneToOne: false
+            referencedRelation: "interactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidences_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidences_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interactions: {
+        Row: {
+          attachments: Json
+          channel: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          event_at: string
+          event_type: string
+          id: string
+          mission_id: string
+          next_action: string | null
+          status_after: string | null
+          target_id: string
+        }
+        Insert: {
+          attachments?: Json
+          channel?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_at: string
+          event_type: string
+          id?: string
+          mission_id: string
+          next_action?: string | null
+          status_after?: string | null
+          target_id: string
+        }
+        Update: {
+          attachments?: Json
+          channel?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_at?: string
+          event_type?: string
+          id?: string
+          mission_id?: string
+          next_action?: string | null
+          status_after?: string | null
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_analysts: {
+        Row: {
+          analyst_id: string
+          assigned_at: string
+          mission_id: string
+        }
+        Insert: {
+          analyst_id: string
+          assigned_at?: string
+          mission_id: string
+        }
+        Update: {
+          analyst_id?: string
+          assigned_at?: string
+          mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_analysts_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_analysts_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      missions: {
+        Row: {
+          approach_type: string | null
+          completion_criteria: string | null
+          contractor_id: string | null
+          created_at: string
+          created_by: string | null
+          deadline_final: string | null
+          deadline_first: string | null
+          description: string | null
+          drive_folder_id: string | null
+          ethical_rules: string | null
+          expected_deliverables: string | null
+          forbidden_items: string | null
+          id: string
+          name: string
+          objective: string | null
+          responsible_id: string | null
+          segment: string | null
+          status: Database["public"]["Enums"]["mission_status"]
+          target_label: string
+          updated_at: string
+        }
+        Insert: {
+          approach_type?: string | null
+          completion_criteria?: string | null
+          contractor_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_final?: string | null
+          deadline_first?: string | null
+          description?: string | null
+          drive_folder_id?: string | null
+          ethical_rules?: string | null
+          expected_deliverables?: string | null
+          forbidden_items?: string | null
+          id?: string
+          name: string
+          objective?: string | null
+          responsible_id?: string | null
+          segment?: string | null
+          status?: Database["public"]["Enums"]["mission_status"]
+          target_label?: string
+          updated_at?: string
+        }
+        Update: {
+          approach_type?: string | null
+          completion_criteria?: string | null
+          contractor_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_final?: string | null
+          deadline_first?: string | null
+          description?: string | null
+          drive_folder_id?: string | null
+          ethical_rules?: string | null
+          expected_deliverables?: string | null
+          forbidden_items?: string | null
+          id?: string
+          name?: string
+          objective?: string | null
+          responsible_id?: string | null
+          segment?: string | null
+          status?: Database["public"]["Enums"]["mission_status"]
+          target_label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_responsible_id_fkey"
+            columns: ["responsible_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          organization: string | null
+          phone: string | null
+          status: Database["public"]["Enums"]["profile_status"]
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          organization?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["profile_status"]
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          organization?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["profile_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          content: Json | null
+          generated_at: string
+          id: string
+          mission_id: string
+          pdf_url: string | null
+          report_type: Database["public"]["Enums"]["report_type"]
+          status: Database["public"]["Enums"]["report_status"]
+          target_id: string | null
+        }
+        Insert: {
+          content?: Json | null
+          generated_at?: string
+          id?: string
+          mission_id: string
+          pdf_url?: string | null
+          report_type: Database["public"]["Enums"]["report_type"]
+          status?: Database["public"]["Enums"]["report_status"]
+          target_id?: string | null
+        }
+        Update: {
+          content?: Json | null
+          generated_at?: string
+          id?: string
+          mission_id?: string
+          pdf_url?: string | null
+          report_type?: Database["public"]["Enums"]["report_type"]
+          status?: Database["public"]["Enums"]["report_status"]
+          target_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      targets: {
+        Row: {
+          analyst_id: string | null
+          brand: string | null
+          category: string | null
+          created_at: string
+          drive_folder_id: string | null
+          email: string | null
+          id: string
+          instagram: string | null
+          linkedin: string | null
+          mission_id: string
+          name: string
+          notes: string | null
+          other_links: string | null
+          priority: Database["public"]["Enums"]["target_priority"]
+          progress: number
+          site: string | null
+          status: Database["public"]["Enums"]["target_status"]
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          analyst_id?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          linkedin?: string | null
+          mission_id: string
+          name: string
+          notes?: string | null
+          other_links?: string | null
+          priority?: Database["public"]["Enums"]["target_priority"]
+          progress?: number
+          site?: string | null
+          status?: Database["public"]["Enums"]["target_status"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          analyst_id?: string | null
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          linkedin?: string | null
+          mission_id?: string
+          name?: string
+          notes?: string | null
+          other_links?: string | null
+          priority?: Database["public"]["Enums"]["target_priority"]
+          progress?: number
+          site?: string | null
+          status?: Database["public"]["Enums"]["target_status"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "targets_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "targets_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_access_mission: { Args: { _mission_id: string }; Returns: boolean }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "superadmin" | "contractor" | "analyst"
+      change_request_status:
+        | "requested"
+        | "analyzing"
+        | "approved"
+        | "rejected"
+        | "applied"
+        | "cancelled"
+      collection_block: "A" | "B" | "C" | "D" | "E" | "F" | "G"
+      doc_version_status:
+        | "draft"
+        | "reviewing"
+        | "approved"
+        | "rejected"
+        | "replaced"
+        | "frozen"
+      mission_status:
+        | "draft"
+        | "in_review"
+        | "awaiting_approval"
+        | "approved"
+        | "execution_started"
+        | "in_collection"
+        | "in_analysis"
+        | "report_review"
+        | "delivered"
+        | "closed"
+        | "paused"
+        | "cancelled"
+      profile_status: "active" | "inactive" | "pending" | "blocked"
+      report_status:
+        | "draft"
+        | "generated"
+        | "reviewing"
+        | "approved"
+        | "delivered"
+      report_type: "individual" | "comparative" | "strategic"
+      target_priority: "high" | "medium" | "low"
+      target_status:
+        | "not_started"
+        | "public_research"
+        | "first_contact_sent"
+        | "awaiting_response"
+        | "in_conversation"
+        | "call_scheduled"
+        | "call_done"
+        | "proposal_received"
+        | "price_identified"
+        | "collection_complete"
+        | "incomplete"
+        | "discarded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +906,63 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["superadmin", "contractor", "analyst"],
+      change_request_status: [
+        "requested",
+        "analyzing",
+        "approved",
+        "rejected",
+        "applied",
+        "cancelled",
+      ],
+      collection_block: ["A", "B", "C", "D", "E", "F", "G"],
+      doc_version_status: [
+        "draft",
+        "reviewing",
+        "approved",
+        "rejected",
+        "replaced",
+        "frozen",
+      ],
+      mission_status: [
+        "draft",
+        "in_review",
+        "awaiting_approval",
+        "approved",
+        "execution_started",
+        "in_collection",
+        "in_analysis",
+        "report_review",
+        "delivered",
+        "closed",
+        "paused",
+        "cancelled",
+      ],
+      profile_status: ["active", "inactive", "pending", "blocked"],
+      report_status: [
+        "draft",
+        "generated",
+        "reviewing",
+        "approved",
+        "delivered",
+      ],
+      report_type: ["individual", "comparative", "strategic"],
+      target_priority: ["high", "medium", "low"],
+      target_status: [
+        "not_started",
+        "public_research",
+        "first_contact_sent",
+        "awaiting_response",
+        "in_conversation",
+        "call_scheduled",
+        "call_done",
+        "proposal_received",
+        "price_identified",
+        "collection_complete",
+        "incomplete",
+        "discarded",
+      ],
+    },
   },
 } as const
