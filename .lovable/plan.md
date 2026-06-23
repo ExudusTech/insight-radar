@@ -1,67 +1,130 @@
-# Radar de Mercado IA — Plano de Construção
+# Fase 2 — Missões + Alvos + Kanban (revisada)
 
-Esta é uma plataforma SaaS extensa (10 módulos, ~10 tabelas, 5 Edge Functions, 3 perfis, dezenas de telas). Não é viável entregar tudo de uma única vez com qualidade. Proponho construir em **fases incrementais**, cada uma entregando valor utilizável. Você aprova este plano e depois libera as fases na ordem (ou ajusta prioridades).
+## Correções incorporadas (do feedback)
 
-## Decisões e premissas
+### 1. Novo enum `target_status` (14 valores)
+Migração vai **dropar e recriar** o enum (não há dados de produção ainda):
 
-- **Stack real do template:** TanStack Start + React 19 + Tailwind v4 + shadcn/ui. Vou usar isso (não Vite+React Router puro). O backend será **Lovable Cloud** (Supabase gerenciado) — nada muda funcionalmente para você.
-- **Server logic:** TanStack server functions + server routes para webhooks/IA. **Não** uso Supabase Edge Functions (o template moderno usa server functions nativas, mais rápidas e tipadas).
-- **IA:** Vou usar **Lovable AI Gateway** (Claude via gateway, sem você precisar gerenciar chave Anthropic). Modelos equivalentes: `google/gemini-3-flash-preview` para extração rápida e `google/gemini-2.5-pro` para análise. Se preferir Claude direto via Anthropic, me diga e configuro com sua chave.
-- **Email:** Lovable Emails (built-in, sem Resend). Se preferir Resend, me avise.
-- **Google Drive:** Deixo a integração como **fase posterior** (requer OAuth por usuário). Nas fases iniciais, anexos ficam no Supabase Storage.
-- **Idioma da UI:** Português (pt-BR).
+```
+nao_iniciado
+pesquisa_publica_em_andamento
+primeiro_contato_enviado
+aguardando_resposta
+em_conversa
+call_agendada
+call_realizada
+proposta_recebida
+preco_identificado
+coleta_concluida
+incompleto
+descartado
+```
 
-## Fases propostas
+(São 12 — confirmando: o PRD lista esses 12. Mencionei "14" no plano anterior por engano. Vou trabalhar com os 12 listados.)
 
-### Fase 1 — Fundação (entrego primeiro)
-- Lovable Cloud habilitado
-- Design system completo (tokens Inter, paleta exata, variants premium B2B)
-- Schema completo do Postgres (10 tabelas, RLS, roles via `user_roles` + `has_role`, triggers de progresso)
-- Auth (login/signup, página premium, 3 roles, profiles auto-criados)
-- Layout principal: sidebar dinâmica por role + header com breadcrumb + roteamento protegido
-- Seed do caso piloto (3 usuários, 1 missão, 6 alvos)
+Default da coluna `targets.status` = `nao_iniciado`.
 
-### Fase 2 — Missões + Alvos
-- CRUD de missões (lista, cards, filtros, cadastro completo, estados)
-- CRUD de alvos com 14 status, ficha com 6 abas (apenas Visão Geral funcional), Kanban drag-and-drop
-- Dashboards básicos (Superadmin + Contratante)
+### 2. Modelo do Alvo (consultor/influenciador)
 
-### Fase 3 — Documento-base + IA de extração
-- Upload (Supabase Storage)
-- Server function `extract-document` (Lovable AI)
-- Tela de revisão de extração + congelamento + versionamento
+Migração ajusta `targets`:
+- **Remove**: `legal_name`, `tax_id`, `company_size` (se existirem)
+- **Mantém**: `name`, `segment`, `website`, `status`, `responsible_id`, `mission_id`
+- **Adiciona**: `instagram_url`, `whatsapp`, `linkedin_url`, `other_links` (jsonb array), `priority` (enum: `alta`/`media`/`baixa`, default `media`), `notes` (text)
 
-### Fase 4 — Coleta Guiada (7 blocos A–G)
-- Formulário dinâmico, indicador de completude por bloco
-- Todos os campos especificados, salvando em `collection_data`
+Novo enum `target_priority`: `alta`, `media`, `baixa`.
 
-### Fase 5 — Timeline + Evidências
-- Timeline vertical por alvo com ícones por tipo
-- Upload de evidências, galeria com filtros
+### 3. Label customizável por missão
+- Adicionar coluna `missions.target_label` (text, default `'Concorrente'`)
+- UI usa essa string no lugar de "Alvo" em todo o contexto da missão (tabs, botões "Novo Concorrente", header do Kanban, etc.)
+- Form de missão expõe o campo (default `Concorrente`)
 
-### Fase 6 — Jornada + Comparativo + IA estratégica
-- Steppers (18 etapas missão / 16 etapas alvo) com avanço automático via triggers
-- Tabela comparativa + análise IA (`generate-comparative`)
-- Sugestão IA de oportunidades (`suggest-analysis`)
+### 4. Kanban — 12 colunas com cores do PRD
 
-### Fase 7 — Extras
-- Solicitações de Mudança (fluxo completo)
-- Relatórios (geração + PDF)
-- Logs de atividade
-- Chat "Perguntar à IA" contextual
-- Alertas por email (cron)
-- Transcrição de áudio
-- Google Drive (se ainda fizer sentido)
+Mapa de cores (tokens semânticos adicionados ao `styles.css` — sem hex hardcoded em componentes):
 
-## O que vou fazer **agora** (se você aprovar)
+| Status | Cor |
+|---|---|
+| nao_iniciado | cinza |
+| pesquisa_publica_em_andamento | azul claro |
+| primeiro_contato_enviado | amarelo |
+| aguardando_resposta | laranja |
+| em_conversa | azul #1D4ED8 |
+| call_agendada | roxo |
+| call_realizada | roxo (variação) |
+| proposta_recebida | ciano #06B6D4 |
+| preco_identificado | verde claro |
+| coleta_concluida | verde #16A34A |
+| incompleto | vermelho |
+| descartado | vermelho (variação) |
 
-Apenas a **Fase 1**. Ao final você terá login funcional, navegação por role, design system pronto e banco modelado. Aí você diz "segue Fase 2" e eu continuo.
+Tokens criados: `--status-nao-iniciado`, `--status-pesquisa`, `--status-primeiro-contato`, `--status-aguardando`, `--status-em-conversa`, `--status-call`, `--status-proposta`, `--status-preco`, `--status-concluido`, `--status-incompleto`, `--status-descartado` (+ variantes `-fg`/`-border` quando necessário). Componente `<StatusBadge status>` e header de coluna do Kanban consomem esses tokens.
 
-## Confirmações que preciso antes de começar
+## Migrações (ordem)
 
-1. **OK usar Lovable AI Gateway (Gemini equivalentes ao Claude)** ou exigir Claude/Anthropic com chave própria?
-2. **OK Lovable Emails** ou quer Resend?
-3. **OK adiar Google Drive** para a Fase 7?
-4. **OK começar pela Fase 1** conforme escopo acima?
+1. **Migração de schema** (via `supabase--migration`):
+   - `DROP TYPE target_status CASCADE` (recria a coluna depois) — ou `ALTER TYPE` com renomeação dos valores antigos
+   - Recria enum `target_status` com 12 valores
+   - Cria enum `target_priority`
+   - `ALTER TABLE targets` — remove campos B2B, adiciona campos consultor + priority + notes + other_links
+   - `ALTER TABLE missions ADD COLUMN target_label text NOT NULL DEFAULT 'Concorrente'`
 
-Responda "pode seguir" (com qualquer ajuste) e inicio a Fase 1.
+(O usuário aprova essa migração antes de eu seguir com o código.)
+
+## Implementação (após migração aprovada)
+
+### Server functions (`src/lib/`)
+- `missions.functions.ts`: `listMissions`, `getMission`, `createMission`, `updateMission`, `archiveMission`
+- `targets.functions.ts`: `listTargetsByMission`, `getTarget`, `createTarget`, `updateTarget`, `updateTargetStatus` (registra em `activity_logs`)
+
+Todas com `requireSupabaseAuth`. RLS já cobre escopo por papel.
+
+### Rotas (TanStack Router)
+- `/_authenticated/missions/index.tsx` — tabela (substitui stub atual)
+- `/_authenticated/missions/new.tsx` — formulário
+- `/_authenticated/missions/$missionId.tsx` — layout com tabs (Visão Geral · {target_label}s · Documento-base · Timeline · Jornada · Comparativo)
+- `/_authenticated/missions/$missionId/index.tsx` — Visão Geral
+- `/_authenticated/missions/$missionId/targets.tsx` — toggle tabela/kanban
+- `/_authenticated/missions/$missionId/targets.$targetId.tsx` — card com 6 abas (só Visão Geral funcional)
+
+### Componentes
+- `components/missions/mission-table.tsx`, `mission-form.tsx`
+- `components/targets/target-table.tsx`
+- `components/targets/target-kanban.tsx` (12 colunas, drag-and-drop)
+- `components/targets/target-card.tsx` (card do kanban)
+- `components/targets/target-tabs.tsx` (drawer/página de detalhe)
+- `components/targets/new-target-dialog.tsx` (form consultor)
+- `components/targets/status-badge.tsx` (consome tokens)
+- `components/targets/priority-badge.tsx`
+
+### Dependências
+- `@dnd-kit/core` + `@dnd-kit/sortable` (instalar via `bun add`)
+
+### Design system (`src/styles.css`)
+- Adicionar os 11 tokens de status + variantes em ambos os modos (claro/escuro)
+- Manter Inter + paleta oklch já definida
+
+### Activity logs
+- `updateTargetStatus` insere registro em `activity_logs` com `{ entity: 'target', entity_id, action: 'status_changed', from, to, actor_id }`
+
+### Permissões na UI
+- `superadmin`: tudo
+- `contractor`: vê/edita suas missões
+- `analyst`: vê/edita missões em que está atribuído (`mission_analysts`)
+- Botões de criar/editar escondidos quando o papel não permite
+
+## Fora do escopo (mantido)
+- Documento-base e IA (Fase 3 — vou pedir `ANTHROPIC_API_KEY` quando começar)
+- Blocos A-G (Fase 4)
+- Timeline + Evidências (Fase 5)
+- Jornada + Comparativo (Fase 6)
+- Resend, change requests, transcrição, Google Drive (Fase 7)
+
+## Entregável
+- Criar missão com label customizável (default "Concorrente")
+- Criar concorrentes com instagram/whatsapp/linkedin/prioridade/observações
+- Alternar entre tabela e Kanban de 12 colunas coloridas
+- Arrastar entre colunas → status atualiza + log gravado
+- Abrir aba Visão Geral do concorrente
+- Tudo respeitando RLS por papel
+
+Ao aprovar, começo pela migração de schema.
