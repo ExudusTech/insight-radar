@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Radar, Loader2 } from "lucide-react";
+import { AppFooter } from "@/components/app-footer";
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
@@ -20,7 +21,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   return (
-    <div className="min-h-screen w-full flex bg-sidebar text-sidebar-foreground">
+    <div className="min-h-screen w-full flex flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex flex-1 min-h-0">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-gradient-to-br from-sidebar via-sidebar to-[oklch(0.27_0.06_265)]">
         <div className="flex items-center gap-3">
@@ -76,6 +78,8 @@ function AuthPage() {
           </Tabs>
         </Card>
       </div>
+      </div>
+      <AppFooter />
     </div>
   );
 }
