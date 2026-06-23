@@ -115,6 +115,62 @@
   --sidebar-ring: oklch(0.488 0.220 264 / 0.5);
 }
 
+/* Target status colors — sober palette mapped to PRD spec.
+ * Each status defines a background (-bg), foreground (-fg) and border (-bd) token.
+ * Components consume via style={{ background: 'var(--status-foo-bg)' }} — never hex-hardcoded. */
+:root {
+  --status-nao-iniciado-bg:           oklch(0.96 0.005 247);
+  --status-nao-iniciado-fg:           oklch(0.40 0.020 257);
+  --status-nao-iniciado-bd:           oklch(0.88 0.010 247);
+
+  --status-pesquisa-bg:               oklch(0.94 0.040 230);
+  --status-pesquisa-fg:               oklch(0.40 0.130 245);
+  --status-pesquisa-bd:               oklch(0.85 0.080 235);
+
+  --status-primeiro-contato-bg:       oklch(0.96 0.090 95);
+  --status-primeiro-contato-fg:       oklch(0.45 0.140 80);
+  --status-primeiro-contato-bd:       oklch(0.88 0.130 90);
+
+  --status-aguardando-bg:             oklch(0.94 0.090 60);
+  --status-aguardando-fg:             oklch(0.50 0.170 55);
+  --status-aguardando-bd:             oklch(0.85 0.140 60);
+
+  --status-em-conversa-bg:            oklch(0.92 0.060 264);
+  --status-em-conversa-fg:            oklch(0.488 0.220 264);   /* #1D4ED8 */
+  --status-em-conversa-bd:            oklch(0.80 0.130 264);
+
+  --status-call-bg:                   oklch(0.93 0.060 300);
+  --status-call-fg:                   oklch(0.45 0.180 300);
+  --status-call-bd:                   oklch(0.82 0.120 300);
+
+  --status-proposta-bg:               oklch(0.93 0.060 215);
+  --status-proposta-fg:               oklch(0.50 0.140 215);    /* #06B6D4 family */
+  --status-proposta-bd:               oklch(0.80 0.120 215);
+
+  --status-preco-bg:                  oklch(0.94 0.080 145);
+  --status-preco-fg:                  oklch(0.48 0.150 145);
+  --status-preco-bd:                  oklch(0.82 0.140 145);
+
+  --status-concluido-bg:              oklch(0.90 0.110 145);
+  --status-concluido-fg:              oklch(0.40 0.170 145);    /* #16A34A family */
+  --status-concluido-bd:              oklch(0.625 0.187 145);
+
+  --status-incompleto-bg:             oklch(0.94 0.080 30);
+  --status-incompleto-fg:             oklch(0.50 0.200 30);
+  --status-incompleto-bd:             oklch(0.82 0.150 30);
+
+  --status-descartado-bg:             oklch(0.92 0.040 20);
+  --status-descartado-fg:             oklch(0.45 0.090 20);
+  --status-descartado-bd:             oklch(0.78 0.060 20);
+
+  --priority-alta-bg:                 oklch(0.94 0.080 30);
+  --priority-alta-fg:                 oklch(0.50 0.200 30);
+  --priority-media-bg:                oklch(0.94 0.090 70);
+  --priority-media-fg:                oklch(0.45 0.150 70);
+  --priority-baixa-bg:                oklch(0.96 0.005 247);
+  --priority-baixa-fg:                oklch(0.45 0.020 257);
+}
+
 .dark {
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
