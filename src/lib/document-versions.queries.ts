@@ -93,11 +93,18 @@ export async function freezeVersion(versionId: string) {
   if (freezeErr) throw freezeErr;
 
   // apply extracted fields to mission
-  const patch: Record<string, unknown> = {};
+  const patch: {
+    objective?: string;
+    ethical_rules?: string;
+    approach_type?: string;
+    segment?: string;
+    deadline_first?: string;
+    deadline_final?: string;
+  } = {};
   if (typeof extracted.objective === "string") patch.objective = extracted.objective;
   if (typeof extracted.ethical_rules === "string") patch.ethical_rules = extracted.ethical_rules;
   if (typeof extracted.approach_type === "string") patch.approach_type = extracted.approach_type;
-  if (typeof extracted.segment === "string" && !patch.segment) patch.segment = extracted.segment;
+  if (typeof extracted.segment === "string") patch.segment = extracted.segment;
   if (typeof extracted.deadline_first === "string" && extracted.deadline_first)
     patch.deadline_first = extracted.deadline_first;
   if (typeof extracted.deadline_final === "string" && extracted.deadline_final)
