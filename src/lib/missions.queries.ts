@@ -48,14 +48,19 @@ export async function listProfiles() {
 }
 
 export async function listProfilesWithRole(role: "contractor" | "analyst" | "superadmin") {
-  const { data, error } = await supabase
+  const { data: roles, error: rolesErr } = await supabase
     .from("user_roles")
-    .select("user_id, profile:profiles!user_roles_user_id_fkey(id, full_name, email)")
+    .select("user_id")
     .eq("role", role);
+  if (rolesErr) throw rolesErr;
+  const ids = (roles ?? []).map((r) => r.user_id);
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", ids);
   if (error) throw error;
-  return (data ?? [])
-    .map((r) => r.profile)
-    .filter((p): p is { id: string; full_name: string | null; email: string | null } => !!p);
+  return data ?? [];
 }
 
 export type CreateMissionInput = {
