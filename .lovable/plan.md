@@ -1,130 +1,46 @@
-# Fase 2 — Missões + Alvos + Kanban (revisada)
+## Correções de segurança antes do 1º publish
 
-## Correções incorporadas (do feedback)
+Antes da publicação, vamos corrigir as 2 falhas **críticas** e as 3 **warnings** detectadas pelo scanner. Tudo é resolvido em **uma única migration** + 1 pequeno ajuste de UI.
 
-### 1. Novo enum `target_status` (14 valores)
-Migração vai **dropar e recriar** o enum (não há dados de produção ainda):
+### 1. Crítico — Escalonamento de privilégio no signup
+O trigger `handle_new_user` lê `role` de `raw_user_meta_data` (campo controlado pelo usuário). Qualquer pessoa pode chamar `supabase.auth.signUp({ data: { role: 'superadmin' } })` e virar superadmin.
 
+**Fix:** reescrever o trigger para **sempre** atribuir `analyst` no cadastro. Promoções só por superadmin existente (via `user_roles_admin_all`, que já está correta).
+
+### 2. Crítico — Todos os perfis legíveis por qualquer autenticado
+A policy `profiles_list_for_authenticated USING (true)` expõe email, telefone, nome e organização de todos os usuários.
+
+**Fix:**
+- **Remover** `profiles_list_for_authenticated`.
+- Manter `profiles_self_read` (cada user vê o próprio; superadmin vê todos).
+- Criar policy `profiles_mission_teammates_read`: um usuário enxerga perfis de pessoas que compartilham missão com ele (contractor da missão + analistas atribuídos), usando uma função `security definer` `shares_mission_with(_other uuid)` para evitar recursão.
+- Isso resolve também o warning **"RLS Policy Always True"** (que aponta justamente para essa policy permissiva).
+
+UI: o `mission-form` usa um select de contractors/analysts. Como agora um analyst comum não pode listar todos os perfis, criamos uma server function `listAssignableProfiles` com `requireSupabaseAuth` + check `has_role(superadmin)` que usa `supabaseAdmin` apenas para popular o select — superadmin é o único que cria/edita missões hoje, então a restrição não quebra fluxo.
+
+### 3. Warnings — SECURITY DEFINER functions executáveis por anon
+`has_role`, `current_user_role`, `can_access_mission` e `set_updated_at` estão com `EXECUTE` aberto para `PUBLIC`/`anon`. Em policies elas são chamadas como `authenticated`, então `anon` não precisa.
+
+**Fix:** `REVOKE EXECUTE ... FROM PUBLIC, anon` em cada uma; `GRANT EXECUTE ... TO authenticated` (e service_role) explicitamente. `set_updated_at` é trigger function — revoga de todos exceto owner.
+
+### Resumo da migration
+
+```text
+1. CREATE OR REPLACE FUNCTION handle_new_user  -- sem leitura de raw_user_meta_data->role
+2. DROP POLICY profiles_list_for_authenticated ON profiles
+3. CREATE FUNCTION shares_mission_with(_other uuid) SECURITY DEFINER
+4. CREATE POLICY profiles_mission_teammates_read ON profiles
+5. REVOKE/GRANT EXECUTE nas 4 funções SECURITY DEFINER
 ```
-nao_iniciado
-pesquisa_publica_em_andamento
-primeiro_contato_enviado
-aguardando_resposta
-em_conversa
-call_agendada
-call_realizada
-proposta_recebida
-preco_identificado
-coleta_concluida
-incompleto
-descartado
-```
 
-(São 12 — confirmando: o PRD lista esses 12. Mencionei "14" no plano anterior por engano. Vou trabalhar com os 12 listados.)
+### Mudanças de código
+- `src/lib/profiles.functions.ts` — nova `listAssignableProfiles` (superadmin-only via `supabaseAdmin`).
+- `src/components/missions/mission-form.tsx` — trocar query direta de `profiles` por chamada à server function.
+- `src/start.ts` — já tem `attachSupabaseAuth`, sem mudança.
 
-Default da coluna `targets.status` = `nao_iniciado`.
+### Após corrigir
+Rodar `security--run_security_scan` novamente, confirmar zero críticos, e seguir para o publish (definindo título/meta/OG do app primeiro).
 
-### 2. Modelo do Alvo (consultor/influenciador)
-
-Migração ajusta `targets`:
-- **Remove**: `legal_name`, `tax_id`, `company_size` (se existirem)
-- **Mantém**: `name`, `segment`, `website`, `status`, `responsible_id`, `mission_id`
-- **Adiciona**: `instagram_url`, `whatsapp`, `linkedin_url`, `other_links` (jsonb array), `priority` (enum: `alta`/`media`/`baixa`, default `media`), `notes` (text)
-
-Novo enum `target_priority`: `alta`, `media`, `baixa`.
-
-### 3. Label customizável por missão
-- Adicionar coluna `missions.target_label` (text, default `'Concorrente'`)
-- UI usa essa string no lugar de "Alvo" em todo o contexto da missão (tabs, botões "Novo Concorrente", header do Kanban, etc.)
-- Form de missão expõe o campo (default `Concorrente`)
-
-### 4. Kanban — 12 colunas com cores do PRD
-
-Mapa de cores (tokens semânticos adicionados ao `styles.css` — sem hex hardcoded em componentes):
-
-| Status | Cor |
-|---|---|
-| nao_iniciado | cinza |
-| pesquisa_publica_em_andamento | azul claro |
-| primeiro_contato_enviado | amarelo |
-| aguardando_resposta | laranja |
-| em_conversa | azul #1D4ED8 |
-| call_agendada | roxo |
-| call_realizada | roxo (variação) |
-| proposta_recebida | ciano #06B6D4 |
-| preco_identificado | verde claro |
-| coleta_concluida | verde #16A34A |
-| incompleto | vermelho |
-| descartado | vermelho (variação) |
-
-Tokens criados: `--status-nao-iniciado`, `--status-pesquisa`, `--status-primeiro-contato`, `--status-aguardando`, `--status-em-conversa`, `--status-call`, `--status-proposta`, `--status-preco`, `--status-concluido`, `--status-incompleto`, `--status-descartado` (+ variantes `-fg`/`-border` quando necessário). Componente `<StatusBadge status>` e header de coluna do Kanban consomem esses tokens.
-
-## Migrações (ordem)
-
-1. **Migração de schema** (via `supabase--migration`):
-   - `DROP TYPE target_status CASCADE` (recria a coluna depois) — ou `ALTER TYPE` com renomeação dos valores antigos
-   - Recria enum `target_status` com 12 valores
-   - Cria enum `target_priority`
-   - `ALTER TABLE targets` — remove campos B2B, adiciona campos consultor + priority + notes + other_links
-   - `ALTER TABLE missions ADD COLUMN target_label text NOT NULL DEFAULT 'Concorrente'`
-
-(O usuário aprova essa migração antes de eu seguir com o código.)
-
-## Implementação (após migração aprovada)
-
-### Server functions (`src/lib/`)
-- `missions.functions.ts`: `listMissions`, `getMission`, `createMission`, `updateMission`, `archiveMission`
-- `targets.functions.ts`: `listTargetsByMission`, `getTarget`, `createTarget`, `updateTarget`, `updateTargetStatus` (registra em `activity_logs`)
-
-Todas com `requireSupabaseAuth`. RLS já cobre escopo por papel.
-
-### Rotas (TanStack Router)
-- `/_authenticated/missions/index.tsx` — tabela (substitui stub atual)
-- `/_authenticated/missions/new.tsx` — formulário
-- `/_authenticated/missions/$missionId.tsx` — layout com tabs (Visão Geral · {target_label}s · Documento-base · Timeline · Jornada · Comparativo)
-- `/_authenticated/missions/$missionId/index.tsx` — Visão Geral
-- `/_authenticated/missions/$missionId/targets.tsx` — toggle tabela/kanban
-- `/_authenticated/missions/$missionId/targets.$targetId.tsx` — card com 6 abas (só Visão Geral funcional)
-
-### Componentes
-- `components/missions/mission-table.tsx`, `mission-form.tsx`
-- `components/targets/target-table.tsx`
-- `components/targets/target-kanban.tsx` (12 colunas, drag-and-drop)
-- `components/targets/target-card.tsx` (card do kanban)
-- `components/targets/target-tabs.tsx` (drawer/página de detalhe)
-- `components/targets/new-target-dialog.tsx` (form consultor)
-- `components/targets/status-badge.tsx` (consome tokens)
-- `components/targets/priority-badge.tsx`
-
-### Dependências
-- `@dnd-kit/core` + `@dnd-kit/sortable` (instalar via `bun add`)
-
-### Design system (`src/styles.css`)
-- Adicionar os 11 tokens de status + variantes em ambos os modos (claro/escuro)
-- Manter Inter + paleta oklch já definida
-
-### Activity logs
-- `updateTargetStatus` insere registro em `activity_logs` com `{ entity: 'target', entity_id, action: 'status_changed', from, to, actor_id }`
-
-### Permissões na UI
-- `superadmin`: tudo
-- `contractor`: vê/edita suas missões
-- `analyst`: vê/edita missões em que está atribuído (`mission_analysts`)
-- Botões de criar/editar escondidos quando o papel não permite
-
-## Fora do escopo (mantido)
-- Documento-base e IA (Fase 3 — vou pedir `ANTHROPIC_API_KEY` quando começar)
-- Blocos A-G (Fase 4)
-- Timeline + Evidências (Fase 5)
-- Jornada + Comparativo (Fase 6)
-- Resend, change requests, transcrição, Google Drive (Fase 7)
-
-## Entregável
-- Criar missão com label customizável (default "Concorrente")
-- Criar concorrentes com instagram/whatsapp/linkedin/prioridade/observações
-- Alternar entre tabela e Kanban de 12 colunas coloridas
-- Arrastar entre colunas → status atualiza + log gravado
-- Abrir aba Visão Geral do concorrente
-- Tudo respeitando RLS por papel
-
-Ao aprovar, começo pela migração de schema.
+### Fora do escopo
+- Implementar 2FA, captcha no signup, ou rate-limit — não bloqueiam o publish.
+- Mudar `SECURITY DEFINER` para `INVOKER`: as funções precisam de definer para ler `user_roles` sem recursão de RLS; revogar `anon` é a remediação aceita.

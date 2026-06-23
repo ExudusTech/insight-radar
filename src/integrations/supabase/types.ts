@@ -727,6 +727,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      shares_mission_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
       app_role: "superadmin" | "contractor" | "analyst"
