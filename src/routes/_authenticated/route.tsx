@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
+import { AppFooter } from "@/components/app-footer";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Loader2 } from "lucide-react";
 
@@ -36,6 +37,7 @@ function AuthenticatedShell() {
           <main className="flex-1 p-6 bg-background">
             <Outlet />
           </main>
+          <AppFooter />
         </SidebarInset>
       </div>
     </SidebarProvider>
