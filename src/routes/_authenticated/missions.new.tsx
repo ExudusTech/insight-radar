@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { MissionForm } from "@/components/missions/mission-form";
 
@@ -22,6 +22,3 @@ function NewMissionPage() {
     </div>
   );
 }
-
-// avoid unused-import warning for redirect (kept for future RBAC)
-void redirect;
