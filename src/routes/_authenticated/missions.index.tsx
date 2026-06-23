@@ -1,32 +1,132 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, Target as TargetIcon, Loader2 } from "lucide-react";
+import { listMissions, missionsListKey } from "@/lib/missions.queries";
+import { MISSION_STATUS_LABEL } from "@/lib/target-status";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const Route = createFileRoute("/_authenticated/missions/")({
   component: MissionsPage,
 });
 
 function MissionsPage() {
+  const { data: user } = useCurrentUser();
+  const canCreate = user?.role === "superadmin";
+  const { data: missions, isLoading } = useQuery({
+    queryKey: missionsListKey,
+    queryFn: listMissions,
+  });
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const list = missions ?? [];
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
+    return list.filter((m) => m.name.toLowerCase().includes(q));
+  }, [missions, search]);
+
   return (
     <div className="max-w-7xl mx-auto w-full space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Missões</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Cadastre, acompanhe e gerencie missões de inteligência de mercado.
-        </p>
-      </div>
-      <Card className="p-12">
-        <div className="flex flex-col items-center text-center max-w-md mx-auto">
-          <div className="grid place-items-center h-14 w-14 rounded-xl bg-primary/10 mb-4">
-            <Target className="h-7 w-7 text-primary" />
-          </div>
-          <h2 className="text-lg font-semibold">Módulo de Missões — Fase 2</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            CRUD completo, filtros, kanban de alvos e dashboards específicos chegam na próxima fase.
-            Avise quando estiver pronto para seguir.
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Missões</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gerencie missões de inteligência de mercado.
           </p>
         </div>
+        {canCreate && (
+          <Button asChild>
+            <Link to="/missions/new"><Plus className="h-4 w-4" /> Nova missão</Link>
+          </Button>
+        )}
+      </div>
+
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar missão..."
+              className="pl-8"
+            />
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="grid place-items-center py-16">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState canCreate={canCreate} />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Missão</TableHead>
+                <TableHead>Contratante</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Rótulo</TableHead>
+                <TableHead className="text-right">Criada em</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((m) => {
+                // contractor relation may be present or null
+                const contractor =
+                  (m as { contractor?: { full_name: string | null; email: string | null } | null }).contractor;
+                return (
+                  <TableRow key={m.id} className="cursor-pointer">
+                    <TableCell className="font-medium">
+                      <Link to="/missions/$missionId" params={{ missionId: m.id }} className="hover:underline">
+                        {m.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contractor?.full_name || contractor?.email || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{MISSION_STATUS_LABEL[m.status]}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{m.target_label}</TableCell>
+                    <TableCell className="text-right text-muted-foreground text-xs">
+                      {new Date(m.created_at).toLocaleDateString("pt-BR")}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Card>
+    </div>
+  );
+}
+
+function EmptyState({ canCreate }: { canCreate: boolean }) {
+  return (
+    <div className="flex flex-col items-center text-center py-12 px-4">
+      <div className="grid place-items-center h-14 w-14 rounded-xl bg-primary/10 mb-4">
+        <TargetIcon className="h-7 w-7 text-primary" />
+      </div>
+      <h2 className="text-lg font-semibold">Nenhuma missão cadastrada</h2>
+      <p className="text-sm text-muted-foreground mt-1 max-w-md">
+        {canCreate
+          ? "Crie a primeira missão para começar a organizar a inteligência de mercado."
+          : "Quando uma missão for atribuída a você, ela aparecerá aqui."}
+      </p>
+      {canCreate && (
+        <Button asChild className="mt-4">
+          <Link to="/missions/new"><Plus className="h-4 w-4" /> Nova missão</Link>
+        </Button>
+      )}
     </div>
   );
 }
