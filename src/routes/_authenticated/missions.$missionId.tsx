@@ -38,11 +38,12 @@ function MissionLayout() {
   const targetLabel = mission.target_label || "Alvo";
   const targetsPath = `/missions/${missionId}/targets`;
   const overviewPath = `/missions/${missionId}`;
+  const documentPath = `/missions/${missionId}/document`;
 
   const tabs = [
     { label: "Visão Geral", href: overviewPath, key: "overview", active: pathname === overviewPath },
     { label: `${targetLabel}s`, href: targetsPath, key: "targets", active: pathname.startsWith(targetsPath) },
-    { label: "Documento-base", href: "#", key: "doc", disabled: true },
+    { label: "Documento-base", href: documentPath, key: "doc", active: pathname.startsWith(documentPath) },
     { label: "Timeline", href: "#", key: "timeline", disabled: true },
     { label: "Jornada", href: "#", key: "journey", disabled: true },
     { label: "Comparativo", href: "#", key: "comparative", disabled: true },
