@@ -18,6 +18,7 @@ import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authenticated/evidences'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedComparativeRouteImport } from './routes/_authenticated/comparative'
 import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
 import { Route as AuthenticatedMissionsIndexRouteImport } from './routes/_authenticated/missions.index'
 import { Route as AuthenticatedMissionsNewRouteImport } from './routes/_authenticated/missions.new'
@@ -70,6 +71,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedComparativeRoute =
+  AuthenticatedComparativeRouteImport.update({
+    id: '/comparative',
+    path: '/comparative',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCollectionRoute = AuthenticatedCollectionRouteImport.update({
   id: '/collection',
   path: '/collection',
@@ -116,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/collection': typeof AuthenticatedCollectionRoute
+  '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
@@ -133,6 +141,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/collection': typeof AuthenticatedCollectionRoute
+  '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
@@ -151,6 +160,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/collection': typeof AuthenticatedCollectionRoute
+  '/_authenticated/comparative': typeof AuthenticatedComparativeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/evidences': typeof AuthenticatedEvidencesRoute
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/collection'
+    | '/comparative'
     | '/dashboard'
     | '/documents'
     | '/evidences'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/collection'
+    | '/comparative'
     | '/dashboard'
     | '/documents'
     | '/evidences'
@@ -204,6 +216,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/collection'
+    | '/_authenticated/comparative'
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/evidences'
@@ -289,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/comparative': {
+      id: '/_authenticated/comparative'
+      path: '/comparative'
+      fullPath: '/comparative'
+      preLoaderRoute: typeof AuthenticatedComparativeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/collection': {
       id: '/_authenticated/collection'
       path: '/collection'
@@ -364,6 +384,7 @@ const AuthenticatedMissionsMissionIdRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
+  AuthenticatedComparativeRoute: typeof AuthenticatedComparativeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedEvidencesRoute: typeof AuthenticatedEvidencesRoute
@@ -377,6 +398,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
+  AuthenticatedComparativeRoute: AuthenticatedComparativeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedEvidencesRoute: AuthenticatedEvidencesRoute,
