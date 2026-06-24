@@ -12,7 +12,23 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
+import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedPendingRouteImport } from './routes/_authenticated/pending'
+import { Route as AuthenticatedNextActionsRouteImport } from './routes/_authenticated/next-actions'
+import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
+import { Route as AuthenticatedJourneyRouteImport } from './routes/_authenticated/journey'
+import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authenticated/evidences'
+import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
+import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedComparativeRouteImport } from './routes/_authenticated/comparative'
+import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
+import { Route as AuthenticatedChangeRequestsRouteImport } from './routes/_authenticated/change-requests'
+import { Route as AuthenticatedAskAiRouteImport } from './routes/_authenticated/ask-ai'
 import { Route as AuthenticatedMissionsIndexRouteImport } from './routes/_authenticated/missions.index'
 import { Route as AuthenticatedMissionsNewRouteImport } from './routes/_authenticated/missions.new'
 import { Route as AuthenticatedMissionsMissionIdRouteImport } from './routes/_authenticated/missions.$missionId'
@@ -34,9 +50,92 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTimelineRoute = AuthenticatedTimelineRouteImport.update({
+  id: '/timeline',
+  path: '/timeline',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTargetsRoute = AuthenticatedTargetsRouteImport.update({
+  id: '/targets',
+  path: '/targets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPendingRoute = AuthenticatedPendingRouteImport.update({
+  id: '/pending',
+  path: '/pending',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNextActionsRoute =
+  AuthenticatedNextActionsRouteImport.update({
+    id: '/next-actions',
+    path: '/next-actions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedJourneyRoute = AuthenticatedJourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEvidencesRoute = AuthenticatedEvidencesRouteImport.update({
+  id: '/evidences',
+  path: '/evidences',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedComparativeRoute =
+  AuthenticatedComparativeRouteImport.update({
+    id: '/comparative',
+    path: '/comparative',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCollectionRoute = AuthenticatedCollectionRouteImport.update({
+  id: '/collection',
+  path: '/collection',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedChangeRequestsRoute =
+  AuthenticatedChangeRequestsRouteImport.update({
+    id: '/change-requests',
+    path: '/change-requests',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAskAiRoute = AuthenticatedAskAiRouteImport.update({
+  id: '/ask-ai',
+  path: '/ask-ai',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMissionsIndexRoute =
@@ -79,7 +178,23 @@ const AuthenticatedMissionsMissionIdDocumentRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ask-ai': typeof AuthenticatedAskAiRoute
+  '/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/collection': typeof AuthenticatedCollectionRoute
+  '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documents': typeof AuthenticatedDocumentsRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
+  '/evidences': typeof AuthenticatedEvidencesRoute
+  '/journey': typeof AuthenticatedJourneyRoute
+  '/logs': typeof AuthenticatedLogsRoute
+  '/next-actions': typeof AuthenticatedNextActionsRoute
+  '/pending': typeof AuthenticatedPendingRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/targets': typeof AuthenticatedTargetsRoute
+  '/timeline': typeof AuthenticatedTimelineRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions/': typeof AuthenticatedMissionsIndexRoute
@@ -90,7 +205,23 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/ask-ai': typeof AuthenticatedAskAiRoute
+  '/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/collection': typeof AuthenticatedCollectionRoute
+  '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documents': typeof AuthenticatedDocumentsRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
+  '/evidences': typeof AuthenticatedEvidencesRoute
+  '/journey': typeof AuthenticatedJourneyRoute
+  '/logs': typeof AuthenticatedLogsRoute
+  '/next-actions': typeof AuthenticatedNextActionsRoute
+  '/pending': typeof AuthenticatedPendingRoute
+  '/reports': typeof AuthenticatedReportsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/targets': typeof AuthenticatedTargetsRoute
+  '/timeline': typeof AuthenticatedTimelineRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions': typeof AuthenticatedMissionsIndexRoute
   '/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
@@ -102,7 +233,23 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/ask-ai': typeof AuthenticatedAskAiRoute
+  '/_authenticated/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/_authenticated/collection': typeof AuthenticatedCollectionRoute
+  '/_authenticated/comparative': typeof AuthenticatedComparativeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
+  '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
+  '/_authenticated/evidences': typeof AuthenticatedEvidencesRoute
+  '/_authenticated/journey': typeof AuthenticatedJourneyRoute
+  '/_authenticated/logs': typeof AuthenticatedLogsRoute
+  '/_authenticated/next-actions': typeof AuthenticatedNextActionsRoute
+  '/_authenticated/pending': typeof AuthenticatedPendingRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/targets': typeof AuthenticatedTargetsRoute
+  '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/_authenticated/missions/new': typeof AuthenticatedMissionsNewRoute
   '/_authenticated/missions/': typeof AuthenticatedMissionsIndexRoute
@@ -115,7 +262,23 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/ask-ai'
+    | '/change-requests'
+    | '/collection'
+    | '/comparative'
     | '/dashboard'
+    | '/documents'
+    | '/downloads'
+    | '/evidences'
+    | '/journey'
+    | '/logs'
+    | '/next-actions'
+    | '/pending'
+    | '/reports'
+    | '/settings'
+    | '/targets'
+    | '/timeline'
+    | '/users'
     | '/missions/$missionId'
     | '/missions/new'
     | '/missions/'
@@ -126,7 +289,23 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/ask-ai'
+    | '/change-requests'
+    | '/collection'
+    | '/comparative'
     | '/dashboard'
+    | '/documents'
+    | '/downloads'
+    | '/evidences'
+    | '/journey'
+    | '/logs'
+    | '/next-actions'
+    | '/pending'
+    | '/reports'
+    | '/settings'
+    | '/targets'
+    | '/timeline'
+    | '/users'
     | '/missions/new'
     | '/missions'
     | '/missions/$missionId/document'
@@ -137,7 +316,23 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/ask-ai'
+    | '/_authenticated/change-requests'
+    | '/_authenticated/collection'
+    | '/_authenticated/comparative'
     | '/_authenticated/dashboard'
+    | '/_authenticated/documents'
+    | '/_authenticated/downloads'
+    | '/_authenticated/evidences'
+    | '/_authenticated/journey'
+    | '/_authenticated/logs'
+    | '/_authenticated/next-actions'
+    | '/_authenticated/pending'
+    | '/_authenticated/reports'
+    | '/_authenticated/settings'
+    | '/_authenticated/targets'
+    | '/_authenticated/timeline'
+    | '/_authenticated/users'
     | '/_authenticated/missions/$missionId'
     | '/_authenticated/missions/new'
     | '/_authenticated/missions/'
@@ -175,11 +370,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/timeline': {
+      id: '/_authenticated/timeline'
+      path: '/timeline'
+      fullPath: '/timeline'
+      preLoaderRoute: typeof AuthenticatedTimelineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/targets': {
+      id: '/_authenticated/targets'
+      path: '/targets'
+      fullPath: '/targets'
+      preLoaderRoute: typeof AuthenticatedTargetsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pending': {
+      id: '/_authenticated/pending'
+      path: '/pending'
+      fullPath: '/pending'
+      preLoaderRoute: typeof AuthenticatedPendingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/next-actions': {
+      id: '/_authenticated/next-actions'
+      path: '/next-actions'
+      fullPath: '/next-actions'
+      preLoaderRoute: typeof AuthenticatedNextActionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/logs': {
+      id: '/_authenticated/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof AuthenticatedLogsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/journey': {
+      id: '/_authenticated/journey'
+      path: '/journey'
+      fullPath: '/journey'
+      preLoaderRoute: typeof AuthenticatedJourneyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/evidences': {
+      id: '/_authenticated/evidences'
+      path: '/evidences'
+      fullPath: '/evidences'
+      preLoaderRoute: typeof AuthenticatedEvidencesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/downloads': {
+      id: '/_authenticated/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof AuthenticatedDownloadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/documents': {
+      id: '/_authenticated/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AuthenticatedDocumentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/comparative': {
+      id: '/_authenticated/comparative'
+      path: '/comparative'
+      fullPath: '/comparative'
+      preLoaderRoute: typeof AuthenticatedComparativeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/collection': {
+      id: '/_authenticated/collection'
+      path: '/collection'
+      fullPath: '/collection'
+      preLoaderRoute: typeof AuthenticatedCollectionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/change-requests': {
+      id: '/_authenticated/change-requests'
+      path: '/change-requests'
+      fullPath: '/change-requests'
+      preLoaderRoute: typeof AuthenticatedChangeRequestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ask-ai': {
+      id: '/_authenticated/ask-ai'
+      path: '/ask-ai'
+      fullPath: '/ask-ai'
+      preLoaderRoute: typeof AuthenticatedAskAiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/missions/': {
@@ -249,14 +556,46 @@ const AuthenticatedMissionsMissionIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAskAiRoute: typeof AuthenticatedAskAiRoute
+  AuthenticatedChangeRequestsRoute: typeof AuthenticatedChangeRequestsRoute
+  AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
+  AuthenticatedComparativeRoute: typeof AuthenticatedComparativeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
+  AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
+  AuthenticatedEvidencesRoute: typeof AuthenticatedEvidencesRoute
+  AuthenticatedJourneyRoute: typeof AuthenticatedJourneyRoute
+  AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
+  AuthenticatedNextActionsRoute: typeof AuthenticatedNextActionsRoute
+  AuthenticatedPendingRoute: typeof AuthenticatedPendingRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
+  AuthenticatedTimelineRoute: typeof AuthenticatedTimelineRoute
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedMissionsMissionIdRoute: typeof AuthenticatedMissionsMissionIdRouteWithChildren
   AuthenticatedMissionsNewRoute: typeof AuthenticatedMissionsNewRoute
   AuthenticatedMissionsIndexRoute: typeof AuthenticatedMissionsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAskAiRoute: AuthenticatedAskAiRoute,
+  AuthenticatedChangeRequestsRoute: AuthenticatedChangeRequestsRoute,
+  AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
+  AuthenticatedComparativeRoute: AuthenticatedComparativeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
+  AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
+  AuthenticatedEvidencesRoute: AuthenticatedEvidencesRoute,
+  AuthenticatedJourneyRoute: AuthenticatedJourneyRoute,
+  AuthenticatedLogsRoute: AuthenticatedLogsRoute,
+  AuthenticatedNextActionsRoute: AuthenticatedNextActionsRoute,
+  AuthenticatedPendingRoute: AuthenticatedPendingRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,
+  AuthenticatedTimelineRoute: AuthenticatedTimelineRoute,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedMissionsMissionIdRoute:
     AuthenticatedMissionsMissionIdRouteWithChildren,
   AuthenticatedMissionsNewRoute: AuthenticatedMissionsNewRoute,
