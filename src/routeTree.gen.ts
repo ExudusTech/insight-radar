@@ -16,6 +16,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authenticated/evidences'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -61,6 +62,11 @@ const AuthenticatedTargetsRoute = AuthenticatedTargetsRouteImport.update({
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLogsRoute = AuthenticatedLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEvidencesRoute = AuthenticatedEvidencesRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
+  '/logs': typeof AuthenticatedLogsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/timeline': typeof AuthenticatedTimelineRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
+  '/logs': typeof AuthenticatedLogsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/timeline': typeof AuthenticatedTimelineRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/evidences': typeof AuthenticatedEvidencesRoute
+  '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/targets': typeof AuthenticatedTargetsRoute
   '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/evidences'
+    | '/logs'
     | '/reports'
     | '/targets'
     | '/timeline'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/evidences'
+    | '/logs'
     | '/reports'
     | '/targets'
     | '/timeline'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/evidences'
+    | '/_authenticated/logs'
     | '/_authenticated/reports'
     | '/_authenticated/targets'
     | '/_authenticated/timeline'
@@ -311,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/logs': {
+      id: '/_authenticated/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof AuthenticatedLogsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/evidences': {
@@ -428,6 +447,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedEvidencesRoute: typeof AuthenticatedEvidencesRoute
+  AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
   AuthenticatedTimelineRoute: typeof AuthenticatedTimelineRoute
@@ -444,6 +464,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedEvidencesRoute: AuthenticatedEvidencesRoute,
+  AuthenticatedLogsRoute: AuthenticatedLogsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,
   AuthenticatedTimelineRoute: AuthenticatedTimelineRoute,
