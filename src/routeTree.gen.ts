@@ -21,6 +21,7 @@ import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedComparativeRouteImport } from './routes/_authenticated/comparative'
 import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
+import { Route as AuthenticatedChangeRequestsRouteImport } from './routes/_authenticated/change-requests'
 import { Route as AuthenticatedMissionsIndexRouteImport } from './routes/_authenticated/missions.index'
 import { Route as AuthenticatedMissionsNewRouteImport } from './routes/_authenticated/missions.new'
 import { Route as AuthenticatedMissionsMissionIdRouteImport } from './routes/_authenticated/missions.$missionId'
@@ -88,6 +89,12 @@ const AuthenticatedCollectionRoute = AuthenticatedCollectionRouteImport.update({
   path: '/collection',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedChangeRequestsRoute =
+  AuthenticatedChangeRequestsRouteImport.update({
+    id: '/change-requests',
+    path: '/change-requests',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissionsIndexRoute =
   AuthenticatedMissionsIndexRouteImport.update({
     id: '/missions/',
@@ -128,6 +135,7 @@ const AuthenticatedMissionsMissionIdDocumentRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -147,6 +155,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/_authenticated/collection': typeof AuthenticatedCollectionRoute
   '/_authenticated/comparative': typeof AuthenticatedComparativeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/change-requests'
     | '/collection'
     | '/comparative'
     | '/dashboard'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/change-requests'
     | '/collection'
     | '/comparative'
     | '/dashboard'
@@ -226,6 +238,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/change-requests'
     | '/_authenticated/collection'
     | '/_authenticated/comparative'
     | '/_authenticated/dashboard'
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollectionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/change-requests': {
+      id: '/_authenticated/change-requests'
+      path: '/change-requests'
+      fullPath: '/change-requests'
+      preLoaderRoute: typeof AuthenticatedChangeRequestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missions/': {
       id: '/_authenticated/missions/'
       path: '/missions'
@@ -402,6 +422,7 @@ const AuthenticatedMissionsMissionIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedChangeRequestsRoute: typeof AuthenticatedChangeRequestsRoute
   AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
   AuthenticatedComparativeRoute: typeof AuthenticatedComparativeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -417,6 +438,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedChangeRequestsRoute: AuthenticatedChangeRequestsRoute,
   AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
   AuthenticatedComparativeRoute: AuthenticatedComparativeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
