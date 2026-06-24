@@ -483,6 +483,7 @@ export type Database = {
           id: string
           name: string
           objective: string | null
+          product_id: string | null
           responsible_id: string | null
           segment: string | null
           status: Database["public"]["Enums"]["mission_status"]
@@ -505,6 +506,7 @@ export type Database = {
           id?: string
           name: string
           objective?: string | null
+          product_id?: string | null
           responsible_id?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
@@ -527,6 +529,7 @@ export type Database = {
           id?: string
           name?: string
           objective?: string | null
+          product_id?: string | null
           responsible_id?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
@@ -546,6 +549,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -619,6 +629,44 @@ export type Database = {
           {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          segment: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          segment?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          segment?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_client_id_fkey"
+            columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
