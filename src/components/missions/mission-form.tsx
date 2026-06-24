@@ -105,7 +105,7 @@ export function MissionForm() {
       <Card className="p-6 space-y-4">
         <h2 className="text-base font-semibold">Atribuições</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Contratante">
+          <Field label="Cliente principal / Responsável">
             <Select value={form.contractor_id} onValueChange={(v) => setForm({ ...form, contractor_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
@@ -119,6 +119,28 @@ export function MissionForm() {
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+          <Field label="Acesso adicional (outros usuários do cliente)">
+            <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
+              {contractors.filter((c) => c.id !== form.contractor_id).length === 0 && (
+                <div className="text-xs text-muted-foreground p-2">Nenhum outro contratante disponível</div>
+              )}
+              {contractors
+                .filter((c) => c.id !== form.contractor_id)
+                .map((c) => (
+                  <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={selectedContractors.includes(c.id)}
+                      onCheckedChange={(v) =>
+                        setSelectedContractors((prev) =>
+                          v ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                        )
+                      }
+                    />
+                    <span className="truncate">{c.full_name || c.email}</span>
+                  </label>
+                ))}
+            </div>
           </Field>
           <Field label="Analistas atribuídos">
             <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
