@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
 import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authenticated/evidences'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
@@ -42,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTimelineRoute = AuthenticatedTimelineRouteImport.update({
+  id: '/timeline',
+  path: '/timeline',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTargetsRoute = AuthenticatedTargetsRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
   '/targets': typeof AuthenticatedTargetsRoute
+  '/timeline': typeof AuthenticatedTimelineRoute
   '/users': typeof AuthenticatedUsersRoute
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/missions/new': typeof AuthenticatedMissionsNewRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/documents': typeof AuthenticatedDocumentsRoute
   '/evidences': typeof AuthenticatedEvidencesRoute
   '/targets': typeof AuthenticatedTargetsRoute
+  '/timeline': typeof AuthenticatedTimelineRoute
   '/users': typeof AuthenticatedUsersRoute
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions': typeof AuthenticatedMissionsIndexRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/evidences': typeof AuthenticatedEvidencesRoute
   '/_authenticated/targets': typeof AuthenticatedTargetsRoute
+  '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/_authenticated/missions/new': typeof AuthenticatedMissionsNewRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/evidences'
     | '/targets'
+    | '/timeline'
     | '/users'
     | '/missions/$missionId'
     | '/missions/new'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/evidences'
     | '/targets'
+    | '/timeline'
     | '/users'
     | '/missions/new'
     | '/missions'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documents'
     | '/_authenticated/evidences'
     | '/_authenticated/targets'
+    | '/_authenticated/timeline'
     | '/_authenticated/users'
     | '/_authenticated/missions/$missionId'
     | '/_authenticated/missions/new'
@@ -240,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/timeline': {
+      id: '/_authenticated/timeline'
+      path: '/timeline'
+      fullPath: '/timeline'
+      preLoaderRoute: typeof AuthenticatedTimelineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/targets': {
@@ -349,6 +368,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedEvidencesRoute: typeof AuthenticatedEvidencesRoute
   AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
+  AuthenticatedTimelineRoute: typeof AuthenticatedTimelineRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedMissionsMissionIdRoute: typeof AuthenticatedMissionsMissionIdRouteWithChildren
   AuthenticatedMissionsNewRoute: typeof AuthenticatedMissionsNewRoute
@@ -361,6 +381,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedEvidencesRoute: AuthenticatedEvidencesRoute,
   AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,
+  AuthenticatedTimelineRoute: AuthenticatedTimelineRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedMissionsMissionIdRoute:
     AuthenticatedMissionsMissionIdRouteWithChildren,
