@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Target, FolderOpen, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ContractorDashboard } from "@/components/dashboard/contractor-dashboard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function Dashboard() {
   const { data: user } = useCurrentUser();
+  if (user?.role === "contractor") return <ContractorDashboard />;
   const greeting = user?.profile?.full_name?.split(" ")[0] ?? "";
   const { data: kpis } = useQuery({
     queryKey: ["dashboard", "kpis"],
