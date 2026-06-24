@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getMission, listMissionAnalysts, missionAnalystsKey, missionDetailKey } from "@/lib/missions.queries";
+import {
+  getMission,
+  listMissionAnalysts,
+  listMissionContractors,
+  missionAnalystsKey,
+  missionContractorsKey,
+  missionDetailKey,
+} from "@/lib/missions.queries";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -17,6 +24,10 @@ function MissionOverview() {
   const { data: analysts = [] } = useQuery({
     queryKey: missionAnalystsKey(missionId),
     queryFn: () => listMissionAnalysts(missionId),
+  });
+  const { data: extraContractors = [] } = useQuery({
+    queryKey: missionContractorsKey(missionId),
+    queryFn: () => listMissionContractors(missionId),
   });
 
   if (!mission) return null;
@@ -48,7 +59,22 @@ function MissionOverview() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h2>
           <KV k="Segmento" v={mission.segment} />
           <KV k="Rótulo dos alvos" v={mission.target_label} />
-          <KV k="Contratante" v={contractor?.full_name || contractor?.email} />
+          <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
+          {extraContractors.length > 0 && (
+            <div className="text-sm">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Acesso adicional</div>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {extraContractors.map((c) => {
+                  const p = (c as { contractor?: { full_name: string | null; email: string | null } | null }).contractor;
+                  return (
+                    <Badge key={c.contractor_id} variant="outline">
+                      {p?.full_name || p?.email || c.contractor_id.slice(0, 8)}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <KV k="Primeira entrega" v={mission.deadline_first ? new Date(mission.deadline_first).toLocaleDateString("pt-BR") : null} />
           <KV k="Entrega final" v={mission.deadline_final ? new Date(mission.deadline_final).toLocaleDateString("pt-BR") : null} />
         </Card>
