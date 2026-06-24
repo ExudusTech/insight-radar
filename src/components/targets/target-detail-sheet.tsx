@@ -1,10 +1,53 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getTarget, targetDetailKey } from "@/lib/targets.queries";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  getTarget,
+  targetDetailKey,
+  targetsByMissionKey,
+  updateTargetStatus,
+} from "@/lib/targets.queries";
 import { StatusBadge } from "./status-badge";
 import { PriorityBadge } from "./priority-badge";
-import { Loader2, ExternalLink, Instagram, Linkedin, Phone, Globe, Mail } from "lucide-react";
+import { CollectionTab } from "./collection-tab";
+import { TimelineTab } from "./timeline-tab";
+import { EvidencesTab } from "./evidences-tab";
+import {
+  Loader2,
+  ExternalLink,
+  Instagram,
+  Linkedin,
+  Phone,
+  Globe,
+  Mail,
+} from "lucide-react";
+import {
+  collectionByTargetKey,
+  countCompleteBlocks,
+  listCollectionByTarget,
+} from "@/lib/collection.queries";
+import {
+  interactionsByTargetKey,
+  listInteractionsByTarget,
+} from "@/lib/interactions.queries";
+import {
+  evidencesByTargetKey,
+  listEvidencesByTarget,
+} from "@/lib/evidences.queries";
+import {
+  TARGET_STATUS_LABEL,
+  TARGET_STATUS_ORDER,
+  type TargetStatus,
+} from "@/lib/target-status";
 
 export function TargetDetailSheet({
   targetId,
@@ -21,6 +64,40 @@ export function TargetDetailSheet({
     queryKey: targetDetailKey(targetId ?? ""),
     queryFn: () => getTarget(targetId!),
     enabled: !!targetId && open,
+  });
+
+  const qc = useQueryClient();
+
+  const { data: collectionRows = [] } = useQuery({
+    queryKey: collectionByTargetKey(targetId ?? ""),
+    queryFn: () => listCollectionByTarget(targetId!),
+    enabled: !!targetId && open,
+  });
+  const { data: interactions = [] } = useQuery({
+    queryKey: interactionsByTargetKey(targetId ?? ""),
+    queryFn: () => listInteractionsByTarget(targetId!),
+    enabled: !!targetId && open,
+  });
+  const { data: evidences = [] } = useQuery({
+    queryKey: evidencesByTargetKey(targetId ?? ""),
+    queryFn: () => listEvidencesByTarget(targetId!),
+    enabled: !!targetId && open,
+  });
+
+  const blocksDone = countCompleteBlocks(collectionRows);
+  const lastInteraction = interactions[0];
+
+  const statusMut = useMutation({
+    mutationFn: (next: TargetStatus) => {
+      if (!target) throw new Error("Sem alvo");
+      return updateTargetStatus(target.id, next, target.status, target.mission_id);
+    },
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: targetDetailKey(targetId ?? "") });
+      if (target) qc.invalidateQueries({ queryKey: targetsByMissionKey(target.mission_id) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   return (
@@ -42,13 +119,55 @@ export function TargetDetailSheet({
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                <TabsTrigger value="collection" disabled>Coleta</TabsTrigger>
-                <TabsTrigger value="timeline" disabled>Timeline</TabsTrigger>
-                <TabsTrigger value="evidences" disabled>Evidências</TabsTrigger>
+                <TabsTrigger value="collection">Coleta</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                <TabsTrigger value="evidences">Evidências</TabsTrigger>
                 <TabsTrigger value="journey" disabled>Jornada</TabsTrigger>
                 <TabsTrigger value="ai" disabled>Análise IA</TabsTrigger>
               </TabsList>
               <TabsContent value="overview" className="space-y-5 pt-5">
+                <Section title="Status rápido">
+                  <div className="col-span-2 space-y-3">
+                    <Select
+                      value={target.status}
+                      onValueChange={(v) => statusMut.mutate(v as TargetStatus)}
+                      disabled={statusMut.isPending}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TARGET_STATUS_ORDER.map((s) => (
+                          <SelectItem key={s} value={s}>{TARGET_STATUS_LABEL[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Progresso da coleta</span>
+                        <span>{blocksDone}/7 blocos</span>
+                      </div>
+                      <Progress value={(blocksDone / 7) * 100} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="rounded border p-2">
+                        <div className="text-muted-foreground">Última interação</div>
+                        <div className="font-medium">
+                          {lastInteraction
+                            ? new Date(lastInteraction.event_at).toLocaleDateString("pt-BR")
+                            : "—"}
+                        </div>
+                        {lastInteraction?.content && (
+                          <div className="text-muted-foreground line-clamp-2 mt-1">
+                            {lastInteraction.content}
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded border p-2">
+                        <div className="text-muted-foreground">Evidências</div>
+                        <div className="font-medium text-lg">{evidences.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                </Section>
                 <Section title="Identificação">
                   <KV k="Nome" v={target.name} />
                   <KV k="Marca" v={target.brand} />
@@ -72,6 +191,15 @@ export function TargetDetailSheet({
                   <KV k="Criado em" v={new Date(target.created_at).toLocaleString("pt-BR")} />
                   <KV k="Atualizado em" v={new Date(target.updated_at).toLocaleString("pt-BR")} />
                 </Section>
+              </TabsContent>
+              <TabsContent value="collection" className="pt-5">
+                <CollectionTab missionId={target.mission_id} targetId={target.id} />
+              </TabsContent>
+              <TabsContent value="timeline" className="pt-5">
+                <TimelineTab missionId={target.mission_id} targetId={target.id} />
+              </TabsContent>
+              <TabsContent value="evidences" className="pt-5">
+                <EvidencesTab missionId={target.mission_id} targetId={target.id} />
               </TabsContent>
             </Tabs>
           </div>
