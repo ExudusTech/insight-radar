@@ -5,11 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Target as TargetIcon, Loader2 } from "lucide-react";
+import { Plus, Search, Target as TargetIcon, Loader2, Calendar, ArrowRight } from "lucide-react";
 import { listMissions, missionsListKey } from "@/lib/missions.queries";
 import { MISSION_STATUS_LABEL } from "@/lib/target-status";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/missions/")({
   component: MissionsPage,
@@ -18,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/missions/")({
 function MissionsPage() {
   const { data: user } = useCurrentUser();
   const canCreate = user?.role === "superadmin";
+  const cardsView = user?.role === "analyst" || user?.role === "contractor";
   const { data: missions, isLoading } = useQuery({
     queryKey: missionsListKey,
     queryFn: listMissions,
@@ -35,7 +38,9 @@ function MissionsPage() {
     <div className="max-w-7xl mx-auto w-full space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Missões</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {user?.role === "analyst" ? "Minhas Missões" : "Missões"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Gerencie missões de inteligência de mercado.
           </p>
@@ -66,6 +71,10 @@ function MissionsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState canCreate={canCreate} />
+        ) : cardsView ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((m) => <MissionCard key={m.id} missionId={m.id} name={m.name} segment={m.segment} deadline={m.deadline_final} status={m.status} />)}
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -107,6 +116,90 @@ function MissionsPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+function MissionCard({
+  missionId,
+  name,
+  segment,
+  deadline,
+  status,
+}: {
+  missionId: string;
+  name: string;
+  segment: string | null;
+  deadline: string | null;
+  status: keyof typeof MISSION_STATUS_LABEL;
+}) {
+  const { data: stats } = useQuery({
+    queryKey: ["mission-stats", missionId],
+    queryFn: async () => {
+      const [total, done] = await Promise.all([
+        supabase.from("targets").select("id", { count: "exact", head: true }).eq("mission_id", missionId),
+        supabase
+          .from("targets")
+          .select("id", { count: "exact", head: true })
+          .eq("mission_id", missionId)
+          .eq("status", "collection_complete"),
+      ]);
+      return { total: total.count ?? 0, done: done.count ?? 0 };
+    },
+  });
+  const total = stats?.total ?? 0;
+  const done = stats?.done ?? 0;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  const daysLeft = deadline
+    ? Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
+  const urgency =
+    daysLeft === null
+      ? "muted"
+      : daysLeft <= 3
+      ? "danger"
+      : daysLeft <= 7
+      ? "warning"
+      : "muted";
+  const urgencyClass =
+    urgency === "danger"
+      ? "text-destructive"
+      : urgency === "warning"
+      ? "text-yellow-600 dark:text-yellow-400"
+      : "text-muted-foreground";
+
+  return (
+    <Card className="p-5 flex flex-col gap-4 hover:shadow-md transition">
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold leading-tight">{name}</h3>
+          <Badge variant="outline" className="shrink-0 text-[10px]">{MISSION_STATUS_LABEL[status]}</Badge>
+        </div>
+        {segment && <p className="text-xs text-muted-foreground mt-1">{segment}</p>}
+      </div>
+      <div>
+        <div className="flex justify-between text-xs mb-1">
+          <span className="text-muted-foreground">Alvos concluídos</span>
+          <span className="font-medium">{done} de {total}</span>
+        </div>
+        <Progress value={pct} />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className={`text-xs flex items-center gap-1 ${urgencyClass}`}>
+          <Calendar className="h-3.5 w-3.5" />
+          {deadline
+            ? daysLeft! >= 0
+              ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restantes`
+              : "Prazo expirado"
+            : "Sem prazo definido"}
+        </div>
+        <Button asChild size="sm">
+          <Link to="/missions/$missionId/journey" params={{ missionId }}>
+            Continuar missão <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </Button>
+      </div>
+    </Card>
   );
 }
 

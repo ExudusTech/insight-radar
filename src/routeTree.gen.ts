@@ -18,6 +18,7 @@ import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedPendingRouteImport } from './routes/_authenticated/pending'
+import { Route as AuthenticatedNotificacoesRouteImport } from './routes/_authenticated/notificacoes'
 import { Route as AuthenticatedNextActionsRouteImport } from './routes/_authenticated/next-actions'
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedJourneyRouteImport } from './routes/_authenticated/journey'
@@ -80,6 +81,12 @@ const AuthenticatedPendingRoute = AuthenticatedPendingRouteImport.update({
   path: '/pending',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificacoesRoute =
+  AuthenticatedNotificacoesRouteImport.update({
+    id: '/notificacoes',
+    path: '/notificacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNextActionsRoute =
   AuthenticatedNextActionsRouteImport.update({
     id: '/next-actions',
@@ -189,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/journey': typeof AuthenticatedJourneyRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/next-actions': typeof AuthenticatedNextActionsRoute
+  '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/pending': typeof AuthenticatedPendingRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -216,6 +224,7 @@ export interface FileRoutesByTo {
   '/journey': typeof AuthenticatedJourneyRoute
   '/logs': typeof AuthenticatedLogsRoute
   '/next-actions': typeof AuthenticatedNextActionsRoute
+  '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/pending': typeof AuthenticatedPendingRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -244,6 +253,7 @@ export interface FileRoutesById {
   '/_authenticated/journey': typeof AuthenticatedJourneyRoute
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/next-actions': typeof AuthenticatedNextActionsRoute
+  '/_authenticated/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/_authenticated/pending': typeof AuthenticatedPendingRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/journey'
     | '/logs'
     | '/next-actions'
+    | '/notificacoes'
     | '/pending'
     | '/reports'
     | '/settings'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/journey'
     | '/logs'
     | '/next-actions'
+    | '/notificacoes'
     | '/pending'
     | '/reports'
     | '/settings'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/journey'
     | '/_authenticated/logs'
     | '/_authenticated/next-actions'
+    | '/_authenticated/notificacoes'
     | '/_authenticated/pending'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/pending'
       fullPath: '/pending'
       preLoaderRoute: typeof AuthenticatedPendingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notificacoes': {
+      id: '/_authenticated/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/notificacoes'
+      preLoaderRoute: typeof AuthenticatedNotificacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/next-actions': {
@@ -567,6 +587,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedJourneyRoute: typeof AuthenticatedJourneyRoute
   AuthenticatedLogsRoute: typeof AuthenticatedLogsRoute
   AuthenticatedNextActionsRoute: typeof AuthenticatedNextActionsRoute
+  AuthenticatedNotificacoesRoute: typeof AuthenticatedNotificacoesRoute
   AuthenticatedPendingRoute: typeof AuthenticatedPendingRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -590,6 +611,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedJourneyRoute: AuthenticatedJourneyRoute,
   AuthenticatedLogsRoute: AuthenticatedLogsRoute,
   AuthenticatedNextActionsRoute: AuthenticatedNextActionsRoute,
+  AuthenticatedNotificacoesRoute: AuthenticatedNotificacoesRoute,
   AuthenticatedPendingRoute: AuthenticatedPendingRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
