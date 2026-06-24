@@ -2,18 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Target,
-  FileText,
   Users,
-  ClipboardList,
-  History,
   GitCompareArrows,
-  FolderOpen,
   Settings,
   Activity,
   Download,
   Radar,
-  AlertTriangle,
-  Sparkles,
   Bell,
   Package,
   type LucideIcon,
@@ -37,25 +31,22 @@ import { countUnread, notificationsUnreadKey } from "@/lib/notifications.queries
 import type { AppRole } from "@/hooks/use-current-user";
 import { ROLE_LABEL } from "@/hooks/use-current-user";
 
-type NavItem = { title: string; url: string; icon: LucideIcon };
+type NavItem = { title: string; url: string; icon: LucideIcon; group?: string };
 
 const NAV: Record<AppRole, NavItem[]> = {
   superadmin: [
-    { title: "Dashboard Global", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Missões", url: "/missions", icon: Target },
-    { title: "Produtos", url: "/products", icon: Package },
-    { title: "Documento-base", url: "/documents", icon: FileText },
-    { title: "Alvos", url: "/targets", icon: Sparkles },
-    { title: "Coleta Guiada", url: "/collection", icon: ClipboardList },
-    { title: "Evidências", url: "/evidences", icon: FolderOpen },
-    { title: "Timeline", url: "/timeline", icon: History },
-    { title: "Comparativo", url: "/comparative", icon: GitCompareArrows },
-    { title: "Relatórios", url: "/reports", icon: Download },
-    { title: "Usuários", url: "/users", icon: Users },
-    { title: "Solicitações", url: "/change-requests", icon: AlertTriangle },
-    { title: "Logs", url: "/logs", icon: Activity },
-    { title: "Configurações", url: "/settings", icon: Settings },
-    { title: "Notificações", url: "/notificacoes", icon: Bell },
+    // Operacional
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, group: "Operacional" },
+    { title: "Missões", url: "/missions", icon: Target, group: "Operacional" },
+    // Inteligência
+    { title: "Relatórios", url: "/reports", icon: Download, group: "Inteligência" },
+    { title: "Comparativo", url: "/comparative", icon: GitCompareArrows, group: "Inteligência" },
+    // Gestão
+    { title: "Clientes", url: "/users", icon: Users, group: "Gestão" },
+    { title: "Produtos", url: "/products", icon: Package, group: "Gestão" },
+    { title: "Logs", url: "/logs", icon: Activity, group: "Gestão" },
+    { title: "Configurações", url: "/settings", icon: Settings, group: "Gestão" },
+    { title: "Notificações", url: "/notificacoes", icon: Bell, group: "Gestão" },
   ],
   contractor: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -80,6 +71,32 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
     refetchInterval: 30_000,
   });
 
+  const hasGroups = items.some((item) => item.group);
+
+  const renderMenu = (menuItems: NavItem[]) => (
+    <SidebarMenu>
+      {menuItems.map((item) => {
+        const active = pathname === item.url || pathname.startsWith(item.url + "/");
+        const isNotif = item.url === "/notificacoes";
+        return (
+          <SidebarMenuItem key={item.url}>
+            <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+              <Link to={item.url} className="flex items-center gap-2">
+                <item.icon className="h-4 w-4" />
+                <span className="flex-1">{item.title}</span>
+                {isNotif && unread > 0 && (
+                  <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                    {unread}
+                  </Badge>
+                )}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -97,32 +114,25 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => {
-                const active = pathname === item.url || pathname.startsWith(item.url + "/");
-                const isNotif = item.url === "/notificacoes";
-                return (
-                  <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link to={item.url} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        <span className="flex-1">{item.title}</span>
-                        {isNotif && unread > 0 && (
-                          <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
-                            {unread}
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {hasGroups ? (
+          Object.entries(
+            items.reduce<Record<string, NavItem[]>>((acc, item) => {
+              const group = item.group ?? "Outros";
+              acc[group] = acc[group] ?? [];
+              acc[group].push(item);
+              return acc;
+            }, {})
+          ).map(([group, groupItems]) => (
+            <SidebarGroup key={group}>
+              <SidebarGroupLabel>{group}</SidebarGroupLabel>
+              <SidebarGroupContent>{renderMenu(groupItems)}</SidebarGroupContent>
+            </SidebarGroup>
+          ))
+        ) : (
+          <SidebarGroup>
+            <SidebarGroupContent>{renderMenu(items)}</SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
