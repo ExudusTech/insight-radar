@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_authenticated/pending")({
   component: () => (
     <div className="space-y-4 max-w-3xl mx-auto">
       <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">pending</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Pendências</h1>
         <Badge variant="secondary">Em breve</Badge>
       </div>
       <Card className="p-8 text-sm text-muted-foreground">

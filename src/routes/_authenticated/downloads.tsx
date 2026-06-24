@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_authenticated/downloads")({
   component: () => (
     <div className="space-y-4 max-w-3xl mx-auto">
       <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">downloads</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Downloads</h1>
         <Badge variant="secondary">Em breve</Badge>
       </div>
       <Card className="p-8 text-sm text-muted-foreground">

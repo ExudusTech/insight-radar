@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_authenticated/ask-ai")({
   component: () => (
     <div className="space-y-4 max-w-3xl mx-auto">
       <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">ask-ai</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Perguntar à IA</h1>
         <Badge variant="secondary">Em breve</Badge>
       </div>
       <Card className="p-8 text-sm text-muted-foreground">
