@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   listProfilesWithRole,
   missionsListKey,
 } from "@/lib/missions.queries";
+import { listProductsByClient, productsByClientKey } from "@/lib/products.queries";
 
 export function MissionForm() {
   const qc = useQueryClient();
@@ -34,12 +35,19 @@ export function MissionForm() {
     objective: "",
     segment: "",
     contractor_id: "",
+    product_id: "",
     deadline_first: "",
     deadline_final: "",
     target_label: "Concorrente",
   });
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
   const [selectedContractors, setSelectedContractors] = useState<string[]>([]);
+
+  const { data: products = [] } = useQuery({
+    queryKey: productsByClientKey(form.contractor_id),
+    queryFn: () => listProductsByClient(form.contractor_id),
+    enabled: !!form.contractor_id,
+  });
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -49,6 +57,7 @@ export function MissionForm() {
         objective: form.objective || null,
         segment: form.segment || null,
         contractor_id: form.contractor_id || null,
+        product_id: form.product_id || null,
         deadline_first: form.deadline_first || null,
         deadline_final: form.deadline_final || null,
         target_label: form.target_label.trim() || "Concorrente",
@@ -119,6 +128,25 @@ export function MissionForm() {
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+          <Field label="Produto / Serviço analisado">
+            {!form.contractor_id ? (
+              <p className="text-xs text-muted-foreground">Selecione um cliente primeiro.</p>
+            ) : products.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Nenhum produto cadastrado para este cliente.{" "}
+                <Link to="/products" className="text-primary underline">Cadastre em /products</Link>.
+              </p>
+            ) : (
+              <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecionar (opcional)..." /></SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </Field>
           <Field label="Acesso adicional (outros usuários do cliente)">
             <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
