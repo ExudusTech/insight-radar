@@ -17,6 +17,7 @@ import {
   ListChecks,
   CalendarClock,
   Sparkles,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -31,6 +32,10 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { countUnread, notificationsUnreadKey } from "@/lib/notifications.queries";
 import type { AppRole } from "@/hooks/use-current-user";
 import { ROLE_LABEL } from "@/hooks/use-current-user";
 
@@ -51,35 +56,30 @@ const NAV: Record<AppRole, NavItem[]> = {
     { title: "Solicitações", url: "/change-requests", icon: AlertTriangle },
     { title: "Logs", url: "/logs", icon: Activity },
     { title: "Configurações", url: "/settings", icon: Settings },
+    { title: "Notificações", url: "/notificacoes", icon: Bell },
   ],
   contractor: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Roteiro / Documento-base", url: "/documents", icon: FileText },
-    { title: "Jornada", url: "/journey", icon: CalendarClock },
-    { title: "Alvos", url: "/targets", icon: Sparkles },
-    { title: "Comparativo", url: "/comparative", icon: GitCompareArrows },
-    { title: "Evidências", url: "/evidences", icon: FolderOpen },
+    { title: "Minhas Missões", url: "/missions", icon: Target },
     { title: "Relatórios", url: "/reports", icon: Download },
-    { title: "Perguntar à IA", url: "/ask-ai", icon: MessageSquare },
-    { title: "Downloads", url: "/downloads", icon: Download },
-    { title: "Solicitações", url: "/change-requests", icon: AlertTriangle },
+    { title: "Notificações", url: "/notificacoes", icon: Bell },
   ],
   analyst: [
-    { title: "Minha Missão", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Próximas Ações", url: "/next-actions", icon: ListChecks },
-    { title: "Roteiro", url: "/documents", icon: FileText },
-    { title: "Alvos", url: "/targets", icon: Sparkles },
-    { title: "Coleta Guiada", url: "/collection", icon: ClipboardList },
-    { title: "Timeline", url: "/timeline", icon: History },
-    { title: "Evidências", url: "/evidences", icon: FolderOpen },
-    { title: "Pendências", url: "/pending", icon: AlertTriangle },
-    { title: "Relatório Preliminar", url: "/reports", icon: Download },
+    { title: "Minhas Missões", url: "/missions", icon: Target },
+    { title: "Notificações", url: "/notificacoes", icon: Bell },
   ],
 };
 
 export function AppSidebar({ role }: { role: AppRole | null }) {
   const items = role ? NAV[role] : [];
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: user } = useCurrentUser();
+  const { data: unread = 0 } = useQuery({
+    queryKey: notificationsUnreadKey(user?.id ?? ""),
+    queryFn: () => countUnread(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -104,12 +104,18 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
             <SidebarMenu>
               {items.map((item) => {
                 const active = pathname === item.url || pathname.startsWith(item.url + "/");
+                const isNotif = item.url === "/notificacoes";
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
                       <Link to={item.url} className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span className="flex-1">{item.title}</span>
+                        {isNotif && unread > 0 && (
+                          <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                            {unread}
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
