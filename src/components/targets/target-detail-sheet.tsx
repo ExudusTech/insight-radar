@@ -55,11 +55,13 @@ export function TargetDetailSheet({
   open,
   onOpenChange,
   targetLabel,
+  defaultTab = "overview",
 }: {
   targetId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetLabel: string;
+  defaultTab?: "overview" | "collection" | "timeline" | "evidences" | "ai";
 }) {
   const { data: target, isLoading } = useQuery({
     queryKey: targetDetailKey(targetId ?? ""),
@@ -117,7 +119,7 @@ export function TargetDetailSheet({
               <StatusBadge status={target.status} />
               <PriorityBadge priority={target.priority} />
             </div>
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs defaultValue={defaultTab} className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                 <TabsTrigger value="collection">Coleta</TabsTrigger>
