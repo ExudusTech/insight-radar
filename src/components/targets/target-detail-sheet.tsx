@@ -21,6 +21,7 @@ import { PriorityBadge } from "./priority-badge";
 import { CollectionTab } from "./collection-tab";
 import { TimelineTab } from "./timeline-tab";
 import { EvidencesTab } from "./evidences-tab";
+import { AiAnalysisTab } from "./ai-analysis-tab";
 import {
   Loader2,
   ExternalLink,
@@ -123,7 +124,7 @@ export function TargetDetailSheet({
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="evidences">Evidências</TabsTrigger>
                 <TabsTrigger value="journey" disabled>Jornada</TabsTrigger>
-                <TabsTrigger value="ai" disabled>Análise IA</TabsTrigger>
+                <TabsTrigger value="ai">Análise IA</TabsTrigger>
               </TabsList>
               <TabsContent value="overview" className="space-y-5 pt-5">
                 <Section title="Status rápido">
@@ -200,6 +201,9 @@ export function TargetDetailSheet({
               </TabsContent>
               <TabsContent value="evidences" className="pt-5">
                 <EvidencesTab missionId={target.mission_id} targetId={target.id} />
+              </TabsContent>
+              <TabsContent value="ai" className="pt-5">
+                <AiAnalysisTab targetId={target.id} />
               </TabsContent>
             </Tabs>
           </div>
