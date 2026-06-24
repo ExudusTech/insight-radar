@@ -7,6 +7,7 @@ export type Profile = Tables<"profiles">;
 export const missionsListKey = ["missions", "list"] as const;
 export const missionDetailKey = (id: string) => ["missions", "detail", id] as const;
 export const missionAnalystsKey = (id: string) => ["missions", id, "analysts"] as const;
+export const missionContractorsKey = (id: string) => ["missions", id, "contractors"] as const;
 export const profilesKey = ["profiles", "list"] as const;
 
 export async function listMissions() {
@@ -34,6 +35,15 @@ export async function listMissionAnalysts(missionId: string) {
   const { data, error } = await supabase
     .from("mission_analysts")
     .select("analyst_id, analyst:profiles(id, full_name, email)")
+    .eq("mission_id", missionId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listMissionContractors(missionId: string) {
+  const { data, error } = await supabase
+    .from("mission_contractors")
+    .select("contractor_id, contractor:profiles(id, full_name, email)")
     .eq("mission_id", missionId);
   if (error) throw error;
   return data ?? [];
@@ -73,10 +83,11 @@ export type CreateMissionInput = {
   deadline_final?: string | null;
   target_label: string;
   analyst_ids: string[];
+  contractor_ids?: string[];
 };
 
 export async function createMission(input: CreateMissionInput) {
-  const { analyst_ids, ...rest } = input;
+  const { analyst_ids, contractor_ids = [], ...rest } = input;
   const { data: mission, error } = await supabase
     .from("missions")
     .insert({ ...rest })
@@ -87,6 +98,12 @@ export async function createMission(input: CreateMissionInput) {
   if (analyst_ids.length > 0) {
     const rows = analyst_ids.map((analyst_id) => ({ mission_id: mission.id, analyst_id }));
     const { error: linkErr } = await supabase.from("mission_analysts").insert(rows);
+    if (linkErr) throw linkErr;
+  }
+
+  if (contractor_ids.length > 0) {
+    const rows = contractor_ids.map((contractor_id) => ({ mission_id: mission.id, contractor_id }));
+    const { error: linkErr } = await supabase.from("mission_contractors").insert(rows);
     if (linkErr) throw linkErr;
   }
 
@@ -102,7 +119,7 @@ export async function createMission(input: CreateMissionInput) {
 }
 
 export async function updateMission(id: string, patch: Partial<CreateMissionInput>) {
-  const { analyst_ids, ...rest } = patch;
+  const { analyst_ids, contractor_ids, ...rest } = patch;
   const { data, error } = await supabase
     .from("missions")
     .update(rest)
@@ -117,6 +134,15 @@ export async function updateMission(id: string, patch: Partial<CreateMissionInpu
       await supabase
         .from("mission_analysts")
         .insert(analyst_ids.map((analyst_id) => ({ mission_id: id, analyst_id })));
+    }
+  }
+
+  if (contractor_ids) {
+    await supabase.from("mission_contractors").delete().eq("mission_id", id);
+    if (contractor_ids.length > 0) {
+      await supabase
+        .from("mission_contractors")
+        .insert(contractor_ids.map((contractor_id) => ({ mission_id: id, contractor_id })));
     }
   }
 
