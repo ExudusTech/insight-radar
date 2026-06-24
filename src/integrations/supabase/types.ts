@@ -524,6 +524,74 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          block: string | null
+          created_at: string
+          id: string
+          message: string
+          mission_id: string | null
+          origin_user_id: string | null
+          read_at: string | null
+          target_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          block?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          mission_id?: string | null
+          origin_user_id?: string | null
+          read_at?: string | null
+          target_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          block?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          mission_id?: string | null
+          origin_user_id?: string | null
+          read_at?: string | null
+          target_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_origin_user_id_fkey"
+            columns: ["origin_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
