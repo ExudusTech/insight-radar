@@ -3,13 +3,11 @@ import {
   LayoutDashboard,
   Target,
   Users,
-  GitCompareArrows,
   Settings,
   Activity,
-  Download,
-  Radar,
   Bell,
   Package,
+  Radar,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -35,13 +33,8 @@ type NavItem = { title: string; url: string; icon: LucideIcon; group?: string };
 
 const NAV: Record<AppRole, NavItem[]> = {
   superadmin: [
-    // Operacional
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, group: "Operacional" },
     { title: "Missões", url: "/missions", icon: Target, group: "Operacional" },
-    // Inteligência
-    { title: "Relatórios", url: "/reports", icon: Download, group: "Inteligência" },
-    { title: "Comparativo", url: "/comparative", icon: GitCompareArrows, group: "Inteligência" },
-    // Gestão
     { title: "Clientes", url: "/users", icon: Users, group: "Gestão" },
     { title: "Produtos", url: "/products", icon: Package, group: "Gestão" },
     { title: "Logs", url: "/logs", icon: Activity, group: "Gestão" },
@@ -51,7 +44,6 @@ const NAV: Record<AppRole, NavItem[]> = {
   contractor: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Minhas Missões", url: "/missions", icon: Target },
-    { title: "Relatórios", url: "/reports", icon: Download },
     { title: "Notificações", url: "/notificacoes", icon: Bell },
   ],
   analyst: [
