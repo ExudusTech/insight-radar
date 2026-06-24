@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Sparkles,
   Bell,
+  Package,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -42,6 +43,7 @@ const NAV: Record<AppRole, NavItem[]> = {
   superadmin: [
     { title: "Dashboard Global", url: "/dashboard", icon: LayoutDashboard },
     { title: "Missões", url: "/missions", icon: Target },
+    { title: "Produtos", url: "/products", icon: Package },
     { title: "Documento-base", url: "/documents", icon: FileText },
     { title: "Alvos", url: "/targets", icon: Sparkles },
     { title: "Coleta Guiada", url: "/collection", icon: ClipboardList },

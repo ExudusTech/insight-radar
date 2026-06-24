@@ -17,6 +17,7 @@ import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticated/products'
 import { Route as AuthenticatedPendingRouteImport } from './routes/_authenticated/pending'
 import { Route as AuthenticatedNotificacoesRouteImport } from './routes/_authenticated/notificacoes'
 import { Route as AuthenticatedNextActionsRouteImport } from './routes/_authenticated/next-actions'
@@ -75,6 +76,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProductsRoute = AuthenticatedProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPendingRoute = AuthenticatedPendingRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/next-actions': typeof AuthenticatedNextActionsRoute
   '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/pending': typeof AuthenticatedPendingRoute
+  '/products': typeof AuthenticatedProductsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/targets': typeof AuthenticatedTargetsRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/next-actions': typeof AuthenticatedNextActionsRoute
   '/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/pending': typeof AuthenticatedPendingRoute
+  '/products': typeof AuthenticatedProductsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/targets': typeof AuthenticatedTargetsRoute
@@ -264,6 +272,7 @@ export interface FileRoutesById {
   '/_authenticated/next-actions': typeof AuthenticatedNextActionsRoute
   '/_authenticated/notificacoes': typeof AuthenticatedNotificacoesRoute
   '/_authenticated/pending': typeof AuthenticatedPendingRoute
+  '/_authenticated/products': typeof AuthenticatedProductsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/targets': typeof AuthenticatedTargetsRoute
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/next-actions'
     | '/notificacoes'
     | '/pending'
+    | '/products'
     | '/reports'
     | '/settings'
     | '/targets'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/next-actions'
     | '/notificacoes'
     | '/pending'
+    | '/products'
     | '/reports'
     | '/settings'
     | '/targets'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/_authenticated/next-actions'
     | '/_authenticated/notificacoes'
     | '/_authenticated/pending'
+    | '/_authenticated/products'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/targets'
@@ -429,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/products': {
+      id: '/_authenticated/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof AuthenticatedProductsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/pending': {
@@ -612,6 +631,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNextActionsRoute: typeof AuthenticatedNextActionsRoute
   AuthenticatedNotificacoesRoute: typeof AuthenticatedNotificacoesRoute
   AuthenticatedPendingRoute: typeof AuthenticatedPendingRoute
+  AuthenticatedProductsRoute: typeof AuthenticatedProductsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
@@ -636,6 +656,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNextActionsRoute: AuthenticatedNextActionsRoute,
   AuthenticatedNotificacoesRoute: AuthenticatedNotificacoesRoute,
   AuthenticatedPendingRoute: AuthenticatedPendingRoute,
+  AuthenticatedProductsRoute: AuthenticatedProductsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,

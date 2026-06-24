@@ -80,7 +80,7 @@ function MissionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Missão</TableHead>
-                <TableHead>Contratante</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Rótulo</TableHead>
                 <TableHead className="text-right">Criada em</TableHead>

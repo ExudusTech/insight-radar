@@ -190,7 +190,7 @@ function UsersPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="superadmin">Superadmin</SelectItem>
-                          <SelectItem value="contractor">Contratante</SelectItem>
+                          <SelectItem value="contractor">Cliente</SelectItem>
                           <SelectItem value="analyst">Analista</SelectItem>
                         </SelectContent>
                       </Select>
@@ -292,7 +292,7 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="analyst">Analista</SelectItem>
-              <SelectItem value="contractor">Contratante</SelectItem>
+              <SelectItem value="contractor">Cliente</SelectItem>
               <SelectItem value="superadmin">Superadmin</SelectItem>
             </SelectContent>
           </Select>

@@ -10,6 +10,7 @@ import {
   missionContractorsKey,
   missionDetailKey,
 } from "@/lib/missions.queries";
+import { getProduct } from "@/lib/products.queries";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -28,6 +29,12 @@ function MissionOverview() {
   const { data: extraContractors = [] } = useQuery({
     queryKey: missionContractorsKey(missionId),
     queryFn: () => listMissionContractors(missionId),
+  });
+  const productId = (mission as { product_id?: string | null } | undefined)?.product_id ?? null;
+  const { data: product } = useQuery({
+    queryKey: ["products", "detail", productId],
+    queryFn: () => getProduct(productId!),
+    enabled: !!productId,
   });
 
   if (!mission) return null;
@@ -60,6 +67,7 @@ function MissionOverview() {
           <KV k="Segmento" v={mission.segment} />
           <KV k="Rótulo dos alvos" v={mission.target_label} />
           <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
+          {product && <KV k="Produto / Serviço" v={product.name} />}
           {extraContractors.length > 0 && (
             <div className="text-sm">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Acesso adicional</div>

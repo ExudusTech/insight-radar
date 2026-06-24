@@ -44,6 +44,6 @@ export function useCurrentUser() {
 
 export const ROLE_LABEL: Record<AppRole, string> = {
   superadmin: "Superadmin",
-  contractor: "Contratante",
+  contractor: "Cliente",
   analyst: "Analista",
 };
