@@ -110,7 +110,7 @@ export function MissionForm() {
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
                 {contractors.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum contratante cadastrado</div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum cliente cadastrado</div>
                 )}
                 {contractors.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
@@ -123,7 +123,7 @@ export function MissionForm() {
           <Field label="Acesso adicional (outros usuários do cliente)">
             <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
               {contractors.filter((c) => c.id !== form.contractor_id).length === 0 && (
-                <div className="text-xs text-muted-foreground p-2">Nenhum outro contratante disponível</div>
+                <div className="text-xs text-muted-foreground p-2">Nenhum outro cliente disponível</div>
               )}
               {contractors
                 .filter((c) => c.id !== form.contractor_id)
