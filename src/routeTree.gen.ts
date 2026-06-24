@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
+import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authenticated/evidences'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
@@ -46,6 +47,11 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
 const AuthenticatedTargetsRoute = AuthenticatedTargetsRouteImport.update({
   id: '/targets',
   path: '/targets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEvidencesRoute = AuthenticatedEvidencesRouteImport.update({
+  id: '/evidences',
+  path: '/evidences',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/collection': typeof AuthenticatedCollectionRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/evidences': typeof AuthenticatedEvidencesRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/collection': typeof AuthenticatedCollectionRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
+  '/evidences': typeof AuthenticatedEvidencesRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/missions/new': typeof AuthenticatedMissionsNewRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_authenticated/collection': typeof AuthenticatedCollectionRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
+  '/_authenticated/evidences': typeof AuthenticatedEvidencesRoute
   '/_authenticated/targets': typeof AuthenticatedTargetsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/collection'
     | '/dashboard'
     | '/documents'
+    | '/evidences'
     | '/targets'
     | '/users'
     | '/missions/$missionId'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/collection'
     | '/dashboard'
     | '/documents'
+    | '/evidences'
     | '/targets'
     | '/users'
     | '/missions/new'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/_authenticated/collection'
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
+    | '/_authenticated/evidences'
     | '/_authenticated/targets'
     | '/_authenticated/users'
     | '/_authenticated/missions/$missionId'
@@ -235,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/targets'
       fullPath: '/targets'
       preLoaderRoute: typeof AuthenticatedTargetsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/evidences': {
+      id: '/_authenticated/evidences'
+      path: '/evidences'
+      fullPath: '/evidences'
+      preLoaderRoute: typeof AuthenticatedEvidencesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/documents': {
@@ -328,6 +347,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
+  AuthenticatedEvidencesRoute: typeof AuthenticatedEvidencesRoute
   AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedMissionsMissionIdRoute: typeof AuthenticatedMissionsMissionIdRouteWithChildren
@@ -339,6 +359,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
+  AuthenticatedEvidencesRoute: AuthenticatedEvidencesRoute,
   AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedMissionsMissionIdRoute:
