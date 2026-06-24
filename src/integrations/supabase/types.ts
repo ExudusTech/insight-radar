@@ -433,6 +433,39 @@ export type Database = {
           },
         ]
       }
+      mission_contractors: {
+        Row: {
+          assigned_at: string
+          contractor_id: string
+          mission_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          contractor_id: string
+          mission_id: string
+        }
+        Update: {
+          assigned_at?: string
+          contractor_id?: string
+          mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_contractors_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_contractors_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       missions: {
         Row: {
           approach_type: string | null
