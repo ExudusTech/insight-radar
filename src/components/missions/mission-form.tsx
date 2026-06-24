@@ -39,6 +39,7 @@ export function MissionForm() {
     target_label: "Concorrente",
   });
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
+  const [selectedContractors, setSelectedContractors] = useState<string[]>([]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -52,6 +53,7 @@ export function MissionForm() {
         deadline_final: form.deadline_final || null,
         target_label: form.target_label.trim() || "Concorrente",
         analyst_ids: selectedAnalysts,
+        contractor_ids: selectedContractors.filter((id) => id !== form.contractor_id),
       }),
     onSuccess: (m) => {
       toast.success("Missão criada");
