@@ -1,10 +1,14 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,7 +18,8 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, UserPlus, Search } from "lucide-react";
+import { inviteUser } from "@/lib/invite-user.functions";
 
 export const Route = createFileRoute("/_authenticated/users")({
   component: UsersPage,
@@ -27,6 +32,13 @@ type Row = {
   organization: string | null;
   status: string | null;
   role: AppRole | null;
+  created_at?: string | null;
+};
+
+const ROLE_BADGE: Record<AppRole, string> = {
+  superadmin: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  contractor: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  analyst: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
 };
 
 function UsersPage() {
@@ -37,11 +49,14 @@ function UsersPage() {
   }
 
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["admin", "users"],
     queryFn: async (): Promise<Row[]> => {
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, organization, status"),
+        supabase.from("profiles").select("id, full_name, email, organization, status, created_at"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
       const roleMap = new Map<string, AppRole>();
@@ -85,9 +100,38 @@ function UsersPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const filtered = rows.filter((r) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (r.full_name ?? "").toLowerCase().includes(q) ||
+      (r.email ?? "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-4 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+        <Button variant="outline" size="sm" onClick={() => setCreateOpen((v) => !v)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Novo usuário
+          {createOpen ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+        </Button>
+      </div>
+
+      {createOpen && <CreateUserCard onCreated={() => qc.invalidateQueries({ queryKey: ["admin", "users"] })} />}
+
+      <div className="relative">
+        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <Card className="overflow-x-auto">
         {isLoading ? (
           <div className="grid place-items-center py-12">
@@ -97,27 +141,43 @@ function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[60px]"></TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Organização</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Criado em</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
+              {filtered.map((r) => (
                 <TableRow key={r.id}>
+                  <TableCell>
+                    <div className="h-8 w-8 rounded-full bg-muted grid place-items-center text-xs font-semibold text-foreground/80">
+                      {(r.full_name ?? r.email ?? "?").slice(0, 1).toUpperCase()}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{r.full_name ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{r.email}</TableCell>
                   <TableCell className="text-muted-foreground">{r.organization ?? "—"}</TableCell>
+                  <TableCell>
+                    {r.role ? (
+                      <Badge variant="outline" className={ROLE_BADGE[r.role]}>
+                        {ROLE_LABEL[r.role]}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">—</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={r.status === "blocked" ? "destructive" : "secondary"}>
                       {r.status ?? "active"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{r.role ? ROLE_LABEL[r.role] : "—"}</Badge>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString("pt-BR") : "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -145,10 +205,126 @@ function UsersPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                    Nenhum usuário encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         )}
       </Card>
+    </div>
+  );
+}
+
+function CreateUserCard({ onCreated }: { onCreated: () => void }) {
+  const invite = useServerFn(inviteUser);
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    organization: "",
+    role: "analyst" as AppRole,
+  });
+  const [lastCreated, setLastCreated] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      invite({
+        data: {
+          email: form.email.trim(),
+          full_name: form.full_name.trim(),
+          organization: form.organization.trim() || undefined,
+          role: form.role,
+        },
+      }),
+    onSuccess: () => {
+      toast.success(`Usuário ${form.full_name} criado com sucesso`);
+      setLastCreated(form.full_name);
+      setForm({ full_name: "", email: "", organization: "", role: "analyst" });
+      onCreated();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao criar usuário"),
+  });
+
+  return (
+    <Card className="p-6 space-y-4 border-primary/30">
+      <h2 className="text-base font-semibold">Criar novo usuário</h2>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!form.full_name.trim() || !form.email.trim()) {
+            toast.error("Nome e email são obrigatórios");
+            return;
+          }
+          mutation.mutate();
+        }}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+      >
+        <Field label="Nome completo *">
+          <Input
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            maxLength={100}
+            required
+          />
+        </Field>
+        <Field label="Email *">
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            maxLength={255}
+            required
+          />
+        </Field>
+        <Field label="Organização">
+          <Input
+            value={form.organization}
+            onChange={(e) => setForm({ ...form, organization: e.target.value })}
+            maxLength={150}
+          />
+        </Field>
+        <Field label="Role">
+          <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="analyst">Analista</SelectItem>
+              <SelectItem value="contractor">Contratante</SelectItem>
+              <SelectItem value="superadmin">Superadmin</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="sm:col-span-2 flex justify-end">
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? "Criando..." : "Criar usuário"}
+          </Button>
+        </div>
+      </form>
+      {lastCreated && (
+        <div className="text-xs text-muted-foreground border-t border-border pt-3">
+          ✓ <strong>{lastCreated}</strong> criado. O usuário ainda não tem senha — envie o link para redefinição:{" "}
+          <a
+            href="https://insights-radar.exudustech.com.br/auth"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline"
+          >
+            insights-radar.exudustech.com.br/auth
+          </a>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium">{label}</Label>
+      {children}
     </div>
   );
 }
