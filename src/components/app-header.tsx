@@ -14,9 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, LogOut, User as UserIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import type { CurrentUser } from "@/hooks/use-current-user";
 import { ROLE_LABEL } from "@/hooks/use-current-user";
+import { countUnread, notificationsUnreadKey } from "@/lib/notifications.queries";
 
 function initials(name?: string | null) {
   if (!name) return "U";
@@ -56,6 +57,12 @@ export function AppHeader({ user }: { user: CurrentUser | null }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: unread = 0 } = useQuery({
+    queryKey: notificationsUnreadKey(user?.id ?? ""),
+    queryFn: () => countUnread(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
 
   async function handleSignOut() {
     await qc.cancelQueries();
@@ -75,11 +82,19 @@ export function AppHeader({ user }: { user: CurrentUser | null }) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={() => navigate({ to: "/notificacoes" })}
+          aria-label="Notificações"
+        >
           <Bell className="h-4 w-4" />
-          <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]" variant="secondary">
-            0
-          </Badge>
+          {unread > 0 && (
+            <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px]" variant="destructive">
+              {unread}
+            </Badge>
+          )}
         </Button>
 
         <DropdownMenu>
