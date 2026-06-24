@@ -79,6 +79,7 @@ export type CreateMissionInput = {
   objective?: string | null;
   segment?: string | null;
   contractor_id?: string | null;
+  product_id?: string | null;
   deadline_first?: string | null;
   deadline_final?: string | null;
   target_label: string;
