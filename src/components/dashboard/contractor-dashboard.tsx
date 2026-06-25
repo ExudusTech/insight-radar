@@ -176,7 +176,7 @@ export function ContractorDashboard() {
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 stagger-children">
             <Kpi label="Total de alvos" value={kpis.total} icon={TargetIcon} />
             <Kpi label="Concluídos" value={kpis.done} icon={CheckCircle2} tone="success" />
             <Kpi label="Em andamento" value={kpis.inProgress} icon={Play} tone="info" />
@@ -337,22 +337,20 @@ function Kpi({
   icon: React.ComponentType<{ className?: string }>;
   tone?: "default" | "success" | "info" | "danger";
 }) {
-  const toneCls =
-    tone === "success"
-      ? "bg-green-500/10 text-green-600"
-      : tone === "info"
-      ? "bg-primary/10 text-primary"
-      : tone === "danger"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-muted text-muted-foreground";
+  const toneMap = {
+    default: { bg: "bg-muted/60", icon: "bg-muted text-muted-foreground", border: "border-border" },
+    success: { bg: "bg-gradient-to-br from-green-500/10 to-transparent", icon: "bg-green-500/15 text-green-600", border: "border-green-500/20" },
+    info:    { bg: "bg-gradient-to-br from-primary/10 to-transparent", icon: "bg-primary/15 text-primary", border: "border-primary/20" },
+    danger:  { bg: "bg-gradient-to-br from-destructive/10 to-transparent", icon: "bg-destructive/15 text-destructive", border: "border-destructive/20" },
+  }[tone];
   return (
-    <Card className="p-4">
+    <Card className={`p-4 border ${toneMap.border} ${toneMap.bg} hover:-translate-y-0.5 hover:shadow-[var(--shadow-elevated)] transition-all duration-200`}>
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className="text-2xl font-bold mt-1">{value}</div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">{label}</div>
+          <div className="text-3xl font-bold mt-1 font-display">{value}</div>
         </div>
-        <div className={`grid place-items-center h-8 w-8 rounded-md ${toneCls}`}>
+        <div className={`grid place-items-center h-9 w-9 rounded-lg ${toneMap.icon}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>

@@ -30,7 +30,7 @@ function Dashboard() {
               {user?.role ? ROLE_LABEL[user.role] : "—"}
             </Badge>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight font-display">
             Bem-vindo{greeting ? `, ${greeting}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -44,7 +44,7 @@ function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         <KpiCard label="Missões ativas" value={fmt(kpis?.activeMissions)} icon={Target} tone="primary" />
         <KpiCard label="Alvos em coleta" value={fmt(kpis?.targetsInProgress)} icon={FolderOpen} tone="info" />
         <KpiCard label="Alvos concluídos" value={fmt(kpis?.targetsComplete)} icon={CheckCircle2} tone="success" />
@@ -122,23 +122,21 @@ function KpiCard({
   icon: React.ComponentType<{ className?: string }>;
   tone: "primary" | "info" | "success" | "warning";
 }) {
-  const toneClasses = {
-    primary: "bg-primary/10 text-primary",
-    info: "bg-secondary/15 text-secondary",
-    success: "bg-[oklch(0.625_0.187_145/0.12)] text-[oklch(0.45_0.18_145)]",
-    warning: "bg-warning/15 text-[oklch(0.55_0.18_70)]",
+  const toneMap = {
+    primary: { bg: "from-primary/20 to-primary/5", icon: "bg-primary/15 text-primary", border: "border-primary/20" },
+    info:    { bg: "from-secondary/20 to-secondary/5", icon: "bg-secondary/15 text-secondary", border: "border-secondary/20" },
+    success: { bg: "from-[oklch(0.625_0.187_145/0.15)] to-[oklch(0.625_0.187_145/0.02)]", icon: "bg-[oklch(0.625_0.187_145/0.15)] text-[oklch(0.45_0.18_145)]", border: "border-[oklch(0.625_0.187_145/0.25)]" },
+    warning: { bg: "from-warning/15 to-warning/0", icon: "bg-warning/15 text-[oklch(0.55_0.18_70)]", border: "border-warning/20" },
   }[tone];
 
   return (
-    <Card className="p-5 hover:shadow-[var(--shadow-elevated)] transition-shadow">
+    <Card className={`p-5 border ${toneMap.border} bg-gradient-to-br ${toneMap.bg} hover:shadow-[var(--shadow-elevated)] transition-all duration-200 hover:-translate-y-0.5`}>
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {label}
-          </div>
-          <div className="text-3xl font-bold tracking-tight mt-2">{value}</div>
+          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest">{label}</div>
+          <div className="text-4xl font-bold tracking-tight mt-2 font-display">{value}</div>
         </div>
-        <div className={`grid place-items-center h-10 w-10 rounded-lg ${toneClasses}`}>
+        <div className={`grid place-items-center h-11 w-11 rounded-xl ${toneMap.icon}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

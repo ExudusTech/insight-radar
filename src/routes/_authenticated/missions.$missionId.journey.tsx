@@ -80,7 +80,7 @@ function JourneyPage() {
         </Link>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{mission.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight font-display">{mission.name}</h1>
             <p className="text-sm text-muted-foreground mt-1">Painel da jornada de coleta</p>
           </div>
           {daysLeft !== null && (
@@ -99,38 +99,39 @@ function JourneyPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
         {targets.map((t) => {
           const blocks = blockStatus[t.id] ?? {};
           const isBlocked = blocking[t.id] === true;
           return (
-            <Card key={t.id} className="p-4 flex flex-col gap-3">
+            <Card key={t.id} className="p-4 flex flex-col gap-3 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 transition-all duration-200 border-border/60 group">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="font-semibold leading-tight truncate">{t.name}</h3>
-                  {t.category && <p className="text-xs text-muted-foreground">{t.category}</p>}
+                  <h3 className="font-semibold leading-tight truncate font-display group-hover:text-primary transition-colors">{t.name}</h3>
+                  {t.category && <p className="text-xs text-muted-foreground mt-0.5">{t.category}</p>}
                 </div>
                 <StatusBadge status={t.status} />
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 py-1">
                 {COLLECTION_BLOCKS.map((b) => {
                   const s = blocks[b] ?? "not_started";
                   const Icon = s === "done" ? CheckCircle2 : s === "in_progress" ? Play : Circle;
-                  const color = s === "done" ? "text-green-600" : s === "in_progress" ? "text-primary" : "text-muted-foreground/40";
+                  const color = s === "done" ? "text-green-500" : s === "in_progress" ? "text-primary" : "text-muted-foreground/30";
+                  const bg = s === "done" ? "bg-green-500/10" : s === "in_progress" ? "bg-primary/10" : "bg-muted/30";
                   return (
-                    <div key={b} className="flex flex-col items-center gap-0.5" title={`Bloco ${b}: ${s}`}>
-                      <Icon className={`h-4 w-4 ${color}`} />
-                      <span className="text-[9px] text-muted-foreground font-mono">{b}</span>
+                    <div key={b} className={`flex flex-col items-center gap-0.5 rounded px-1 py-0.5 ${bg}`} title={`Bloco ${b}: ${s}`}>
+                      <Icon className={`h-3.5 w-3.5 ${color}`} />
+                      <span className="text-[9px] text-muted-foreground font-mono font-bold">{b}</span>
                     </div>
                   );
                 })}
               </div>
 
               {isBlocked && (
-                <div className="flex items-center gap-1.5 text-xs text-destructive">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Aguardando feedback
+                <div className="flex items-center gap-1.5 text-xs text-destructive bg-destructive/8 rounded px-2 py-1">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  Aguardando feedback do cliente
                 </div>
               )}
 

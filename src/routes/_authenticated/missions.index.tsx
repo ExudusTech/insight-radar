@@ -72,7 +72,7 @@ function MissionsPage() {
         ) : filtered.length === 0 ? (
           <EmptyState canCreate={canCreate} />
         ) : cardsView ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
             {filtered.map((m) => <MissionCard key={m.id} missionId={m.id} name={m.name} segment={m.segment} deadline={m.deadline_final} status={m.status} />)}
           </div>
         ) : (
@@ -169,33 +169,29 @@ function MissionCard({
       : "text-muted-foreground";
 
   return (
-    <Card className="p-5 flex flex-col gap-4 hover:shadow-md transition">
+    <Card className="p-5 flex flex-col gap-4 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 transition-all duration-200 border-border/60 group">
       <div>
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold leading-tight">{name}</h3>
+          <h3 className="font-semibold leading-tight font-display group-hover:text-primary transition-colors">{name}</h3>
           <Badge variant="outline" className="shrink-0 text-[10px]">{MISSION_STATUS_LABEL[status]}</Badge>
         </div>
         {segment && <p className="text-xs text-muted-foreground mt-1">{segment}</p>}
       </div>
       <div>
-        <div className="flex justify-between text-xs mb-1">
+        <div className="flex justify-between text-xs mb-1.5">
           <span className="text-muted-foreground">Alvos concluídos</span>
-          <span className="font-medium">{done} de {total}</span>
+          <span className="font-semibold">{done}/{total}</span>
         </div>
-        <Progress value={pct} />
+        <Progress value={pct} className="h-1.5" />
       </div>
       <div className="flex items-center justify-between gap-2">
-        <div className={`text-xs flex items-center gap-1 ${urgencyClass}`}>
+        <div className={`text-xs flex items-center gap-1.5 ${urgencyClass}`}>
           <Calendar className="h-3.5 w-3.5" />
-          {deadline
-            ? daysLeft! >= 0
-              ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"} restantes`
-              : "Prazo expirado"
-            : "Sem prazo definido"}
+          {deadline ? (daysLeft! >= 0 ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"}` : "Prazo expirado") : "Sem prazo"}
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="group-hover:shadow-[var(--shadow-glow)] transition-shadow">
           <Link to="/missions/$missionId/journey" params={{ missionId }}>
-            Continuar missão <ArrowRight className="h-3.5 w-3.5" />
+            Continuar <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </Button>
       </div>
