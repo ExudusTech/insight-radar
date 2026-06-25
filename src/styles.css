@@ -107,13 +107,13 @@
   --chart-4: oklch(0.625 0.187 145);
   --chart-5: oklch(0.745 0.176 70);
   /* Sidebar — Exudus pure black */
-  --sidebar: oklch(0.13 0 0);
-  --sidebar-foreground: oklch(0.96 0.003 60);
+  --sidebar: oklch(0.985 0.002 60);
+  --sidebar-foreground: oklch(0.18 0.005 30);
   --sidebar-primary: oklch(0.58 0.22 25);
   --sidebar-primary-foreground: oklch(0.99 0.003 60);
-  --sidebar-accent: oklch(0.22 0.005 30);
-  --sidebar-accent-foreground: oklch(0.99 0.003 60);
-  --sidebar-border: oklch(0.24 0.005 30);
+  --sidebar-accent: oklch(0.95 0.005 30);
+  --sidebar-accent-foreground: oklch(0.18 0.005 30);
+  --sidebar-border: oklch(0.90 0.005 30);
   --sidebar-ring: oklch(0.58 0.22 25 / 0.5);
 }
 
