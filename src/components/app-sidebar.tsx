@@ -73,8 +73,8 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
         return (
           <SidebarMenuItem key={item.url}>
             <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-              <Link to={item.url} className="flex items-center gap-2">
-                <item.icon className="h-4 w-4" />
+              <Link to={item.url} className="flex items-center gap-2 w-full">
+                <item.icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
                 <span className="flex-1">{item.title}</span>
                 {isNotif && unread > 0 && (
                   <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
