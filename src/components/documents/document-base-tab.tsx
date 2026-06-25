@@ -362,6 +362,14 @@ function CurrentVersion({
             <Badge variant={isFrozen ? "default" : "outline"}>
               {STATUS_LABEL[version.status] ?? version.status}
             </Badge>
+            <Badge variant="secondary">
+              {DOC_TYPE_LABEL[version.doc_type ?? "base"] ?? version.doc_type}
+            </Badge>
+            {version.doc_label && (
+              <Badge variant="outline" className="font-normal">
+                {version.doc_label}
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             Enviado em {new Date(version.created_at).toLocaleString("pt-BR")}
