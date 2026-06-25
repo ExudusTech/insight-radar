@@ -62,6 +62,64 @@ export type Database = {
           },
         ]
       }
+      assistant_messages: {
+        Row: {
+          analyst_id: string
+          block: string
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          mission_id: string
+          role: string
+          target_id: string
+        }
+        Insert: {
+          analyst_id: string
+          block: string
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mission_id: string
+          role: string
+          target_id: string
+        }
+        Update: {
+          analyst_id?: string
+          block?: string
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mission_id?: string
+          role?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       change_requests: {
         Row: {
           affects_deadline: boolean
@@ -204,6 +262,8 @@ export type Database = {
           author_id: string | null
           change_summary: string | null
           created_at: string
+          doc_label: string | null
+          doc_type: string
           extracted_data: Json | null
           file_name: string | null
           file_url: string | null
@@ -217,6 +277,8 @@ export type Database = {
           author_id?: string | null
           change_summary?: string | null
           created_at?: string
+          doc_label?: string | null
+          doc_type?: string
           extracted_data?: Json | null
           file_name?: string | null
           file_url?: string | null
@@ -230,6 +292,8 @@ export type Database = {
           author_id?: string | null
           change_summary?: string | null
           created_at?: string
+          doc_label?: string | null
+          doc_type?: string
           extracted_data?: Json | null
           file_name?: string | null
           file_url?: string | null

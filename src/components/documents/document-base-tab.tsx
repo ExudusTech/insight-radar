@@ -11,10 +11,27 @@ import {
   Snowflake,
   Users,
   Sparkles,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -60,24 +77,43 @@ const STATUS_LABEL: Record<string, string> = {
   frozen: "Congelado",
 };
 
+const DOC_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "base", label: "Briefing / Documento-base" },
+  { value: "reference", label: "Referência de mercado" },
+  { value: "example", label: "Exemplo de abordagem" },
+  { value: "evidence", label: "Evidência / Benchmark" },
+  { value: "other", label: "Outro" },
+];
+
+const DOC_TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  DOC_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+);
+
 export function DocumentBaseTab({ missionId }: { missionId: string }) {
   const qc = useQueryClient();
   const { data: user } = useCurrentUser();
   const fileRef = useRef<HTMLInputElement>(null);
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const extractFn = useServerFn(extractMissionDocument);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<string>("base");
+  const [docLabel, setDocLabel] = useState<string>("");
 
   const { data: versions = [], isLoading } = useQuery({
     queryKey: docVersionsKey(missionId),
     queryFn: () => listDocumentVersions(missionId),
   });
 
-  const latest = versions[0] as DocumentVersion | undefined;
-
   const uploadMut = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (args: { file: File; docType: string; docLabel: string | null }) => {
       if (!user?.id) throw new Error("Sem usuário");
-      return uploadAndCreateVersion({ missionId, file, authorId: user.id });
+      return uploadAndCreateVersion({
+        missionId,
+        file: args.file,
+        authorId: user.id,
+        docType: args.docType,
+        docLabel: args.docLabel,
+      });
     },
     onSuccess: async (version) => {
       toast.success(`Versão #${version.version_number} enviada. Extraindo com IA…`);
@@ -135,21 +171,34 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
       toast.error("Apenas PDF ou DOCX.");
       return;
     }
-    uploadMut.mutate(f);
+    setPendingFile(f);
+    setDocType("base");
+    setDocLabel("");
     e.target.value = "";
   };
 
-  const hasFrozen = versions.some((v) => v.status === "frozen");
+  const confirmUpload = () => {
+    if (!pendingFile) return;
+    uploadMut.mutate({
+      file: pendingFile,
+      docType,
+      docLabel: docLabel.trim() || null,
+    });
+    setPendingFile(null);
+  };
+
+  const frozenList = versions.filter((v) => v.status === "frozen");
+  const draftList = versions.filter((v) => v.status !== "frozen");
 
   return (
     <div className="space-y-5">
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-base font-semibold">Documento-base da missão</h2>
+            <h2 className="text-base font-semibold">Documentos da missão</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-              Envie o briefing em PDF ou DOCX. A IA extrai objetivo, alvos, blocos de coleta
-              e regras éticas para sua revisão.
+              Envie briefings, referências, exemplos e evidências em PDF ou DOCX. A IA extrai
+              objetivo, alvos, blocos de coleta e regras éticas para sua revisão.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -169,11 +218,63 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {hasFrozen ? "Enviar nova versão" : "Enviar documento"}
+              Adicionar documento
             </Button>
           </div>
         </div>
+        <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded p-3">
+          <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+          <span>
+            Todos os documentos congelados formam a base de conhecimento da missão e orientam o
+            Assistente de IA durante a coleta.
+          </span>
+        </div>
       </Card>
+
+      <Dialog open={!!pendingFile} onOpenChange={(o) => !o && setPendingFile(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {pendingFile && (
+              <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                <FileText className="h-4 w-4" /> {pendingFile.name}
+              </div>
+            )}
+            <div>
+              <Label className="text-xs">Tipo do documento *</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOC_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Rótulo (opcional)</Label>
+              <Input
+                value={docLabel}
+                onChange={(e) => setDocLabel(e.target.value)}
+                placeholder="Ex: Concorrente A, Deck Q1..."
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingFile(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmUpload}>Confirmar e enviar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="grid place-items-center py-12">
@@ -184,41 +285,46 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
           Nenhum documento enviado ainda.
         </Card>
       ) : (
-        <>
-          {latest && (
-            <CurrentVersion
-              version={latest}
-              extracting={extractingId === latest.id}
-              onReextract={() => reextractMut.mutate(latest.id)}
-              onFreeze={() => freezeMut.mutate(latest.id)}
-              onCreateTargets={() => createTargetsMut.mutate(latest.id)}
-              freezing={freezeMut.isPending}
-              creatingTargets={createTargetsMut.isPending}
-            />
+        <div className="space-y-6">
+          {frozenList.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Snowflake className="h-3.5 w-3.5" /> Congelados ({frozenList.length})
+              </h3>
+              {frozenList.map((v) => (
+                <CurrentVersion
+                  key={v.id}
+                  version={v}
+                  extracting={extractingId === v.id}
+                  onReextract={() => reextractMut.mutate(v.id)}
+                  onFreeze={() => freezeMut.mutate(v.id)}
+                  onCreateTargets={() => createTargetsMut.mutate(v.id)}
+                  freezing={freezeMut.isPending && freezeMut.variables === v.id}
+                  creatingTargets={createTargetsMut.isPending && createTargetsMut.variables === v.id}
+                />
+              ))}
+            </div>
           )}
-
-          {versions.length > 1 && (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold mb-3">Histórico de versões</h3>
-              <ul className="space-y-2">
-                {versions.slice(1).map((v) => (
-                  <li
-                    key={v.id}
-                    className="flex items-center justify-between text-sm border-b border-border/40 pb-2 last:border-0"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        v{v.version_number} · {v.file_name ?? "sem arquivo"}
-                      </span>
-                    </div>
-                    <Badge variant="outline">{STATUS_LABEL[v.status] ?? v.status}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+          {draftList.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Em rascunho ({draftList.length})
+              </h3>
+              {draftList.map((v) => (
+                <CurrentVersion
+                  key={v.id}
+                  version={v}
+                  extracting={extractingId === v.id}
+                  onReextract={() => reextractMut.mutate(v.id)}
+                  onFreeze={() => freezeMut.mutate(v.id)}
+                  onCreateTargets={() => createTargetsMut.mutate(v.id)}
+                  freezing={freezeMut.isPending && freezeMut.variables === v.id}
+                  creatingTargets={createTargetsMut.isPending && createTargetsMut.variables === v.id}
+                />
+              ))}
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -256,6 +362,14 @@ function CurrentVersion({
             <Badge variant={isFrozen ? "default" : "outline"}>
               {STATUS_LABEL[version.status] ?? version.status}
             </Badge>
+            <Badge variant="secondary">
+              {DOC_TYPE_LABEL[version.doc_type ?? "base"] ?? version.doc_type}
+            </Badge>
+            {version.doc_label && (
+              <Badge variant="outline" className="font-normal">
+                {version.doc_label}
+              </Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             Enviado em {new Date(version.created_at).toLocaleString("pt-BR")}

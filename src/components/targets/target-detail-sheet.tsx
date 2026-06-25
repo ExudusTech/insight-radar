@@ -30,7 +30,17 @@ import {
   Phone,
   Globe,
   Mail,
+  Sparkles,
+  ChevronDown,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { COLLECTION_BLOCKS } from "@/lib/collection.queries";
+import { MissionAssistantPanel } from "./MissionAssistantPanel";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   collectionByTargetKey,
   countCompleteBlocks,
@@ -55,14 +65,17 @@ export function TargetDetailSheet({
   open,
   onOpenChange,
   targetLabel,
-  defaultTab = "overview",
+  defaultTab,
 }: {
   targetId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetLabel: string;
-  defaultTab?: "overview" | "collection" | "timeline" | "evidences" | "ai";
+  defaultTab?: "overview" | "collection" | "timeline" | "evidences" | "ai" | "assistant";
 }) {
+  const { data: currentUser } = useCurrentUser();
+  const resolvedDefault =
+    defaultTab ?? (currentUser?.role === "analyst" ? "assistant" : "overview");
   const { data: target, isLoading } = useQuery({
     queryKey: targetDetailKey(targetId ?? ""),
     queryFn: () => getTarget(targetId!),
@@ -119,10 +132,14 @@ export function TargetDetailSheet({
               <StatusBadge status={target.status} />
               <PriorityBadge priority={target.priority} />
             </div>
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs defaultValue={resolvedDefault} className="w-full">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                 <TabsTrigger value="collection">Coleta</TabsTrigger>
+                <TabsTrigger value="assistant">
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Assistente IA
+                </TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="evidences">Evidências</TabsTrigger>
                 <TabsTrigger value="journey" disabled>Jornada</TabsTrigger>
@@ -197,6 +214,26 @@ export function TargetDetailSheet({
               </TabsContent>
               <TabsContent value="collection" className="pt-5">
                 <CollectionTab missionId={target.mission_id} targetId={target.id} />
+              </TabsContent>
+              <TabsContent value="assistant" className="pt-5">
+                <div className="space-y-3">
+                  {COLLECTION_BLOCKS.map((block) => (
+                    <Collapsible key={block}>
+                      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50 group">
+                        <span>Bloco {block}</span>
+                        <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-2">
+                        <MissionAssistantPanel
+                          missionId={target.mission_id}
+                          targetId={target.id}
+                          block={block}
+                          targetName={target.name}
+                        />
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
               </TabsContent>
               <TabsContent value="timeline" className="pt-5">
                 <TimelineTab missionId={target.mission_id} targetId={target.id} />
