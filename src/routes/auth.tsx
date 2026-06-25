@@ -40,7 +40,7 @@ function AuthPage() {
             <img
               src={exudusLogo.url}
               alt="EXUDUS"
-              className="w-full max-w-[180px] xl:max-w-[240px] mb-4 xl:mb-6 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
+              className="w-full max-w-[180px] xl:max-w-[240px] max-h-[180px] xl:max-h-[220px] object-contain mb-4 xl:mb-6 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
             />
             <div className="max-w-md text-center space-y-3 xl:space-y-4">
               <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight font-display">
