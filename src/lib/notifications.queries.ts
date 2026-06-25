@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { sendNotifications } from "@/lib/notifications.functions";
 
 export type Notification = Tables<"notifications">;
 export type NotificationType = "doubt" | "observation" | "feedback" | "blocking";
@@ -59,14 +60,12 @@ export type NewNotification = {
 };
 
 export async function createNotification(n: NewNotification) {
-  const { error } = await supabase.from("notifications").insert(n);
-  if (error) throw error;
+  await sendNotifications({ data: { notifications: [n] } });
 }
 
 export async function createNotifications(rows: NewNotification[]) {
   if (rows.length === 0) return;
-  const { error } = await supabase.from("notifications").insert(rows);
-  if (error) throw error;
+  await sendNotifications({ data: { notifications: rows } });
 }
 
 export async function listSuperadminIds(): Promise<string[]> {
