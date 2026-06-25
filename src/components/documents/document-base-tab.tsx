@@ -104,8 +104,6 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
     queryFn: () => listDocumentVersions(missionId),
   });
 
-  const latest = versions[0] as DocumentVersion | undefined;
-
   const uploadMut = useMutation({
     mutationFn: async (args: { file: File; docType: string; docLabel: string | null }) => {
       if (!user?.id) throw new Error("Sem usuário");
