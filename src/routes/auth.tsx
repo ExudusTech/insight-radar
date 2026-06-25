@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Radar, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { AppFooter } from "@/components/app-footer";
+import exudusLogo from "@/assets/exudus-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
@@ -24,23 +25,25 @@ function AuthPage() {
     <div className="min-h-screen w-full flex flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex flex-1 min-h-0">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-[oklch(0.16_0.05_265)] via-[oklch(0.20_0.045_265)] to-[oklch(0.28_0.08_265)] relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-black via-[oklch(0.12_0.02_25)] to-[oklch(0.18_0.08_25)] relative overflow-hidden flex-1">
         {/* Gradient mesh atmosphere */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[oklch(0.488_0.220_264/0.12)] blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-[oklch(0.715_0.143_215/0.08)] blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-[oklch(0.488_0.220_264/0.06)] blur-2xl" />
+          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-primary/10 blur-2xl" />
         </div>
-        <div className="flex items-center gap-3">
-          <div className="grid place-items-center h-10 w-10 rounded-lg bg-primary/15 ring-1 ring-primary/30">
-            <Radar className="h-5 w-5 text-primary" />
-          </div>
+        <div className="relative flex items-center gap-3">
+          <img
+            src={exudusLogo.url}
+            alt="ExudusTech"
+            className="h-12 w-12 rounded-lg ring-1 ring-white/10 object-cover"
+          />
           <div>
             <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
             <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
           </div>
         </div>
-        <div className="max-w-md space-y-5">
+        <div className="relative max-w-md space-y-5">
           <h1 className="text-5xl font-bold leading-tight tracking-tight font-display">
             Inteligência de mercado, com método e evidência.
           </h1>
@@ -56,7 +59,7 @@ function AuthPage() {
             ))}
           </div>
         </div>
-        <div className="text-xs text-sidebar-foreground/40">
+        <div className="relative text-xs text-sidebar-foreground/40">
           © {new Date().getFullYear()} ExudusTech · Plataforma SaaS B2B
         </div>
       </div>
@@ -65,9 +68,7 @@ function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-background text-foreground">
         <Card className="w-full max-w-md p-8 shadow-[var(--shadow-elevated)]">
           <div className="lg:hidden flex items-center gap-2 mb-6">
-            <div className="grid place-items-center h-9 w-9 rounded-lg bg-primary/10">
-              <Radar className="h-4 w-4 text-primary" />
-            </div>
+            <img src={exudusLogo.url} alt="ExudusTech" className="h-9 w-9 rounded-lg object-cover" />
             <div className="text-sm font-semibold">Radar de Mercado IA</div>
           </div>
           <Tabs defaultValue="signin" className="w-full">
