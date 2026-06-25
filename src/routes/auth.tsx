@@ -25,7 +25,7 @@ function AuthPage() {
     <div className="h-screen w-full flex flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       <div className="flex flex-1 min-h-0">
         {/* Left brand panel */}
-        <div className="hidden lg:flex flex-col justify-between p-8 xl:p-12 overflow-y-auto bg-gradient-to-br from-black via-[oklch(0.12_0.02_25)] to-[oklch(0.18_0.08_25)] relative flex-1">
+        <div className="hidden lg:flex flex-col justify-between p-6 xl:p-8 overflow-y-auto bg-gradient-to-br from-black via-[oklch(0.12_0.02_25)] to-[oklch(0.18_0.08_25)] relative flex-1">
           {/* Gradient mesh atmosphere */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
@@ -36,23 +36,23 @@ function AuthPage() {
             <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
             <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
           </div>
-          <div className="relative flex flex-col items-center justify-center flex-1 py-6 xl:py-10">
+          <div className="relative flex flex-col items-center justify-center flex-1 py-4 xl:py-6">
             <img
               src={exudusLogo.url}
               alt="EXUDUS"
-              className="w-full max-w-[220px] xl:max-w-[300px] mb-6 xl:mb-8 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
+              className="w-full max-w-[180px] xl:max-w-[240px] mb-4 xl:mb-6 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
             />
-            <div className="max-w-md text-center space-y-4 xl:space-y-5">
-              <h1 className="text-3xl xl:text-4xl font-bold leading-tight tracking-tight font-display">
+            <div className="max-w-md text-center space-y-3 xl:space-y-4">
+              <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight font-display">
                 Inteligência de mercado, com método e evidência.
               </h1>
-              <p className="text-sidebar-foreground/70 text-sm xl:text-base leading-relaxed">
+              <p className="text-sidebar-foreground/70 text-xs xl:text-sm leading-relaxed">
                 Gerencie missões de pesquisa competitiva ponta a ponta — do documento-base
                 às análises com IA, com auditoria e governança em cada etapa.
               </p>
-              <div className="grid grid-cols-2 gap-2 pt-2 xl:pt-4">
+              <div className="grid grid-cols-2 gap-2 pt-1 xl:pt-2">
                 {["Coleta guiada", "Análise por IA", "Timeline de evidências", "Comparativos estratégicos"].map((f) => (
-                  <div key={f} className="rounded-md border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-2 text-xs text-sidebar-foreground/80 hover:bg-white/10 transition-colors">
+                  <div key={f} className="rounded-md border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-1.5 text-[10px] xl:text-xs text-sidebar-foreground/80 hover:bg-white/10 transition-colors">
                     {f}
                   </div>
                 ))}
