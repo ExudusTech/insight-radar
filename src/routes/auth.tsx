@@ -24,7 +24,13 @@ function AuthPage() {
     <div className="min-h-screen w-full flex flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex flex-1 min-h-0">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-1 flex-col justify-between p-12 bg-gradient-to-br from-sidebar via-sidebar to-[oklch(0.27_0.06_265)]">
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-[oklch(0.16_0.05_265)] via-[oklch(0.20_0.045_265)] to-[oklch(0.28_0.08_265)] relative overflow-hidden">
+        {/* Gradient mesh atmosphere */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[oklch(0.488_0.220_264/0.12)] blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-[oklch(0.715_0.143_215/0.08)] blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-[oklch(0.488_0.220_264/0.06)] blur-2xl" />
+        </div>
         <div className="flex items-center gap-3">
           <div className="grid place-items-center h-10 w-10 rounded-lg bg-primary/15 ring-1 ring-primary/30">
             <Radar className="h-5 w-5 text-primary" />
@@ -35,7 +41,7 @@ function AuthPage() {
           </div>
         </div>
         <div className="max-w-md space-y-5">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight">
+          <h1 className="text-5xl font-bold leading-tight tracking-tight font-display">
             Inteligência de mercado, com método e evidência.
           </h1>
           <p className="text-sidebar-foreground/70 text-base leading-relaxed">
@@ -44,7 +50,7 @@ function AuthPage() {
           </p>
           <div className="grid grid-cols-2 gap-3 pt-4">
             {["Coleta guiada", "Análise por IA", "Timeline de evidências", "Comparativos estratégicos"].map((f) => (
-              <div key={f} className="rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-xs text-sidebar-foreground/80">
+              <div key={f} className="rounded-md border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-2 text-xs text-sidebar-foreground/80 hover:bg-white/10 transition-colors">
                 {f}
               </div>
             ))}

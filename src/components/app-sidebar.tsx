@@ -73,8 +73,8 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
         return (
           <SidebarMenuItem key={item.url}>
             <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-              <Link to={item.url} className="flex items-center gap-2">
-                <item.icon className="h-4 w-4" />
+              <Link to={item.url} className="flex items-center gap-2 w-full">
+                <item.icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`} />
                 <span className="flex-1">{item.title}</span>
                 {isNotif && unread > 0 && (
                   <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
@@ -92,13 +92,13 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="grid place-items-center h-8 w-8 rounded-md bg-primary/15 ring-1 ring-primary/30 shrink-0">
+        <div className="flex items-center gap-2.5 px-2 py-2">
+          <div className="grid place-items-center h-8 w-8 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/40 shrink-0 shadow-[var(--shadow-glow)]">
             <Radar className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="text-sm font-semibold tracking-tight truncate">Radar de Mercado IA</div>
-            <div className="text-[11px] text-sidebar-foreground/60 truncate">
+            <div className="text-sm font-bold tracking-tight truncate font-display">Radar IA</div>
+            <div className="text-[11px] text-sidebar-foreground/50 truncate">
               {role ? ROLE_LABEL[role] : "Carregando..."}
             </div>
           </div>
