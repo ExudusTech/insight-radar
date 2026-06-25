@@ -22,69 +22,69 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   return (
-    <div className="min-h-screen w-full flex flex-col bg-sidebar text-sidebar-foreground">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       <div className="flex flex-1 min-h-0">
-      {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-black via-[oklch(0.12_0.02_25)] to-[oklch(0.18_0.08_25)] relative overflow-hidden flex-1">
-        {/* Gradient mesh atmosphere */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-primary/10 blur-2xl" />
-        </div>
-        <div className="relative flex items-center gap-3">
-          <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
-          <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
-        </div>
-        <div className="relative flex flex-col items-center justify-center flex-1 py-10">
-          <img
-            src={exudusLogo.url}
-            alt="EXUDUS"
-            className="w-full max-w-[360px] mb-8 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
-          />
-          <div className="max-w-md text-center space-y-5">
-            <h1 className="text-5xl font-bold leading-tight tracking-tight font-display">
-              Inteligência de mercado, com método e evidência.
-            </h1>
-            <p className="text-sidebar-foreground/70 text-base leading-relaxed">
-              Gerencie missões de pesquisa competitiva ponta a ponta — do documento-base
-              às análises com IA, com auditoria e governança em cada etapa.
-            </p>
-            <div className="grid grid-cols-2 gap-3 pt-4">
-              {["Coleta guiada", "Análise por IA", "Timeline de evidências", "Comparativos estratégicos"].map((f) => (
-                <div key={f} className="rounded-md border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-2 text-xs text-sidebar-foreground/80 hover:bg-white/10 transition-colors">
-                  {f}
-                </div>
-              ))}
+        {/* Left brand panel */}
+        <div className="hidden lg:flex flex-col justify-between p-8 xl:p-12 overflow-y-auto bg-gradient-to-br from-black via-[oklch(0.12_0.02_25)] to-[oklch(0.18_0.08_25)] relative flex-1">
+          {/* Gradient mesh atmosphere */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-primary/10 blur-2xl" />
+          </div>
+          <div className="relative flex items-center gap-3">
+            <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
+            <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
+          </div>
+          <div className="relative flex flex-col items-center justify-center flex-1 py-6 xl:py-10">
+            <img
+              src={exudusLogo.url}
+              alt="EXUDUS"
+              className="w-full max-w-[220px] xl:max-w-[300px] mb-6 xl:mb-8 drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
+            />
+            <div className="max-w-md text-center space-y-4 xl:space-y-5">
+              <h1 className="text-3xl xl:text-4xl font-bold leading-tight tracking-tight font-display">
+                Inteligência de mercado, com método e evidência.
+              </h1>
+              <p className="text-sidebar-foreground/70 text-sm xl:text-base leading-relaxed">
+                Gerencie missões de pesquisa competitiva ponta a ponta — do documento-base
+                às análises com IA, com auditoria e governança em cada etapa.
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-2 xl:pt-4">
+                {["Coleta guiada", "Análise por IA", "Timeline de evidências", "Comparativos estratégicos"].map((f) => (
+                  <div key={f} className="rounded-md border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-2 text-xs text-sidebar-foreground/80 hover:bg-white/10 transition-colors">
+                    {f}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="relative text-xs text-sidebar-foreground/40">
-          © {new Date().getFullYear()} ExudusTech · Plataforma SaaS B2B
-        </div>
-      </div>
-
-      {/* Right form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background text-foreground">
-        <Card className="w-full max-w-md p-8 shadow-[var(--shadow-elevated)]">
-          <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
-            <img src={exudusLogo.url} alt="EXUDUS" className="w-full max-w-[200px]" />
-            <div className="text-sm font-semibold">Radar de Mercado IA</div>
+          <div className="relative text-xs text-sidebar-foreground/40">
+            © {new Date().getFullYear()} ExudusTech · Plataforma SaaS B2B
           </div>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid grid-cols-2 w-full mb-6">
-              <TabsTrigger value="signin">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Criar conta</TabsTrigger>
-            </TabsList>
-            <TabsContent value="signin">
-              <SignInForm />
-            </TabsContent>
-            <TabsContent value="signup">
-              <SignUpForm />
-            </TabsContent>
-          </Tabs>
-        </Card>
-      </div>
+        </div>
+
+        {/* Right form */}
+        <div className="flex-1 flex items-center justify-center overflow-y-auto p-4 sm:p-6 bg-background text-foreground">
+          <Card className="w-full max-w-md p-6 sm:p-8 shadow-[var(--shadow-elevated)]">
+            <div className="lg:hidden flex flex-col items-center gap-3 mb-6">
+              <img src={exudusLogo.url} alt="EXUDUS" className="w-full max-w-[160px]" />
+              <div className="text-sm font-semibold">Radar de Mercado IA</div>
+            </div>
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid grid-cols-2 w-full mb-6">
+                <TabsTrigger value="signin">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Criar conta</TabsTrigger>
+              </TabsList>
+              <TabsContent value="signin">
+                <SignInForm />
+              </TabsContent>
+              <TabsContent value="signup">
+                <SignUpForm />
+              </TabsContent>
+            </Tabs>
+          </Card>
+        </div>
       </div>
       <AppFooter />
     </div>
