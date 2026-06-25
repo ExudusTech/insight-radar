@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { AppFooter } from "@/components/app-footer";
-import exudusLogo from "@/assets/exudus-logo.png.asset.json";
+import exudusLogo from "@/assets/exudus-logo-new.jpeg.asset.json";
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
