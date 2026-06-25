@@ -33,17 +33,15 @@ function AuthPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-primary/10 blur-2xl" />
         </div>
         <div className="relative flex items-center gap-3">
+          <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
+          <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
+        </div>
+        <div className="relative flex flex-col items-center justify-center flex-1 py-10">
           <img
             src={exudusLogo.url}
-            alt="ExudusTech"
-            className="h-12 w-12 rounded-lg ring-1 ring-white/10 object-cover"
+            alt="EXUDUS"
+            className="w-full max-w-[360px] drop-shadow-[0_0_60px_rgba(255,255,255,0.12)]"
           />
-          <div>
-            <div className="text-base font-semibold tracking-tight">Radar de Mercado IA</div>
-            <div className="text-xs text-sidebar-foreground/60">por ExudusTech</div>
-          </div>
-        </div>
-        <div className="relative max-w-md space-y-5">
           <h1 className="text-5xl font-bold leading-tight tracking-tight font-display">
             Inteligência de mercado, com método e evidência.
           </h1>
