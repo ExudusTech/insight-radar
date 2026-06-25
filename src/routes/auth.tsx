@@ -67,8 +67,8 @@ function AuthPage() {
       {/* Right form */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background text-foreground">
         <Card className="w-full max-w-md p-8 shadow-[var(--shadow-elevated)]">
-          <div className="lg:hidden flex items-center gap-2 mb-6">
-            <img src={exudusLogo.url} alt="ExudusTech" className="h-9 w-9 rounded-lg object-cover" />
+          <div className="lg:hidden flex flex-col items-center gap-3 mb-8">
+            <img src={exudusLogo.url} alt="EXUDUS" className="w-full max-w-[200px]" />
             <div className="text-sm font-semibold">Radar de Mercado IA</div>
           </div>
           <Tabs defaultValue="signin" className="w-full">
