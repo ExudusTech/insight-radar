@@ -9,7 +9,7 @@ export const docVersionsKey = (missionId: string) =>
 export async function listDocumentVersions(missionId: string) {
   const { data, error } = await supabase
     .from("document_versions")
-    .select("*, author:profiles!document_versions_author_id_fkey(id, full_name, email)")
+    .select("*, doc_type, doc_label, author:profiles!document_versions_author_id_fkey(id, full_name, email)")
     .eq("mission_id", missionId)
     .order("version_number", { ascending: false });
   if (error) throw error;
@@ -32,8 +32,10 @@ export async function uploadAndCreateVersion(params: {
   missionId: string;
   file: File;
   authorId: string;
+  docType?: string;
+  docLabel?: string | null;
 }) {
-  const { missionId, file, authorId } = params;
+  const { missionId, file, authorId, docType = "base", docLabel = null } = params;
 
   // determine next version number
   const latest = await getLatestDocumentVersion(missionId);
@@ -60,6 +62,8 @@ export async function uploadAndCreateVersion(params: {
       file_name: file.name,
       author_id: authorId,
       status: "draft",
+      doc_type: docType,
+      doc_label: docLabel,
     })
     .select("*")
     .single();
