@@ -82,13 +82,6 @@ export async function freezeVersion(versionId: string) {
 
   const extracted = (version.extracted_data ?? {}) as Record<string, unknown>;
 
-  // mark previous frozen versions as replaced
-  await supabase
-    .from("document_versions")
-    .update({ status: "replaced" })
-    .eq("mission_id", version.mission_id)
-    .eq("status", "frozen");
-
   // freeze this version
   const { error: freezeErr } = await supabase
     .from("document_versions")
