@@ -2,7 +2,8 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Target,
-  Users,
+  Users2,
+  Building2,
   Settings,
   Activity,
   Bell,
