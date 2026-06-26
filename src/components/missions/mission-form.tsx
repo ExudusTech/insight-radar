@@ -15,10 +15,13 @@ import {
   missionsListKey,
 } from "@/lib/missions.queries";
 import { listProductsByClient, productsByClientKey } from "@/lib/products.queries";
+import { logActivity } from "@/lib/activity-log";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function MissionForm() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { data: user } = useCurrentUser();
 
   const { data: contractors = [] } = useQuery({
     queryKey: ["profiles", "role", "contractor"],
@@ -68,6 +71,16 @@ export function MissionForm() {
       toast.success("Missão criada");
       qc.invalidateQueries({ queryKey: missionsListKey });
       navigate({ to: "/missions/$missionId", params: { missionId: m.id } });
+      if (user?.id) {
+        logActivity({
+          userId: user.id,
+          missionId: m.id,
+          action: "mission_created",
+          entityType: "mission",
+          entityId: m.id,
+          details: { name: m.name, segment: m.segment },
+        });
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
