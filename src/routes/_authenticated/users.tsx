@@ -240,8 +240,14 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
           role: form.role,
         },
       }),
-    onSuccess: () => {
-      toast.success(`Usuário ${form.full_name} criado com sucesso`);
+    onSuccess: (res) => {
+      if (res?.emailSent) {
+        toast.success(`Usuário ${form.full_name} criado. Email de acesso enviado.`);
+      } else {
+        toast.warning(
+          `Usuário ${form.full_name} criado, mas o email falhou${res?.emailError ? `: ${res.emailError}` : ""}`,
+        );
+      }
       setLastCreated(form.full_name);
       setForm({ full_name: "", email: "", organization: "", role: "analyst" });
       onCreated();
