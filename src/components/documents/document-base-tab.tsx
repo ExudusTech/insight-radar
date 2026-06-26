@@ -49,6 +49,7 @@ import {
 import { extractMissionDocument } from "@/lib/document-versions.functions";
 import { targetsByMissionKey } from "@/lib/targets.queries";
 import { missionDetailKey } from "@/lib/missions.queries";
+import { logActivity } from "@/lib/activity-log";
 
 type ExtractedData = {
   mission_name?: string;
@@ -118,11 +119,31 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
     onSuccess: async (version) => {
       toast.success(`Versão #${version.version_number} enviada. Extraindo com IA…`);
       await qc.invalidateQueries({ queryKey: docVersionsKey(missionId) });
+      if (user?.id) {
+        logActivity({
+          userId: user.id,
+          missionId,
+          action: "document_uploaded",
+          entityType: "document_version",
+          entityId: version.id,
+          details: { file_name: version.file_name, doc_type: docType, doc_label: docLabel || null },
+        });
+      }
       setExtractingId(version.id);
       try {
         await extractFn({ data: { versionId: version.id } });
         toast.success("Extração concluída. Revise abaixo.");
         await qc.invalidateQueries({ queryKey: docVersionsKey(missionId) });
+        if (user?.id) {
+          logActivity({
+            userId: user.id,
+            missionId,
+            action: "document_extracted",
+            entityType: "document_version",
+            entityId: version.id,
+            details: { file_name: version.file_name },
+          });
+        }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Falha na extração");
       } finally {
@@ -147,10 +168,20 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
 
   const freezeMut = useMutation({
     mutationFn: (versionId: string) => freezeVersion(versionId),
-    onSuccess: async () => {
+    onSuccess: async (version) => {
       toast.success("Versão congelada. Missão atualizada.");
       await qc.invalidateQueries({ queryKey: docVersionsKey(missionId) });
       await qc.invalidateQueries({ queryKey: missionDetailKey(missionId) });
+      if (user?.id && version) {
+        logActivity({
+          userId: user.id,
+          missionId,
+          action: "document_frozen",
+          entityType: "document_version",
+          entityId: version.id,
+          details: { file_name: version.file_name, doc_type: version.doc_type },
+        });
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao congelar"),
   });
@@ -160,6 +191,16 @@ export function DocumentBaseTab({ missionId }: { missionId: string }) {
     onSuccess: async (res) => {
       toast.success(`${res.created} alvos criados (${res.skipped} pulados).`);
       await qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
+      if (user?.id) {
+        logActivity({
+          userId: user.id,
+          missionId,
+          action: "targets_extracted",
+          entityType: "mission",
+          entityId: missionId,
+          details: { created: res.created, skipped: res.skipped },
+        });
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar alvos"),
   });
