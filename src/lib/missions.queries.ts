@@ -149,3 +149,28 @@ export async function updateMission(id: string, patch: Partial<CreateMissionInpu
 
   return data;
 }
+
+export async function updateMissionFromExtraction(
+  missionId: string,
+  extracted: {
+    mission_name?: string;
+    objective?: string;
+    segment?: string;
+    deadline_first?: string;
+    deadline_final?: string;
+    approach_type?: string;
+    ethical_rules?: string;
+  },
+) {
+  const patch: Record<string, string> = {};
+  if (extracted.mission_name?.trim()) patch.name = extracted.mission_name.trim();
+  if (extracted.objective) patch.objective = extracted.objective;
+  if (extracted.segment) patch.segment = extracted.segment;
+  if (extracted.deadline_first) patch.deadline_first = extracted.deadline_first;
+  if (extracted.deadline_final) patch.deadline_final = extracted.deadline_final;
+  if (extracted.approach_type) patch.approach_type = extracted.approach_type;
+  if (extracted.ethical_rules) patch.ethical_rules = extracted.ethical_rules;
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await supabase.from("missions").update(patch).eq("id", missionId);
+  if (error) throw error;
+}
