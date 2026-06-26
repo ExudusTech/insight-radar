@@ -17,7 +17,7 @@ export async function logActivity(params: {
       action: params.action,
       entity_type: params.entityType,
       entity_id: params.entityId ?? null,
-      details: params.details ?? {},
+      details: (params.details ?? {}) as never,
     })
     .then(
       () => {},
