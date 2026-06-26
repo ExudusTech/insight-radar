@@ -29,6 +29,7 @@ import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedComparativeRouteImport } from './routes/_authenticated/comparative'
 import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
+import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedChangeRequestsRouteImport } from './routes/_authenticated/change-requests'
 import { Route as AuthenticatedAskAiRouteImport } from './routes/_authenticated/ask-ai'
 import { Route as AuthenticatedMissionsIndexRouteImport } from './routes/_authenticated/missions.index'
@@ -141,6 +142,11 @@ const AuthenticatedCollectionRoute = AuthenticatedCollectionRouteImport.update({
   path: '/collection',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedChangeRequestsRoute =
   AuthenticatedChangeRequestsRouteImport.update({
     id: '/change-requests',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/ask-ai': typeof AuthenticatedAskAiRoute
   '/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/clients': typeof AuthenticatedClientsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/ask-ai': typeof AuthenticatedAskAiRoute
   '/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/clients': typeof AuthenticatedClientsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/ask-ai': typeof AuthenticatedAskAiRoute
   '/_authenticated/change-requests': typeof AuthenticatedChangeRequestsRoute
+  '/_authenticated/clients': typeof AuthenticatedClientsRoute
   '/_authenticated/collection': typeof AuthenticatedCollectionRoute
   '/_authenticated/comparative': typeof AuthenticatedComparativeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ask-ai'
     | '/change-requests'
+    | '/clients'
     | '/collection'
     | '/comparative'
     | '/dashboard'
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ask-ai'
     | '/change-requests'
+    | '/clients'
     | '/collection'
     | '/comparative'
     | '/dashboard'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/ask-ai'
     | '/_authenticated/change-requests'
+    | '/_authenticated/clients'
     | '/_authenticated/collection'
     | '/_authenticated/comparative'
     | '/_authenticated/dashboard'
@@ -527,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollectionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clients': {
+      id: '/_authenticated/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof AuthenticatedClientsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/change-requests': {
       id: '/_authenticated/change-requests'
       path: '/change-requests'
@@ -620,6 +639,7 @@ const AuthenticatedMissionsMissionIdRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAskAiRoute: typeof AuthenticatedAskAiRoute
   AuthenticatedChangeRequestsRoute: typeof AuthenticatedChangeRequestsRoute
+  AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
   AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
   AuthenticatedComparativeRoute: typeof AuthenticatedComparativeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -645,6 +665,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAskAiRoute: AuthenticatedAskAiRoute,
   AuthenticatedChangeRequestsRoute: AuthenticatedChangeRequestsRoute,
+  AuthenticatedClientsRoute: AuthenticatedClientsRoute,
   AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
   AuthenticatedComparativeRoute: AuthenticatedComparativeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -679,3 +700,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
