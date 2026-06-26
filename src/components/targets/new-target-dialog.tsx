@@ -10,9 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 import { createTarget, targetsByMissionKey } from "@/lib/targets.queries";
 import { TARGET_PRIORITY_LABEL, TARGET_PRIORITY_ORDER, type TargetPriority } from "@/lib/target-status";
+import { logActivity } from "@/lib/activity-log";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function NewTargetDialog({ missionId, targetLabel }: { missionId: string; targetLabel: string }) {
   const qc = useQueryClient();
+  const { data: user } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -42,10 +45,20 @@ export function NewTargetDialog({ missionId, targetLabel }: { missionId: string;
         notes: form.notes || null,
         priority: form.priority,
       }),
-    onSuccess: () => {
+    onSuccess: (target) => {
       toast.success(`${targetLabel} criado`);
       qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
       setOpen(false);
+      if (user?.id) {
+        logActivity({
+          userId: user.id,
+          missionId,
+          action: "target_created",
+          entityType: "target",
+          entityId: target?.id,
+          details: { name: form.name, category: form.category },
+        });
+      }
       setForm({
         name: "", brand: "", category: "", site: "", instagram: "",
         whatsapp: "", linkedin: "", other_links: "", notes: "", priority: "medium",
