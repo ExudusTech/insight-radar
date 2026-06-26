@@ -27,20 +27,64 @@ export const sendNotifications = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Validate mission access for each notification (skip if no mission_id)
-    const missionIds = Array.from(
-      new Set(
-        data.notifications
-          .map((n) => n.mission_id)
-          .filter((m): m is string => !!m),
-      ),
-    );
-    for (const missionId of missionIds) {
-      const { data: ok, error } = await supabase.rpc("can_access_mission", {
-        _mission_id: missionId,
-      });
-      if (error) throw new Error(error.message);
-      if (!ok) throw new Error("Forbidden");
+    // Caller must be superadmin to send notifications without a mission context.
+    const { data: isSuperadmin, error: roleErr } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "superadmin",
+    });
+    if (roleErr) throw new Error(roleErr.message);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Per-notification validation: caller has mission access AND recipient is a member
+    for (const n of data.notifications) {
+      if (!n.mission_id) {
+        if (!isSuperadmin) throw new Error("Forbidden: mission_id required");
+        continue;
+      }
+      // Caller access
+      const { data: callerOk, error: callerErr } = await supabase.rpc(
+        "can_access_mission",
+        { _mission_id: n.mission_id },
+      );
+      if (callerErr) throw new Error(callerErr.message);
+      if (!callerOk) throw new Error("Forbidden");
+
+      // Recipient membership: superadmin, contractor (direct or via mission_contractors),
+      // or analyst (via mission_analysts).
+      const [missionRes, mcRes, maRes, roleRes] = await Promise.all([
+        supabaseAdmin
+          .from("missions")
+          .select("contractor_id")
+          .eq("id", n.mission_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("mission_contractors")
+          .select("contractor_id")
+          .eq("mission_id", n.mission_id)
+          .eq("contractor_id", n.user_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("mission_analysts")
+          .select("analyst_id")
+          .eq("mission_id", n.mission_id)
+          .eq("analyst_id", n.user_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", n.user_id)
+          .eq("role", "superadmin")
+          .maybeSingle(),
+      ]);
+      const recipientIsMember =
+        missionRes.data?.contractor_id === n.user_id ||
+        !!mcRes.data ||
+        !!maRes.data ||
+        !!roleRes.data;
+      if (!recipientIsMember) {
+        throw new Error("Forbidden: recipient is not a member of this mission");
+      }
     }
 
     // Force origin to caller; users cannot spoof origin
@@ -49,7 +93,6 @@ export const sendNotifications = createServerFn({ method: "POST" })
       origin_user_id: userId,
     }));
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("notifications").insert(rows);
     if (error) throw new Error(error.message);
     return { ok: true, count: rows.length };
