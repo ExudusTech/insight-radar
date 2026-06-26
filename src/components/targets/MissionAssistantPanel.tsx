@@ -13,6 +13,7 @@ import {
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
 import { missionAssistant } from "@/lib/mission-assistant.functions";
+import { logActivity } from "@/lib/activity-log";
 
 export function MissionAssistantPanel({
   missionId,
@@ -78,9 +79,23 @@ export function MissionAssistantPanel({
       });
       return res.message;
     },
-    onSuccess: () => {
+    onSuccess: (aiMessage) => {
       setInput("");
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId, block) });
+      if (user?.id) {
+        logActivity({
+          userId: user.id,
+          missionId,
+          action: "assistant_interaction",
+          entityType: "target",
+          entityId: targetId,
+          details: {
+            block,
+            has_user_message: !!input.trim(),
+            block_completed: !!aiMessage?.includes("✅"),
+          },
+        });
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha no assistente"),
   });
