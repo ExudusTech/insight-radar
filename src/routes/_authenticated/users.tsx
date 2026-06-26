@@ -18,8 +18,16 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
-import { Loader2, ChevronDown, ChevronUp, UserPlus, Search } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, Link2, Copy } from "lucide-react";
 import { inviteUser } from "@/lib/invite-user.functions";
+import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/users")({
   component: UsersPage,
@@ -98,6 +106,21 @@ function UsersPage() {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const sendEmail = useServerFn(sendAccessEmail);
+  const sendEmailMut = useMutation({
+    mutationFn: (userId: string) => sendEmail({ data: { userId } }),
+    onSuccess: (r) => toast.success(`Email de acesso enviado para ${r.email}`),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao enviar"),
+  });
+
+  const genLink = useServerFn(generateAccessLink);
+  const [linkDialog, setLinkDialog] = useState<{ link: string; email: string } | null>(null);
+  const genLinkMut = useMutation({
+    mutationFn: (userId: string) => genLink({ data: { userId } }),
+    onSuccess: (r) => setLinkDialog({ link: r.link, email: r.email }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao gerar link"),
   });
 
   const filtered = rows.filter((r) => {
@@ -181,6 +204,32 @@ function UsersPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Enviar email de acesso"
+                        disabled={sendEmailMut.isPending && sendEmailMut.variables === r.id}
+                        onClick={() => sendEmailMut.mutate(r.id)}
+                      >
+                        {sendEmailMut.isPending && sendEmailMut.variables === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Gerar link de acesso (1h)"
+                        disabled={genLinkMut.isPending && genLinkMut.variables === r.id}
+                        onClick={() => genLinkMut.mutate(r.id)}
+                      >
+                        {genLinkMut.isPending && genLinkMut.variables === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Link2 className="h-4 w-4" />
+                        )}
+                      </Button>
                       <Select
                         value={r.role ?? ""}
                         onValueChange={(v) => setRole.mutate({ userId: r.id, role: v as AppRole })}
@@ -216,6 +265,32 @@ function UsersPage() {
           </Table>
         )}
       </Card>
+
+      <Dialog open={!!linkDialog} onOpenChange={(o) => !o && setLinkDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link de acesso para {linkDialog?.email}</DialogTitle>
+            <DialogDescription>
+              Link válido por <strong>1 hora</strong>. Ao abrir, o usuário será obrigado a cadastrar uma nova senha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input readOnly value={linkDialog?.link ?? ""} onFocus={(e) => e.currentTarget.select()} />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={async () => {
+                if (linkDialog?.link) {
+                  await navigator.clipboard.writeText(linkDialog.link);
+                  toast.success("Link copiado");
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
