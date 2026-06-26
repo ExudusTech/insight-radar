@@ -186,6 +186,22 @@ export function CollectionTab({
       return { block, completed };
     },
     onSuccess: ({ block, completed }) => {
+      if (user?.id) {
+        const d = drafts[block];
+        void supabase.from("activity_logs").insert({
+          user_id: user.id,
+          mission_id: missionId,
+          action: "block_saved",
+          entity_type: "target",
+          entity_id: targetId,
+          details: {
+            block,
+            status: d.status,
+            has_doubt: !!d.doubt.trim(),
+            has_observation: !!d.observation.trim(),
+          },
+        });
+      }
       toast.success(`Bloco ${block} salvo`);
       qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
       qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });

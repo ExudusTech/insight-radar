@@ -37,6 +37,7 @@ import { ROLE_LABEL } from "@/hooks/use-current-user";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
 import exudusLogo from "@/assets/exudus-logo.png.asset.json";
+import { logActivity } from "@/lib/activity-log";
 
 type NavItem = { title: string; url: string; icon: LucideIcon; group?: string };
 
@@ -77,6 +78,9 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
   });
 
   async function handleSignOut() {
+    if (user?.id) {
+      logActivity({ userId: user.id, action: "user_logout", entityType: "user", entityId: user.id });
+    }
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
