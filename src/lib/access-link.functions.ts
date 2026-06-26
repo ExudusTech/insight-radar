@@ -12,7 +12,7 @@ async function buildRecoveryLink(email: string) {
   const { data, error } = await supabaseAdmin.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: `${SITE_URL}/auth` },
+    options: { redirectTo: `${SITE_URL}/reset-password` },
   });
   if (error || !data?.properties?.action_link) {
     throw new Error(error?.message ?? "Falha ao gerar link");

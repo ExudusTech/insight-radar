@@ -72,7 +72,7 @@ export const inviteUser = createServerFn({ method: "POST" })
       const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email: data.email,
-        options: { redirectTo: `${siteUrl}/auth` },
+        options: { redirectTo: `${siteUrl}/reset-password` },
       });
       if (linkErr || !linkData?.properties?.action_link) {
         throw new Error(linkErr?.message ?? "Falha ao gerar link de acesso");
