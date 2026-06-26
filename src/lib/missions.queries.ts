@@ -162,7 +162,15 @@ export async function updateMissionFromExtraction(
     ethical_rules?: string;
   },
 ) {
-  const patch: Record<string, string> = {};
+  const patch: {
+    name?: string;
+    objective?: string;
+    segment?: string;
+    deadline_first?: string;
+    deadline_final?: string;
+    approach_type?: string;
+    ethical_rules?: string;
+  } = {};
   if (extracted.mission_name?.trim()) patch.name = extracted.mission_name.trim();
   if (extracted.objective) patch.objective = extracted.objective;
   if (extracted.segment) patch.segment = extracted.segment;
