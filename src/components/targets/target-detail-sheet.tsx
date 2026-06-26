@@ -59,6 +59,7 @@ import {
   TARGET_STATUS_ORDER,
   type TargetStatus,
 } from "@/lib/target-status";
+import { logActivity } from "@/lib/activity-log";
 
 export function TargetDetailSheet({
   targetId,
@@ -108,10 +109,20 @@ export function TargetDetailSheet({
       if (!target) throw new Error("Sem alvo");
       return updateTargetStatus(target.id, next, target.status, target.mission_id);
     },
-    onSuccess: () => {
+    onSuccess: (_data, next) => {
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: targetDetailKey(targetId ?? "") });
       if (target) qc.invalidateQueries({ queryKey: targetsByMissionKey(target.mission_id) });
+      if (currentUser?.id && target) {
+        logActivity({
+          userId: currentUser.id,
+          missionId: target.mission_id,
+          action: "target_status_changed_manual",
+          entityType: "target",
+          entityId: target.id,
+          details: { to: next },
+        });
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
