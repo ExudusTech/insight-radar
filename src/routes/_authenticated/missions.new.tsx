@@ -139,7 +139,7 @@ function UploadMode({
 }: {
   status: UploadStatus;
   errorMsg: string | null;
-  fileRef: React.RefObject<HTMLInputElement>;
+  fileRef: React.RefObject<HTMLInputElement | null>;
   onFile: (f: File) => void;
   onSwitchManual: () => void;
   onRetry: () => void;
