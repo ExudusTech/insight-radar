@@ -2,7 +2,8 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Target,
-  Users,
+  Users2,
+  Building2,
   Settings,
   Activity,
   Bell,
@@ -43,7 +44,8 @@ const NAV: Record<AppRole, NavItem[]> = {
   superadmin: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, group: "Operacional" },
     { title: "Missões", url: "/missions", icon: Target, group: "Operacional" },
-    { title: "Clientes", url: "/users", icon: Users, group: "Gestão" },
+    { title: "Usuários", url: "/users", icon: Users2, group: "Gestão" },
+    { title: "Clientes", url: "/clients", icon: Building2, group: "Gestão" },
     { title: "Produtos", url: "/products", icon: Package, group: "Gestão" },
     { title: "Logs", url: "/logs", icon: Activity, group: "Gestão" },
     { title: "Configurações", url: "/settings", icon: Settings, group: "Gestão" },
