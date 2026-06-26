@@ -16,15 +16,30 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Supabase processa o code/hash do link de recovery automaticamente.
-    // Aguardamos um tick e verificamos se há sessão.
-    const sub = supabase.auth.onAuthStateChange((_event, session) => {
-      setHasSession(!!session);
+    // Supabase pode devolver erro no hash (#error=...&error_code=otp_expired&error_description=...)
+    if (typeof window !== "undefined" && window.location.hash) {
+      const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const errCode = params.get("error_code") || params.get("error");
+      const errDesc = params.get("error_description");
+      if (errCode) {
+        const msg =
+          errCode === "otp_expired"
+            ? "Este link expirou (validade de 1 hora). Solicite um novo link de acesso ao administrador."
+            : errDesc?.replace(/\+/g, " ") || "Link inválido. Solicite um novo ao administrador.";
+        setLinkError(msg);
+        setReady(true);
+        return;
+      }
+    }
+    // Caso normal: Supabase processa o token de recovery e cria sessão.
+    const sub = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || session) setHasSession(true);
       setReady(true);
     });
     supabase.auth.getSession().then(({ data }) => {
@@ -69,10 +84,10 @@ function ResetPasswordPage() {
           <div className="grid place-items-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : !hasSession ? (
+        ) : linkError || !hasSession ? (
           <div className="space-y-3 text-sm">
             <p className="text-destructive">
-              Link inválido ou expirado. Solicite um novo link de acesso ao administrador.
+              {linkError ?? "Link inválido ou expirado. Solicite um novo link de acesso ao administrador."}
             </p>
             <Button variant="outline" onClick={() => navigate({ to: "/auth" })}>
               Ir para login
