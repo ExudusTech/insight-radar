@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const MODEL = "claude-opus-4-5";
+const MODEL = "claude-haiku-4-5-20251001";
 
 const InputSchema = z.object({
   missionId: z.string().uuid(),

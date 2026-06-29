@@ -75,7 +75,12 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
 
     const buf = await blob.arrayBuffer();
     const text = await extractTextFromBuffer(buf, version.file_name);
-    const truncated = text.slice(0, 200_000);
+    const truncated = text.replace(/\x00/g, "").slice(0, 200_000);
+
+    if (!truncated.trim()) {
+      throw new Error("Documento sem conteúdo legível. Verifique se o arquivo não está corrompido.");
+    }
+
 
     // call Anthropic
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -96,8 +101,9 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
     if (!res.ok) {
       const errBody = await res.text();
       console.error("Anthropic error", res.status, errBody);
-      throw new Error(`Falha na chamada à Claude: ${res.status}`);
+      throw new Error(`Falha na chamada à Claude: ${res.status} — ${errBody.slice(0, 300)}`);
     }
+
 
     const json = (await res.json()) as {
       content?: Array<{ type: string; text?: string }>;
