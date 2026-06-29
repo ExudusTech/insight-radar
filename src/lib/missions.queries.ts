@@ -108,8 +108,12 @@ export async function createMission(input: CreateMissionInput) {
     if (linkErr) throw linkErr;
   }
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData?.session?.user?.id ?? null;
+
   await supabase.from("activity_logs").insert({
     mission_id: mission.id,
+    user_id: userId,
     action: "mission_created",
     entity_type: "mission",
     entity_id: mission.id,
