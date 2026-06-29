@@ -40,51 +40,68 @@ function NewMissionPage() {
 
     setErrorMsg(null);
     setStatus("uploading");
+
+    let mission: Awaited<ReturnType<typeof createMission>> | null = null;
+
     try {
-      const mission = await createMission({
+      mission = await createMission({
         name: "Nova missão",
         target_label: "Concorrente",
         analyst_ids: [],
         contractor_ids: [],
         contractor_id: user.role === "contractor" ? user.id : null,
       });
-      const version = await uploadAndCreateVersion({
+    } catch (e) {
+      console.error("[missions.new] createMission failed:", e);
+      const msg = (e as any)?.message ?? String(e) ?? "Erro ao criar missão no banco";
+      setStatus("error");
+      setErrorMsg(`Passo 1/4 (criar missão): ${msg}`);
+      toast.error(msg);
+      return;
+    }
+
+    let version: Awaited<ReturnType<typeof uploadAndCreateVersion>> | null = null;
+
+    try {
+      version = await uploadAndCreateVersion({
         missionId: mission.id,
         file,
         authorId: user.id,
         docType: "base",
       });
-
-      setStatus("extracting");
-      try {
-        await extractFn({ data: { versionId: version.id } });
-        const { data: ver } = await supabase
-          .from("document_versions")
-          .select("extracted_data")
-          .eq("id", version.id)
-          .single();
-        const extracted = (ver?.extracted_data ?? {}) as Parameters<
-          typeof updateMissionFromExtraction
-        >[1];
-        await updateMissionFromExtraction(mission.id, extracted);
-        await freezeVersion(version.id);
-        await createTargetsFromExtraction(version.id);
-      } catch (e) {
-        console.error("Extraction failed", e);
-        toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
-      }
-
-      setStatus("done");
-      setTimeout(
-        () => navigate({ to: "/missions/$missionId", params: { missionId: mission.id } }),
-        800,
-      );
     } catch (e) {
-      console.error(e);
+      console.error("[missions.new] uploadAndCreateVersion failed:", e);
+      const msg = (e as any)?.message ?? String(e) ?? "Erro ao enviar arquivo";
       setStatus("error");
-      setErrorMsg(e instanceof Error ? e.message : "Falha ao criar missão");
-      toast.error(e instanceof Error ? e.message : "Falha ao criar missão");
+      setErrorMsg(`Passo 2/4 (upload): ${msg}`);
+      toast.error(msg);
+      return;
     }
+
+    setStatus("extracting");
+    try {
+      await extractFn({ data: { versionId: version.id } });
+      const { data: ver } = await supabase
+        .from("document_versions")
+        .select("extracted_data")
+        .eq("id", version.id)
+        .single();
+      const extracted = (ver?.extracted_data ?? {}) as Parameters<
+        typeof updateMissionFromExtraction
+      >[1];
+      await updateMissionFromExtraction(mission.id, extracted);
+      await freezeVersion(version.id);
+      await createTargetsFromExtraction(version.id);
+    } catch (e) {
+      console.error("[missions.new] extraction/freeze failed:", e);
+      toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
+    }
+
+    setStatus("done");
+    setTimeout(
+      () => navigate({ to: "/missions/$missionId", params: { missionId: mission!.id } }),
+      800,
+    );
   }
 
   return (
