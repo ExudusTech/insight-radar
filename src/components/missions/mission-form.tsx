@@ -59,7 +59,10 @@ export function MissionForm() {
         description: form.description || null,
         objective: form.objective || null,
         segment: form.segment || null,
-        contractor_id: form.contractor_id || null,
+        contractor_id:
+          user?.role === "contractor"
+            ? user.id
+            : form.contractor_id || null,
         product_id: form.product_id || null,
         deadline_first: form.deadline_first || null,
         deadline_final: form.deadline_final || null,
