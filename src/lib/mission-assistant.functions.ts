@@ -7,12 +7,15 @@ const MODEL = "claude-opus-4-5";
 const InputSchema = z.object({
   missionId: z.string().uuid(),
   targetId: z.string().uuid(),
-  block: z.string().min(1),
+  block: z.string().min(1).max(80),
   analystId: z.string().uuid(),
   conversationHistory: z.array(
-    z.object({ role: z.enum(["user", "assistant"]), content: z.string() }),
-  ),
-  userMessage: z.string().nullable(),
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().max(10_000),
+    }),
+  ).max(100),
+  userMessage: z.string().max(10_000).nullable(),
 });
 
 export const missionAssistant = createServerFn({ method: "POST" })

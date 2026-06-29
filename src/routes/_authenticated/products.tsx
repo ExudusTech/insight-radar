@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { Loader2, ChevronDown, ChevronUp, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import {
   createProduct,
@@ -25,17 +24,22 @@ import {
   updateProduct,
 } from "@/lib/products.queries";
 import { listProfilesWithRole } from "@/lib/missions.queries";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/products")({
+  beforeLoad: async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw redirect({ to: "/auth" });
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: auth.user.id,
+      _role: "superadmin",
+    });
+    if (!isAdmin) throw redirect({ to: "/dashboard" });
+  },
   component: ProductsPage,
 });
 
 function ProductsPage() {
-  const { data: me, isLoading: meLoading } = useCurrentUser();
-  if (!meLoading && me?.role !== "superadmin") {
-    throw redirect({ to: "/dashboard" });
-  }
-
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);

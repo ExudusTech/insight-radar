@@ -7,10 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/logs")({
+  beforeLoad: async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw redirect({ to: "/auth" });
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: auth.user.id,
+      _role: "superadmin",
+    });
+    if (!isAdmin) throw redirect({ to: "/dashboard" });
+  },
   component: LogsPage,
 });
 
@@ -45,9 +53,6 @@ type LogRow = {
 };
 
 function LogsPage() {
-  const { data: me, isLoading: meLoading } = useCurrentUser();
-  if (!meLoading && me?.role !== "superadmin") throw redirect({ to: "/dashboard" });
-
   const [page, setPage] = useState(0);
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("");

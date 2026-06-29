@@ -30,6 +30,15 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/users")({
+  beforeLoad: async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw redirect({ to: "/auth" });
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: auth.user.id,
+      _role: "superadmin",
+    });
+    if (!isAdmin) throw redirect({ to: "/dashboard" });
+  },
   component: UsersPage,
 });
 
@@ -50,12 +59,7 @@ const ROLE_BADGE: Record<AppRole, string> = {
 };
 
 function UsersPage() {
-  const { data: me, isLoading: meLoading } = useCurrentUser();
-
-  if (!meLoading && me?.role !== "superadmin") {
-    throw redirect({ to: "/dashboard" });
-  }
-
+  const { data: me } = useCurrentUser();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
