@@ -25,6 +25,7 @@ import {
   updateProduct,
 } from "@/lib/products.queries";
 import { listProfilesWithRole } from "@/lib/missions.queries";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/products")({
   beforeLoad: async () => {
