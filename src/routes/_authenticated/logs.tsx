@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/logs")({

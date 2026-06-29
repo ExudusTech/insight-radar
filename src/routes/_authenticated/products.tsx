@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { Loader2, ChevronDown, ChevronUp, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import {
   createProduct,
