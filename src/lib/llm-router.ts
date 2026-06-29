@@ -1,10 +1,12 @@
 /**
- * LLM Router — runs SERVER-SIDE ONLY (inside createServerFn handlers)
- * Routes calls to the best provider/model per task type.
- * Auto-falls back to secondary provider when primary hits rate/quota limits.
+ * LLM Router — SERVER-SIDE ONLY
+ * Suporta Anthropic, OpenAI e Google Gemini.
+ * Tenta provedores em cadeia (chain) até um ter sucesso.
+ * Auto-fallback em erros de quota/rate-limit (429, 529, 400+quota).
  */
 
 export type TaskType = "extraction" | "assistant" | "report" | "classify";
+export type Provider   = "anthropic" | "openai" | "gemini";
 
 export interface LLMMessage {
   role: "user" | "assistant";
@@ -20,31 +22,45 @@ export interface LLMCallParams {
 
 export interface LLMCallResult {
   text: string;
-  provider: "anthropic" | "openai";
+  provider: Provider;
   model: string;
   inputTokens?: number;
   outputTokens?: number;
 }
 
-type Provider = "anthropic" | "openai";
-interface ProviderConfig { provider: Provider; model: string }
+interface ProviderConfig {
+  provider: Provider;
+  model: string;
+}
 
-const ROUTING: Record<TaskType, { primary: ProviderConfig; fallback: ProviderConfig }> = {
+const ROUTING: Record<TaskType, { chain: ProviderConfig[] }> = {
   extraction: {
-    primary:  { provider: "anthropic", model: "claude-sonnet-4-6" },
-    fallback: { provider: "openai",    model: "gpt-4o" },
+    chain: [
+      { provider: "anthropic", model: "claude-sonnet-4-6" },
+      { provider: "openai",    model: "gpt-4o" },
+      { provider: "gemini",    model: "gemini-2.0-flash" },
+    ],
   },
   assistant: {
-    primary:  { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
-    fallback: { provider: "openai",    model: "gpt-4o-mini" },
+    chain: [
+      { provider: "gemini",    model: "gemini-2.0-flash" },
+      { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
+      { provider: "openai",    model: "gpt-4o-mini" },
+    ],
   },
   report: {
-    primary:  { provider: "anthropic", model: "claude-opus-4-8" },
-    fallback: { provider: "openai",    model: "gpt-4o" },
+    chain: [
+      { provider: "anthropic", model: "claude-opus-4-8" },
+      { provider: "openai",    model: "gpt-4o" },
+      { provider: "gemini",    model: "gemini-2.0-flash" },
+    ],
   },
   classify: {
-    primary:  { provider: "openai",    model: "gpt-4o-mini" },
-    fallback: { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
+    chain: [
+      { provider: "gemini",    model: "gemini-2.0-flash" },
+      { provider: "openai",    model: "gpt-4o-mini" },
+      { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
+    ],
   },
 };
 
@@ -55,13 +71,21 @@ const DEFAULT_MAX_TOKENS: Record<TaskType, number> = {
   classify:   512,
 };
 
+type RawResult = {
+  text: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  status: number;
+  rawBody: string;
+};
+
 async function callAnthropic(
   model: string,
   systemPrompt: string,
   messages: LLMMessage[],
   maxTokens: number,
   apiKey: string,
-): Promise<{ text: string; inputTokens?: number; outputTokens?: number; status: number; rawBody: string }> {
+): Promise<RawResult> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -86,15 +110,16 @@ async function callAnthropic(
   };
 }
 
-async function callOpenAI(
+async function callOpenAICompat(
+  baseUrl: string,
   model: string,
   systemPrompt: string,
   messages: LLMMessage[],
   maxTokens: number,
   apiKey: string,
-): Promise<{ text: string; inputTokens?: number; outputTokens?: number; status: number; rawBody: string }> {
+): Promise<RawResult> {
   const oaiMessages = [{ role: "system", content: systemPrompt }, ...messages];
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -117,67 +142,83 @@ async function callOpenAI(
   };
 }
 
-function isQuotaError(status: number, body: string): boolean {
-  if (status === 429 || status === 529) return true;
-  if (status === 400 && (body.includes("usage limits") || body.includes("quota"))) return true;
-  return false;
-}
+const PROVIDER_ENV: Record<Provider, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai:    "OPENAI_API_KEY",
+  gemini:    "GEMINI_API_KEY",
+};
+
+const OPENAI_COMPAT_BASES: Partial<Record<Provider, string>> = {
+  openai: "https://api.openai.com/v1",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+};
 
 async function invokeProvider(
   cfg: ProviderConfig,
   systemPrompt: string,
   messages: LLMMessage[],
   maxTokens: number,
-) {
-  if (cfg.provider === "anthropic") {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) throw new Error("ANTHROPIC_API_KEY não configurada nos secrets do projeto.");
-    return callAnthropic(cfg.model, systemPrompt, messages, maxTokens, key);
+): Promise<RawResult> {
+  const envVar = PROVIDER_ENV[cfg.provider];
+  const apiKey = process.env[envVar];
+  if (!apiKey) {
+    return {
+      text: "",
+      status: 400,
+      rawBody: `{"error":"${envVar} não configurada — provedor ${cfg.provider} ignorado"}`,
+    };
   }
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY não configurada nos secrets do projeto.");
-  return callOpenAI(cfg.model, systemPrompt, messages, maxTokens, key);
+
+  if (cfg.provider === "anthropic") {
+    return callAnthropic(cfg.model, systemPrompt, messages, maxTokens, apiKey);
+  }
+
+  const baseUrl = OPENAI_COMPAT_BASES[cfg.provider]!;
+  return callOpenAICompat(baseUrl, cfg.model, systemPrompt, messages, maxTokens, apiKey);
+}
+
+function shouldFallback(status: number, body: string): boolean {
+  if (status === 429 || status === 529) return true;
+  if (status === 400 && (body.includes("usage limits") || body.includes("quota") || body.includes("não configurada"))) return true;
+  return false;
 }
 
 export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
   const { task, messages, systemPrompt, maxTokens: maxTokensOverride } = params;
-  const routing = ROUTING[task];
+  const { chain } = ROUTING[task];
   const maxTokens = maxTokensOverride ?? DEFAULT_MAX_TOKENS[task];
 
-  const primary = await invokeProvider(routing.primary, systemPrompt, messages, maxTokens);
+  const errors: string[] = [];
 
-  if (primary.status >= 200 && primary.status < 300) {
-    return {
-      text: primary.text,
-      provider: routing.primary.provider,
-      model: routing.primary.model,
-      inputTokens: primary.inputTokens,
-      outputTokens: primary.outputTokens,
-    };
-  }
+  for (const cfg of chain) {
+    const result = await invokeProvider(cfg, systemPrompt, messages, maxTokens);
 
-  if (isQuotaError(primary.status, primary.rawBody)) {
-    console.warn(
-      `[llm-router] ${routing.primary.provider}/${routing.primary.model} hit limit (${primary.status}) — switching to ${routing.fallback.provider}/${routing.fallback.model}`,
-    );
-    const fallback = await invokeProvider(routing.fallback, systemPrompt, messages, maxTokens);
-    if (fallback.status >= 200 && fallback.status < 300) {
+    if (result.status >= 200 && result.status < 300) {
+      if (errors.length > 0) {
+        console.info(`[llm-router] Succeeded with ${cfg.provider}/${cfg.model} after ${errors.length} failure(s)`);
+      }
       return {
-        text: fallback.text,
-        provider: routing.fallback.provider,
-        model: routing.fallback.model,
-        inputTokens: fallback.inputTokens,
-        outputTokens: fallback.outputTokens,
+        text: result.text,
+        provider: cfg.provider,
+        model: cfg.model,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
       };
     }
+
+    if (shouldFallback(result.status, result.rawBody)) {
+      const msg = `${cfg.provider}/${cfg.model}: ${result.status}`;
+      errors.push(msg);
+      console.warn(`[llm-router] ${msg} — trying next in chain`);
+      continue;
+    }
+
     throw new Error(
-      `Ambos provedores falharam.\n` +
-      `Primary (${routing.primary.provider}): ${primary.status} — ${primary.rawBody.slice(0, 200)}\n` +
-      `Fallback (${routing.fallback.provider}): ${fallback.status} — ${fallback.rawBody.slice(0, 200)}`,
+      `Erro LLM (${cfg.provider}/${cfg.model}): ${result.status} — ${result.rawBody.slice(0, 300)}`,
     );
   }
 
   throw new Error(
-    `Erro LLM (${routing.primary.provider}/${routing.primary.model}): ${primary.status} — ${primary.rawBody.slice(0, 300)}`,
+    `Todos os provedores LLM falharam para task="${task}":\n${errors.join("\n")}`,
   );
 }
