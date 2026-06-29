@@ -940,6 +940,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_mission_contractor: { Args: { _mission_id: string }; Returns: boolean }
       shares_mission_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
