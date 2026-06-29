@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { callLLM } from "@/lib/llm-router";
 
 const ExtractInput = z.object({ versionId: z.string().uuid() });
 
@@ -49,13 +50,6 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => ExtractInput.parse(data))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "ANTHROPIC_API_KEY não configurada. Adicione em Configurações do Projeto → Secrets.",
-      );
-    }
-
     const { supabase } = context;
     const { data: version, error: vErr } = await supabase
       .from("document_versions")
@@ -81,34 +75,12 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
       throw new Error("Documento sem conteúdo legível. Verifique se o arquivo não está corrompido.");
     }
 
-
-    // call Anthropic
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: truncated }],
-      }),
+    const { text: textBlock, provider, model } = await callLLM({
+      task: "extraction",
+      systemPrompt: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: truncated }],
     });
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("Anthropic error", res.status, errBody);
-      throw new Error(`Falha na chamada à Claude: ${res.status} — ${errBody.slice(0, 300)}`);
-    }
-
-
-    const json = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-    };
-    const textBlock = json.content?.find((c) => c.type === "text")?.text ?? "";
+    console.log(`[extraction] used ${provider}/${model}`);
     const extracted = tryParseJson(textBlock);
 
     const { error: updErr } = await supabase
