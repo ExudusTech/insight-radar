@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const MODEL = "claude-haiku-4-5-20251001";
+import { callLLM } from "@/lib/llm-router";
 
 const InputSchema = z.object({
   missionId: z.string().uuid(),
@@ -108,29 +107,12 @@ COMO SE COMPORTAR:
       messages.push({ role: "user", content: `Iniciar bloco ${data.block}.` });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system,
-        messages,
-      }),
+    const { text: message, provider, model: usedModel } = await callLLM({
+      task: "assistant",
+      systemPrompt: system,
+      messages,
+      maxTokens: 2048,
     });
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Claude API: ${res.status} ${body.slice(0, 300)}`);
-    }
-    const json = (await res.json()) as { content?: Array<{ text?: string }> };
-    const message = json.content?.[0]?.text ?? "";
+    console.log(`[assistant] used ${provider}/${usedModel}`);
     return { message };
   });
