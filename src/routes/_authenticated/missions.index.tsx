@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/missions/")({
 
 function MissionsPage() {
   const { data: user } = useCurrentUser();
-  const canCreate = user?.role === "superadmin";
+  const canCreate = user?.role === "superadmin" || user?.role === "contractor";
   const cardsView = user?.role === "analyst" || user?.role === "contractor";
   const { data: missions, isLoading } = useQuery({
     queryKey: missionsListKey,

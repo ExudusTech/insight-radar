@@ -46,6 +46,7 @@ function NewMissionPage() {
         target_label: "Concorrente",
         analyst_ids: [],
         contractor_ids: [],
+        contractor_id: user.role === "contractor" ? user.id : null,
       });
       const version = await uploadAndCreateVersion({
         missionId: mission.id,
