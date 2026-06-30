@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCurrentUser, currentUserQueryKey } from "@/hooks/use-current-user";
 import { Loader2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { runLlmFallbackTest } from "@/lib/llm-router-test.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -20,6 +22,38 @@ function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [organization, setOrganization] = useState("");
   const [phone, setPhone] = useState("");
+  const runTest = useServerFn(runLlmFallbackTest);
+  const [testing, setTesting] = useState<string | null>(null);
+
+  type Scenario = {
+    id: string;
+    label: string;
+    task: "assistant" | "extraction";
+    failProviders: Array<"anthropic" | "openai" | "gemini">;
+    expected: string;
+  };
+  const scenarios: Scenario[] = [
+    { id: "a", label: "assistant — sem falha (espera Gemini)", task: "assistant", failProviders: [], expected: "gemini" },
+    { id: "b", label: "assistant — falha Gemini (espera Anthropic)", task: "assistant", failProviders: ["gemini"], expected: "anthropic" },
+    { id: "c", label: "assistant — falha Gemini+Anthropic (espera OpenAI)", task: "assistant", failProviders: ["gemini", "anthropic"], expected: "openai" },
+    { id: "d", label: "extraction — falha Anthropic+OpenAI (espera Gemini)", task: "extraction", failProviders: ["anthropic", "openai"], expected: "gemini" },
+  ];
+
+  const handleRun = async (s: Scenario) => {
+    setTesting(s.id);
+    try {
+      const res = await runTest({ data: { task: s.task, failProviders: s.failProviders } });
+      const ok = res.provider === s.expected;
+      const msg = `${s.label} → ${res.provider}/${res.model}`;
+      console.log("[llm-fallback-test]", { scenario: s.id, ...res });
+      if (ok) toast.success(msg);
+      else toast.warning(`${msg} (esperado: ${s.expected})`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha no teste");
+    } finally {
+      setTesting(null);
+    }
+  };
 
   useEffect(() => {
     if (user?.profile) {
@@ -78,6 +112,30 @@ function SettingsPage() {
         <h2 className="font-semibold">Segurança</h2>
         <p className="text-sm text-muted-foreground mt-2">Em breve.</p>
       </Card>
+      {user?.role === "superadmin" && (
+        <Card className="p-6 space-y-3">
+          <div>
+            <h2 className="font-semibold">Diagnóstico LLM Router</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Força falha em provedores para validar a cadeia de fallback. Resultado no toast e no console.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {scenarios.map((s) => (
+              <Button
+                key={s.id}
+                variant="outline"
+                className="justify-start"
+                onClick={() => handleRun(s)}
+                disabled={testing !== null}
+              >
+                {testing === s.id && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {s.label}
+              </Button>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
