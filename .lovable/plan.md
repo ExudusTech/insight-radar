@@ -1,45 +1,35 @@
-## Correções de Segurança Pré-Publicação
+# Teste de fallback do LLM Router → Gemini
 
-Vou corrigir os achados acionáveis via migração SQL e atualizar a memória de segurança para os itens que são falsos positivos ou aceitos por design.
+Objetivo: confirmar, com evidência em log, que o `callLLM` percorre a cadeia de provedores e chega no Google Gemini quando os anteriores falham.
 
-### 1. Críticos (corrigir agora)
+## Abordagem
 
-**a) `notifications_insert` muito permissiva**
-A policy atual permite que qualquer usuário autenticado crie notificações para outros. Vou ajustar para permitir apenas:
-- O próprio usuário (`user_id = auth.uid()`), ou
-- Superadmins (via `has_role`).
+Criar uma server function **temporária** e protegida por admin em `src/lib/llm-router-test.functions.ts` que:
 
-Isso preserva o fluxo onde uma analista cria uma dúvida bloqueante e dispara notificação para o cliente/superadmin — esse insert hoje vem do cliente e precisa migrar para uma server function com `requireSupabaseAuth` que valide o vínculo via missão e use `supabaseAdmin` para o insert cross-user. Vou criar `src/lib/notifications.functions.ts` com `notifyMissionStakeholders` e atualizar `CollectionTab` para chamá-la em vez de inserir direto.
+1. Aceita um parâmetro `task` (default `"assistant"`, cuja cadeia hoje é `gemini → anthropic → openai`) e um parâmetro `forceFailUntil` (`"gemini" | "openai" | "anthropic"`) indicando até qual provedor da cadeia forçar falha.
+2. **Sem alterar `llm-router.ts` em definitivo**, expõe um modo de teste: antes de chamar `callLLM`, sobrescreve temporariamente as env vars dos provedores que devem falhar (`process.env.GEMINI_API_KEY = "INVALID_FORCE_FAIL"` etc.), executa, e restaura os valores originais no `finally`. Isso dispara erro 401 nesses provedores, que o router classifica e segue para o próximo da cadeia (vamos ajustar `shouldFallback` para também tratar 401/403 como fallback — mudança mínima e correta também para produção).
+3. Retorna `{ provider, model, text, attempted: string[] }` para o cliente.
 
-**b) `handle_new_user` — escalada de privilégio no signup**
-O scanner ainda lista esse achado, mas o código atual já força `'analyst'` e ignora metadata. Vou marcar como `mark_as_fixed` (correção já aplicada em turno anterior).
+Adicionar pequeno botão "Testar fallback LLM" em `/settings` (visível só para admin) que dispara a função com 3 cenários:
+- `forceFailUntil: "none"` → deve usar primeiro da cadeia.
+- `forceFailUntil: "gemini"` → deve cair para Anthropic.
+- `forceFailUntil: "anthropic"` (e gemini) → deve cair para OpenAI.
+- Para a task `"extraction"` (cadeia `anthropic → openai → gemini`), forçar falha em Anthropic + OpenAI → deve chegar no **Gemini**, confirmando o objetivo.
 
-### 2. Warnings (corrigir)
+Resultado é mostrado em toast + console, e também aparece no painel de logs do AI Gateway (`ai_gateway_logs`).
 
-**c) `cr_insert` permite falsificar `requestor_id`**
-Adicionar `AND (requestor_id IS NULL OR requestor_id = auth.uid())` ao WITH CHECK da policy `change_requests`.
+## Detalhes técnicos
 
-### 3. Warnings (aceitos por design — `ignore` + atualizar memória)
+**Arquivos novos**
+- `src/lib/llm-router-test.functions.ts` — server fn `runLlmFallbackTest`, com `requireSupabaseAuth` + checagem `has_role(..., 'admin')`. Faz override temporário de `process.env.*_API_KEY` conforme `forceFailUntil`, chama `callLLM({ task, systemPrompt: "Responda apenas: OK", messages: [{role:"user", content:"ping"}] })`, restaura env no `finally`.
 
-**d) `shares_mission_with` expõe perfil de superadmin a colegas de missão**
-Comportamento esperado: se um superadmin atua como analista/cliente numa missão, os teammates precisam ver o nome/email dele. Não é enumeração — exige uma linha real de membership.
+**Arquivo alterado (mínimo)**
+- `src/lib/llm-router.ts` — em `shouldFallback`, incluir `status === 401 || status === 403` (auth inválida deve cair para o próximo provedor, não derrubar a request). Mantém comportamento existente para 429/529/quota.
+- `src/routes/_authenticated/settings.tsx` — adicionar seção "Diagnóstico LLM" (admin-only) com 4 botões, cada um chamando `runLlmFallbackTest` com um cenário e exibindo `provider/model` resposta via `toast`.
 
-**e) `Signed-In Users Can Execute SECURITY DEFINER Function`**
-Necessário para a arquitetura RLS sem recursão (`has_role`, `can_access_mission`, `current_user_role`). Funções `PUBLIC`/`anon` já foram revogadas em turno anterior.
+**Validação**
+- Rodar cada cenário pela UI e conferir no toast/console que o `provider` retornado é o esperado.
+- Confirmar nos logs do AI Gateway (`ai_gateway_logs--list_ai_gateway_requests`) as tentativas em ordem.
 
-### 4. Dependências vulneráveis (`@tanstack/react-start` → undici)
-
-Não há fix disponível compatível com o template atual sem subir major do TanStack Start. Vou registrar na memória de segurança como aceito até upgrade do framework e seguir.
-
-### Plano de execução
-
-1. Migração SQL:
-   - Recriar policy `notifications_insert` (self + superadmin).
-   - Recriar policy `cr_insert` com checagem de `requestor_id`.
-2. Criar `src/lib/notifications.functions.ts` com `createNotificationForUser` (server fn, `requireSupabaseAuth`, valida via `can_access_mission`, insere via `supabaseAdmin`).
-3. Atualizar `src/components/targets/collection-tab.tsx` para usar a server fn em vez de `supabase.from('notifications').insert(...)` cross-user.
-4. `manage_security_finding`: `mark_as_fixed` para (a), (b), (c); `ignore` para (d), (e), e os 2 itens de supply chain.
-5. `security--update_memory` documentando: SECURITY DEFINER por design, `shares_mission_with` aceito, undici/tanstack pendente upgrade.
-6. Verificar build.
-
-Depois disso, seguimos para a publicação.
+**Limpeza**
+- Após o teste validado, posso remover a server function e o botão num passo seguinte (ou mantê-los como ferramenta interna de diagnóstico — sua escolha).
