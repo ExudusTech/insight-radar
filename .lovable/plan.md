@@ -1,35 +1,27 @@
-# Teste de fallback do LLM Router → Gemini
+# Diagnóstico do fallback Gemini
 
-Objetivo: confirmar, com evidência em log, que o `callLLM` percorre a cadeia de provedores e chega no Google Gemini quando os anteriores falham.
+## O que o teste 1 revelou
 
-## Abordagem
+O cenário 1 (`assistant — sem falha`) **não força falha em ninguém**, então deveria ter respondido com `gemini/gemini-2.0-flash`. O toast mostrou `openai/gpt-4o-mini (esperado: gemini)` — ou seja, o Gemini falhou sozinho e o roteador caiu pro próximo da cadeia. **Não adianta rodar os outros 3 antes de entender isso**, porque os cenários B/C/D também dependem do Gemini estar funcional.
 
-Criar uma server function **temporária** e protegida por admin em `src/lib/llm-router-test.functions.ts` que:
+## Hipóteses prováveis
 
-1. Aceita um parâmetro `task` (default `"assistant"`, cuja cadeia hoje é `gemini → anthropic → openai`) e um parâmetro `forceFailUntil` (`"gemini" | "openai" | "anthropic"`) indicando até qual provedor da cadeia forçar falha.
-2. **Sem alterar `llm-router.ts` em definitivo**, expõe um modo de teste: antes de chamar `callLLM`, sobrescreve temporariamente as env vars dos provedores que devem falhar (`process.env.GEMINI_API_KEY = "INVALID_FORCE_FAIL"` etc.), executa, e restaura os valores originais no `finally`. Isso dispara erro 401 nesses provedores, que o router classifica e segue para o próximo da cadeia (vamos ajustar `shouldFallback` para também tratar 401/403 como fallback — mudança mínima e correta também para produção).
-3. Retorna `{ provider, model, text, attempted: string[] }` para o cliente.
+1. `GEMINI_API_KEY` não está disponível no runtime do preview (foi salva mas o servidor ainda não pegou — exige restart/republish).
+2. O endpoint OpenAI-compat do Google rejeita o nome `gemini-2.0-flash` (o formato canônico pelo endpoint compat costuma ser `models/gemini-2.0-flash` ou `gemini-2.0-flash-exp`).
+3. A key foi gerada num projeto Google sem a Generative Language API habilitada (retorna 403).
 
-Adicionar pequeno botão "Testar fallback LLM" em `/settings` (visível só para admin) que dispara a função com 3 cenários:
-- `forceFailUntil: "none"` → deve usar primeiro da cadeia.
-- `forceFailUntil: "gemini"` → deve cair para Anthropic.
-- `forceFailUntil: "anthropic"` (e gemini) → deve cair para OpenAI.
-- Para a task `"extraction"` (cadeia `anthropic → openai → gemini`), forçar falha em Anthropic + OpenAI → deve chegar no **Gemini**, confirmando o objetivo.
+## Passos do plano
 
-Resultado é mostrado em toast + console, e também aparece no painel de logs do AI Gateway (`ai_gateway_logs`).
+1. Adicionar **logging detalhado** temporário em `src/lib/llm-router.ts` (status + primeiros 300 chars do body) já no caminho de `shouldFallback`, para qualquer provider — hoje só logamos `provider/model: status`.
+2. Expor no resultado do `runLlmFallbackTest` um array `attempts[]` com `{provider, model, status, bodySnippet}` para cada tentativa, e mostrar isso na UI de `/settings` (não só no toast).
+3. Rodar de novo o cenário 1 com a UI já mostrando o erro real do Gemini.
+4. Corrigir conforme o diagnóstico:
+   - Se 401/403 → revisar a `GEMINI_API_KEY` (regerar / habilitar API).
+   - Se 404 "model not found" → ajustar o nome do modelo na tabela `ROUTING` (`models/gemini-2.0-flash` ou `gemini-2.0-flash-exp`).
+   - Se "key não configurada" → forçar restart do dev server.
+5. Só depois rodar os 3 cenários restantes para validar a cadeia completa.
 
-## Detalhes técnicos
+## Resposta direta às suas perguntas
 
-**Arquivos novos**
-- `src/lib/llm-router-test.functions.ts` — server fn `runLlmFallbackTest`, com `requireSupabaseAuth` + checagem `has_role(..., 'admin')`. Faz override temporário de `process.env.*_API_KEY` conforme `forceFailUntil`, chama `callLLM({ task, systemPrompt: "Responda apenas: OK", messages: [{role:"user", content:"ping"}] })`, restaura env no `finally`.
-
-**Arquivo alterado (mínimo)**
-- `src/lib/llm-router.ts` — em `shouldFallback`, incluir `status === 401 || status === 403` (auth inválida deve cair para o próximo provedor, não derrubar a request). Mantém comportamento existente para 429/529/quota.
-- `src/routes/_authenticated/settings.tsx` — adicionar seção "Diagnóstico LLM" (admin-only) com 4 botões, cada um chamando `runLlmFallbackTest` com um cenário e exibindo `provider/model` resposta via `toast`.
-
-**Validação**
-- Rodar cada cenário pela UI e conferir no toast/console que o `provider` retornado é o esperado.
-- Confirmar nos logs do AI Gateway (`ai_gateway_logs--list_ai_gateway_requests`) as tentativas em ordem.
-
-**Limpeza**
-- Após o teste validado, posso remover a server function e o botão num passo seguinte (ou mantê-los como ferramenta interna de diagnóstico — sua escolha).
+- **Devo executar os outros?** Não agora. O cenário 1 já mostrou que o Gemini está caindo — rodar B/C/D vai só repetir a mesma falha disfarçada.
+- **Você pediu pra rodar o último?** Sim, o cenário D (`extraction — falha Anthropic+OpenAI → espera Gemini`) é o que valida diretamente o Gemini como fallback. Mas como o Gemini já está quebrado no cenário 1, ele também vai falhar — precisamos consertar primeiro.
