@@ -44,6 +44,7 @@ export const runLlmFallbackTest = createServerFn({ method: "POST" })
         model: result.model,
         text: result.text.slice(0, 200),
         forcedFail: data.failProviders,
+        attempts: result.attempts ?? [],
       };
     } finally {
       for (const [k, v] of Object.entries(saved)) {
