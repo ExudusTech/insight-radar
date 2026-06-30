@@ -26,6 +26,15 @@ export interface LLMCallResult {
   model: string;
   inputTokens?: number;
   outputTokens?: number;
+  attempts?: AttemptInfo[];
+}
+
+export interface AttemptInfo {
+  provider: Provider;
+  model: string;
+  status: number;
+  ok: boolean;
+  bodySnippet: string;
 }
 
 interface ProviderConfig {
@@ -190,9 +199,17 @@ export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
   const maxTokens = maxTokensOverride ?? DEFAULT_MAX_TOKENS[task];
 
   const errors: string[] = [];
+  const attempts: AttemptInfo[] = [];
 
   for (const cfg of chain) {
     const result = await invokeProvider(cfg, systemPrompt, messages, maxTokens);
+    attempts.push({
+      provider: cfg.provider,
+      model: cfg.model,
+      status: result.status,
+      ok: result.status >= 200 && result.status < 300,
+      bodySnippet: result.rawBody.slice(0, 300),
+    });
 
     if (result.status >= 200 && result.status < 300) {
       if (errors.length > 0) {
@@ -204,11 +221,12 @@ export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
         model: cfg.model,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
+        attempts,
       };
     }
 
     if (shouldFallback(result.status, result.rawBody)) {
-      const msg = `${cfg.provider}/${cfg.model}: ${result.status}`;
+      const msg = `${cfg.provider}/${cfg.model}: ${result.status} — ${result.rawBody.slice(0, 200)}`;
       errors.push(msg);
       console.warn(`[llm-router] ${msg} — trying next in chain`);
       continue;

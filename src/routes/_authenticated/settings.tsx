@@ -24,6 +24,12 @@ function SettingsPage() {
   const [phone, setPhone] = useState("");
   const runTest = useServerFn(runLlmFallbackTest);
   const [testing, setTesting] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<{
+    scenarioId: string;
+    provider: string;
+    model: string;
+    attempts: Array<{ provider: string; model: string; status: number; ok: boolean; bodySnippet: string }>;
+  } | null>(null);
 
   type Scenario = {
     id: string;
@@ -46,6 +52,12 @@ function SettingsPage() {
       const ok = res.provider === s.expected;
       const msg = `${s.label} → ${res.provider}/${res.model}`;
       console.log("[llm-fallback-test]", { scenario: s.id, ...res });
+      setLastResult({
+        scenarioId: s.id,
+        provider: res.provider,
+        model: res.model,
+        attempts: res.attempts ?? [],
+      });
       if (ok) toast.success(msg);
       else toast.warning(`${msg} (esperado: ${s.expected})`);
     } catch (e) {
@@ -134,6 +146,26 @@ function SettingsPage() {
               </Button>
             ))}
           </div>
+          {lastResult && (
+            <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-2">
+              <div className="font-medium">
+                Cenário <code>{lastResult.scenarioId}</code> → vencedor:{" "}
+                <code>{lastResult.provider}/{lastResult.model}</code>
+              </div>
+              <div className="space-y-1">
+                {lastResult.attempts.map((a, i) => (
+                  <div key={i} className="font-mono">
+                    <span className={a.ok ? "text-emerald-500" : "text-rose-500"}>
+                      [{a.status}] {a.provider}/{a.model}
+                    </span>
+                    {!a.ok && a.bodySnippet && (
+                      <div className="pl-4 text-muted-foreground break-all">{a.bodySnippet}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>
