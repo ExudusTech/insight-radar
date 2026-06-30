@@ -179,6 +179,7 @@ async function invokeProvider(
 
 function shouldFallback(status: number, body: string): boolean {
   if (status === 429 || status === 529) return true;
+  if (status === 401 || status === 403) return true;
   if (status === 400 && (body.includes("usage limits") || body.includes("quota") || body.includes("não configurada"))) return true;
   return false;
 }
