@@ -135,6 +135,18 @@ export function MissionAssistantPanel({
           .from("mission-evidences")
           .upload(imagePath, file, { contentType: imageMimeType, upsert: false });
         if (upErr) throw upErr;
+        // Registrar também como evidência para aparecer na aba Evidências
+        const { error: evErr } = await supabase.from("evidences").insert({
+          mission_id: missionId,
+          target_id: targetId,
+          evidence_type: "screenshot",
+          file_url: imagePath,
+          caption: userMessage?.trim() || "Enviado pelo chat do assistente",
+          tags: ["assistant_chat"],
+          captured_at: new Date().toISOString(),
+          created_by: user.id,
+        });
+        if (evErr) console.error("[assistant] falha ao registrar evidência:", evErr);
       }
 
       if ((userMessage && userMessage.trim()) || file) {
