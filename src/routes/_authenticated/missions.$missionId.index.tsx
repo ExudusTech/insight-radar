@@ -597,14 +597,16 @@ function AnalystActionPanel({
   const acceptMut = useMutation({
     mutationFn: async () => {
       const { supabase } = await import("@/integrations/supabase/client");
-      const patch: Record<string, unknown> = { status: "execution_started" };
-      if (showingCounterProposal) {
-        patch.deadline_first = mission.proposed_deadline_partial;
-        patch.deadline_final = mission.proposed_deadline_final;
-        patch.proposed_deadline_partial = null;
-        patch.proposed_deadline_final = null;
-        patch.proposal_from = null;
-      }
+      const patch = showingCounterProposal
+        ? {
+            status: "execution_started" as const,
+            deadline_first: mission.proposed_deadline_partial,
+            deadline_final: mission.proposed_deadline_final,
+            proposed_deadline_partial: null,
+            proposed_deadline_final: null,
+            proposal_from: null,
+          }
+        : { status: "execution_started" as const };
       const { error } = await supabase.from("missions").update(patch).eq("id", mission.id);
       if (error) throw error;
       if (mission.contractor_id) {
