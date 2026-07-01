@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, Link2, Copy } from "lucide-react";
 import { inviteUser } from "@/lib/invite-user.functions";
 import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
@@ -50,6 +51,7 @@ type Row = {
   status: string | null;
   role: AppRole | null;
   created_at?: string | null;
+  accepts_missions?: boolean | null;
 };
 
 const ROLE_BADGE: Record<AppRole, string> = {
@@ -68,7 +70,7 @@ function UsersPage() {
     queryKey: ["admin", "users"],
     queryFn: async (): Promise<Row[]> => {
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, organization, status, created_at"),
+        supabase.from("profiles").select("id, full_name, email, organization, status, created_at, accepts_missions"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
       const roleMap = new Map<string, AppRole>();
@@ -84,6 +86,18 @@ function UsersPage() {
         role: roleMap.get(p.id) ?? null,
       }));
     },
+  });
+
+  const toggleAccepts = useMutation({
+    mutationFn: async ({ id, next }: { id: string; next: boolean }) => {
+      const { error } = await supabase.from("profiles").update({ accepts_missions: next }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.next ? "Analista disponível para demandas" : "Analista bloqueado para novas demandas");
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   const setRole = useMutation({
@@ -202,6 +216,17 @@ function UsersPage() {
                     <Badge variant={r.status === "blocked" ? "destructive" : "secondary"}>
                       {r.status ?? "active"}
                     </Badge>
+                    {r.role === "analyst" && me?.role === "superadmin" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Switch
+                          checked={r.accepts_missions ?? true}
+                          onCheckedChange={(val) => toggleAccepts.mutate({ id: r.id, next: val })}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {r.accepts_missions ?? true ? "Disponível" : "Bloqueado"}
+                        </span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {r.created_at ? new Date(r.created_at).toLocaleDateString("pt-BR") : "—"}
