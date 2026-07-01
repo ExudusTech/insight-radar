@@ -353,7 +353,7 @@ function validateBeforeStart(mission: Mission): string[] {
   today.setHours(0, 0, 0, 0);
 
   if (mission.deadline_final) {
-    const df = new Date(mission.deadline_final);
+    const df = parseLocalDate(mission.deadline_final);
     const diff = Math.ceil((df.getTime() - today.getTime()) / 86400000);
     if (diff < 0)
       issues.push(
@@ -368,12 +368,12 @@ function validateBeforeStart(mission: Mission): string[] {
   }
 
   if (mission.deadline_first) {
-    const dp = new Date(mission.deadline_first);
+    const dp = parseLocalDate(mission.deadline_first);
     if (dp < today)
       issues.push(
         `A data da 1ª entrega (${format(dp, "dd/MM/yyyy")}) já passou. Atualize para uma data futura.`,
       );
-    if (mission.deadline_final && dp >= new Date(mission.deadline_final))
+    if (mission.deadline_final && dp >= parseLocalDate(mission.deadline_final))
       issues.push("A 1ª entrega deve ocorrer antes da entrega final.");
   }
 
