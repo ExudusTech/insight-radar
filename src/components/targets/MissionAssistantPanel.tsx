@@ -386,8 +386,9 @@ export function MissionAssistantPanel({
                 handleSend();
               }
             }}
+            onPaste={handlePaste}
             rows={1}
-            placeholder="Relate o que encontrou ou cole uma conversa..."
+            placeholder="Relate o que encontrou, cole uma conversa ou Ctrl+V para colar um print..."
             className="min-h-9 max-h-24 text-sm resize-none"
           />
           <Button
@@ -402,6 +403,9 @@ export function MissionAssistantPanel({
             )}
           </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground px-1">
+            💡 Cole prints direto aqui com Ctrl+V (ou Cmd+V no Mac)
+          </p>
         </div>
       )}
     </div>
