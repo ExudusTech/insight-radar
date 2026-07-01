@@ -326,8 +326,7 @@ function EditableDetails({ mission }: { mission: Mission }) {
             toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
           );
         }}
-        error={partialHint?.tone === "error" ? partialHint.text : null}
-        warning={partialHint?.tone === "warning" ? partialHint.text : null}
+        error={partialHint?.text ?? null}
         disablePast
         size="sm"
       />
