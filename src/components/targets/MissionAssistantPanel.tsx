@@ -92,6 +92,9 @@ export function MissionAssistantPanel({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { listening, start: startMic, stop: stopMic } = useSpeechRecognition((text) => {
+    setInput((prev) => (prev ? prev + " " + text : text));
+  });
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: assistantMessagesKey(targetId),
@@ -345,6 +348,17 @@ export function MissionAssistantPanel({
               onChange={handleImageSelect}
             />
           </label>
+          <button
+            type="button"
+            onClick={listening ? stopMic : startMic}
+            className={cn(
+              "p-2 rounded hover:bg-muted transition-colors",
+              listening ? "text-red-500 animate-pulse" : "text-muted-foreground",
+            )}
+            aria-label={listening ? "Parar gravação" : "Gravar áudio"}
+          >
+            {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
