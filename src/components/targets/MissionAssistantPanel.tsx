@@ -213,27 +213,14 @@ export function MissionAssistantPanel({
       const res = await callProcessHistory({
         data: { missionId, targetId, analystId: user.id },
       });
-      let count = 0;
-      if (res.blockUpdates) {
-        for (const [blk, fields] of Object.entries(res.blockUpdates)) {
-          if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
-          for (const [fieldKey, value] of Object.entries(fields)) {
-            try {
-              await upsertCollectionField({
-                missionId,
-                targetId,
-                block: blk as CollectionBlock,
-                fieldKey,
-                value,
-                userId: user.id,
-              });
-              count++;
-            } catch (e) {
-              console.warn("[assistant] failed to upsert (history)", blk, fieldKey, e);
-            }
-          }
-        }
-      }
+      const count = res.blockUpdates
+        ? await applyBlockUpdatesFromAssistant({
+            missionId,
+            targetId,
+            userId: user.id,
+            blockUpdates: res.blockUpdates,
+          })
+        : 0;
       return { count };
     },
     onSuccess: ({ count }) => {
