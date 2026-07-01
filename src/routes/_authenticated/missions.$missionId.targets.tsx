@@ -10,6 +10,7 @@ import { TargetKanban } from "@/components/targets/target-kanban";
 import { TargetTable } from "@/components/targets/target-table";
 import { NewTargetDialog } from "@/components/targets/new-target-dialog";
 import { TargetDetailSheet } from "@/components/targets/target-detail-sheet";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/targets")({
   component: TargetsTab,
@@ -17,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/missions/$missionId/target
 
 function TargetsTab() {
   const { missionId } = Route.useParams();
+  const { data: currentUser } = useCurrentUser();
+  const readOnly = currentUser?.role === "contractor";
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [openTargetId, setOpenTargetId] = useState<string | null>(null);
 
@@ -52,6 +55,7 @@ function TargetsTab() {
           missionId={missionId}
           targets={targets ?? []}
           onOpenTarget={setOpenTargetId}
+          readOnly={readOnly}
         />
       ) : (
         <TargetTable targets={targets ?? []} onOpenTarget={setOpenTargetId} />
