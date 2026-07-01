@@ -20,7 +20,6 @@ import {
   collectionByTargetKey,
   countFilledFieldsByBlock,
   listCollectionByTarget,
-  upsertCollectionField,
   applyBlockUpdatesFromAssistant,
   type CollectionBlock,
 } from "@/lib/collection.queries";
