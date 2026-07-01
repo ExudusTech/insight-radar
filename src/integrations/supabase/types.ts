@@ -548,6 +548,9 @@ export type Database = {
           name: string
           objective: string | null
           product_id: string | null
+          proposal_from: string | null
+          proposed_deadline_final: string | null
+          proposed_deadline_partial: string | null
           responsible_id: string | null
           segment: string | null
           status: Database["public"]["Enums"]["mission_status"]
@@ -571,6 +574,9 @@ export type Database = {
           name: string
           objective?: string | null
           product_id?: string | null
+          proposal_from?: string | null
+          proposed_deadline_final?: string | null
+          proposed_deadline_partial?: string | null
           responsible_id?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
@@ -594,6 +600,9 @@ export type Database = {
           name?: string
           objective?: string | null
           product_id?: string | null
+          proposal_from?: string | null
+          proposed_deadline_final?: string | null
+          proposed_deadline_partial?: string | null
           responsible_id?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
@@ -977,6 +986,8 @@ export type Database = {
         | "closed"
         | "paused"
         | "cancelled"
+        | "pending_acceptance"
+        | "date_negotiation"
       profile_status: "active" | "inactive" | "pending" | "blocked"
       report_status:
         | "draft"
@@ -1157,6 +1168,8 @@ export const Constants = {
         "closed",
         "paused",
         "cancelled",
+        "pending_acceptance",
+        "date_negotiation",
       ],
       profile_status: ["active", "inactive", "pending", "blocked"],
       report_status: [
