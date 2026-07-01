@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2 } from "lucide-react";
+import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -38,6 +38,44 @@ async function fileToBase64(file: File): Promise<string> {
   return btoa(binary);
 }
 
+function useSpeechRecognition(onResult: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<any>(null);
+
+  const start = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Reconhecimento de voz não suportado neste navegador");
+      return;
+    }
+    const rec = new SpeechRecognition();
+    rec.lang = "pt-BR";
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const text = e.results[0]?.[0]?.transcript ?? "";
+      if (text) onResult(text);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  };
+
+  const stop = () => {
+    recRef.current?.stop();
+    setListening(false);
+  };
+
+  return { listening, start, stop };
+}
+
 export function MissionAssistantPanel({
   missionId,
   targetId,
@@ -54,6 +92,9 @@ export function MissionAssistantPanel({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { listening, start: startMic, stop: stopMic } = useSpeechRecognition((text) => {
+    setInput((prev) => (prev ? prev + " " + text : text));
+  });
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: assistantMessagesKey(targetId),
@@ -307,6 +348,17 @@ export function MissionAssistantPanel({
               onChange={handleImageSelect}
             />
           </label>
+          <button
+            type="button"
+            onClick={listening ? stopMic : startMic}
+            className={cn(
+              "p-2 rounded hover:bg-muted transition-colors",
+              listening ? "text-red-500 animate-pulse" : "text-muted-foreground",
+            )}
+            aria-label={listening ? "Parar gravação" : "Gravar áudio"}
+          >
+            {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
