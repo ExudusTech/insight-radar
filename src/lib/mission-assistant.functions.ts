@@ -193,5 +193,26 @@ PREENCHIMENTO AUTOMÁTICO DOS CAMPOS (obrigatório sempre que houver dados novos
     });
     console.log(`[assistant] used ${provider}/${usedModel}`);
     const { cleanMessage, blockUpdates } = parseBlockData(rawMessage);
+
+    // Persist the assistant message server-side (RLS blocks client inserts
+    // with role='assistant'). Verified caller is authenticated + owns the analyst_id.
+    if (data.analystId !== context.userId) {
+      throw new Error("analystId não corresponde ao usuário autenticado");
+    }
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: insErr } = await supabaseAdmin.from("assistant_messages").insert({
+        mission_id: data.missionId,
+        target_id: data.targetId,
+        block: "all",
+        analyst_id: data.analystId,
+        role: "assistant",
+        content: cleanMessage,
+      });
+      if (insErr) console.warn("[assistant] failed to persist assistant message", insErr);
+    } catch (e) {
+      console.warn("[assistant] persist error", e);
+    }
+
     return { message: cleanMessage, blockUpdates };
   });
