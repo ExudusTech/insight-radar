@@ -104,7 +104,15 @@ function NotificationsPage() {
   }
 
   const acceptProposalMut = useMutation({
-    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+    mutationFn: async ({
+      missionId,
+      mission,
+      notificationId,
+    }: {
+      missionId: string;
+      mission: Mission;
+      notificationId: string;
+    }) => {
       const { error } = await supabase
         .from("missions")
         .update({
@@ -122,6 +130,7 @@ function NotificationsPage() {
         "mission_accepted",
         `Cliente aceitou os novos prazos para "${mission.name}". A missão está em andamento.`,
       );
+      await markAsRead(notificationId);
     },
     onSuccess: () => {
       toast.success("Prazos aceitos. Missão iniciada!");
@@ -132,7 +141,15 @@ function NotificationsPage() {
   });
 
   const refuseProposalMut = useMutation({
-    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+    mutationFn: async ({
+      missionId,
+      mission,
+      notificationId,
+    }: {
+      missionId: string;
+      mission: Mission;
+      notificationId: string;
+    }) => {
       const { error } = await supabase
         .from("missions")
         .update({
@@ -148,6 +165,7 @@ function NotificationsPage() {
         "date_proposal",
         `O cliente recusou sua proposta de prazos para "${mission.name}". Aguarde novas instruções.`,
       );
+      await markAsRead(notificationId);
     },
     onSuccess: (_data, vars) => {
       invalidate();
@@ -235,12 +253,10 @@ function NotificationsPage() {
               onRead={(id) => readMut.mutate(id)}
               onInvalidate={invalidate}
               onAcceptProposal={(missionId, mission) => {
-                acceptProposalMut.mutate({ missionId, mission });
-                readMut.mutate(n.id);
+                acceptProposalMut.mutate({ missionId, mission, notificationId: n.id });
               }}
               onRefuseProposal={(missionId, mission) => {
-                refuseProposalMut.mutate({ missionId, mission });
-                readMut.mutate(n.id);
+                refuseProposalMut.mutate({ missionId, mission, notificationId: n.id });
               }}
               proposalPending={acceptProposalMut.isPending || refuseProposalMut.isPending}
             />
@@ -431,7 +447,7 @@ function NotificationItem({
   return (
     <Card
       className={`p-4 ${unread ? "border-primary/40 bg-primary/[0.02]" : ""}`}
-      onClick={() => unread && onRead(n.id)}
+      onClick={() => unread && !isDateProposal && onRead(n.id)}
     >
       <div className="flex items-start gap-3">
         <div className="text-lg leading-none mt-0.5">{emoji}</div>
