@@ -24,6 +24,7 @@ import {
   type CollectionBlock,
 } from "@/lib/collection.queries";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
+import { evidencesByTargetKey } from "@/lib/evidences.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
