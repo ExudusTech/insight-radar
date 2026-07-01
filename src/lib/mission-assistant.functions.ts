@@ -222,3 +222,108 @@ PREENCHIMENTO AUTOMÁTICO DOS CAMPOS — REGRA OBRIGATÓRIA (SEM EXCEÇÃO):
 
     return { message: cleanMessage, blockUpdates };
   });
+
+const ProcessInputSchema = z.object({
+  missionId: z.string().uuid(),
+  targetId: z.string().uuid(),
+  analystId: z.string().uuid(),
+});
+
+function buildBlocksSchemaSectionForExtraction() {
+  return COLLECTION_BLOCKS.map(
+    (b) => `${b} (${BLOCK_TITLES[b]}): ${BLOCK_FIELDS[b].join(", ")}`,
+  ).join("\n");
+}
+
+function sanitizeBlockUpdates(
+  raw: unknown,
+): Record<string, Record<string, string>> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [blk, fields] of Object.entries(raw as Record<string, unknown>)) {
+    if (!COLLECTION_BLOCKS.includes(blk as (typeof COLLECTION_BLOCKS)[number])) continue;
+    if (!fields || typeof fields !== "object") continue;
+    const allowed = new Set(BLOCK_FIELDS[blk as keyof typeof BLOCK_FIELDS] ?? []);
+    const clean: Record<string, string> = {};
+    for (const [k, v] of Object.entries(fields as Record<string, unknown>)) {
+      if (!allowed.has(k)) continue;
+      if (v === null || v === undefined) continue;
+      const str = String(v).trim();
+      if (!str || str.toLowerCase() === "null" || str === "—") continue;
+      clean[k] = str.slice(0, 2000);
+    }
+    if (Object.keys(clean).length > 0) out[blk] = clean;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export const processAssistantHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => ProcessInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    if (data.analystId !== context.userId) {
+      throw new Error("analystId não corresponde ao usuário autenticado");
+    }
+
+    const [{ data: messages }, { data: target }] = await Promise.all([
+      supabase
+        .from("assistant_messages")
+        .select("role, content")
+        .eq("target_id", data.targetId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("targets")
+        .select("name")
+        .eq("id", data.targetId)
+        .single(),
+    ]);
+
+    if (!messages || messages.length === 0) {
+      return { blockUpdates: null };
+    }
+
+    const targetName = target?.name ?? "alvo";
+
+    const extractionPrompt = `Você é um extrator de inteligência. Analise a conversa abaixo entre analista e assistente de pesquisa sobre o alvo "${targetName}" e extraia TODOS os dados que já foram mencionados.
+
+CAMPOS A PREENCHER (use APENAS estas chaves exatas):
+${buildBlocksSchemaSectionForExtraction()}
+
+REGRAS:
+- Retorne APENAS um JSON puro (sem cercas de código, sem texto antes ou depois).
+- Use apenas evidências concretas presentes na conversa — não invente.
+- Se um campo não puder ser inferido com segurança, omita-o.
+- Use somente os blocos (A–G) e chaves listados acima.
+
+Exemplo do formato esperado:
+{"A": {"canal_principal": "Instagram", "seguidores": "12k"}, "C": {"preco": "R$ 497"}}`;
+
+    const conversationText = messages
+      .map((m) => `${m.role === "user" ? "ANALISTA" : "ASSISTENTE"}: ${m.content}`)
+      .join("\n\n")
+      .slice(0, 60_000);
+
+    const { text } = await callLLM({
+      task: "assistant",
+      systemPrompt: extractionPrompt,
+      messages: [{ role: "user", content: conversationText }],
+      maxTokens: 2048,
+    });
+
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(text.trim());
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    return { blockUpdates: sanitizeBlockUpdates(parsed) };
+  });

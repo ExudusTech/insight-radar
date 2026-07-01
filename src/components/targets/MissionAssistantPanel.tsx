@@ -12,7 +12,7 @@ import {
   listAssistantMessages,
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
-import { missionAssistant } from "@/lib/mission-assistant.functions";
+import { missionAssistant, processAssistantHistory } from "@/lib/mission-assistant.functions";
 import {
   BLOCK_FIELDS,
   BLOCK_TITLES,
@@ -88,6 +88,7 @@ export function MissionAssistantPanel({
   const qc = useQueryClient();
   const { data: user } = useCurrentUser();
   const callAssistant = useServerFn(missionAssistant);
+  const callProcessHistory = useServerFn(processAssistantHistory);
   const [input, setInput] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -212,6 +213,47 @@ export function MissionAssistantPanel({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha no assistente"),
   });
 
+  const processMut = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Sem usuário");
+      const res = await callProcessHistory({
+        data: { missionId, targetId, analystId: user.id },
+      });
+      let count = 0;
+      if (res.blockUpdates) {
+        for (const [blk, fields] of Object.entries(res.blockUpdates)) {
+          if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
+          for (const [fieldKey, value] of Object.entries(fields)) {
+            try {
+              await upsertCollectionField({
+                missionId,
+                targetId,
+                block: blk as CollectionBlock,
+                fieldKey,
+                value,
+                userId: user.id,
+              });
+              count++;
+            } catch (e) {
+              console.warn("[assistant] failed to upsert (history)", blk, fieldKey, e);
+            }
+          }
+        }
+      }
+      return { count };
+    },
+    onSuccess: ({ count }) => {
+      qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
+      if (count > 0) {
+        toast.success(`${count} campo(s) extraído(s) e salvo(s) com sucesso!`);
+      } else {
+        toast.info("Nenhum campo novo identificado no histórico.");
+      }
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Falha ao processar histórico"),
+  });
+
   const lastAssistant = useMemo(
     () => [...messages].reverse().find((m) => m.role === "assistant"),
     [messages],
@@ -272,6 +314,28 @@ export function MissionAssistantPanel({
       </div>
 
       <BlockProgress filled={filledByBlock} />
+
+      {messages.length > 0 && (
+        <div className="px-3 py-2 border-b">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs w-full"
+            onClick={() => processMut.mutate()}
+            disabled={processMut.isPending}
+          >
+            {processMut.isPending ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin mr-1" /> Processando histórico...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3 mr-1" /> Extrair campos do histórico
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       {evidenceRequested && (
         <div className="px-3 py-2 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 text-xs flex items-center gap-1.5 border-b">
