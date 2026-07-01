@@ -92,4 +92,9 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   observation: "Observação",
   feedback: "Feedback",
   blocking: "Bloqueante",
+  date_proposal: "Proposta de prazos",
+  mission_accepted: "Missão aceita",
+  mission_declined: "Missão recusada",
+  mission_pending_acceptance: "Aguardando aceite",
+  status_update: "Atualização",
 };
