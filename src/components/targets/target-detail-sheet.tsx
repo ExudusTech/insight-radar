@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMutation, useQuery, useQueryClient, useState } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +32,11 @@ import {
   Mail,
   Sparkles,
   ChevronDown,
+  ClipboardList,
+  Clock,
+  Paperclip,
+  LayoutDashboard,
+  Brain,
 } from "lucide-react";
 import {
   Collapsible,
@@ -60,6 +65,7 @@ import {
   type TargetStatus,
 } from "@/lib/target-status";
 import { logActivity } from "@/lib/activity-log";
+import { cn } from "@/lib/utils";
 
 export function TargetDetailSheet({
   targetId,
