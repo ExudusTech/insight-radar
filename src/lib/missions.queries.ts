@@ -73,6 +73,45 @@ export async function listProfilesWithRole(role: "contractor" | "analyst" | "sup
   return data ?? [];
 }
 
+export async function autoAssignAnalyst(missionId: string): Promise<string | null> {
+  // Buscar analistas via user_roles
+  const { data: roleRows, error: rolesErr } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "analyst");
+  if (rolesErr) throw rolesErr;
+  const analystIds = (roleRows ?? []).map((r) => r.user_id);
+  if (analystIds.length === 0) return null;
+
+  // Filtrar por disponibilidade (accepts_missions = true)
+  const { data: available, error: err1 } = await supabase
+    .from("profiles")
+    .select("id")
+    .in("id", analystIds)
+    .eq("accepts_missions", true);
+  if (err1 || !available || available.length === 0) return null;
+
+  // Contar missões ativas por analista para balancear carga
+  const counts = await Promise.all(
+    available.map(async (a) => {
+      const { count } = await supabase
+        .from("mission_analysts")
+        .select("*", { count: "exact", head: true })
+        .eq("analyst_id", a.id);
+      return { id: a.id, count: count ?? 0 };
+    }),
+  );
+
+  counts.sort((a, b) => a.count - b.count);
+  const chosen = counts[0].id;
+
+  const { error: err2 } = await supabase
+    .from("mission_analysts")
+    .insert({ mission_id: missionId, analyst_id: chosen });
+  if (err2) throw err2;
+  return chosen;
+}
+
 export type CreateMissionInput = {
   name: string;
   description?: string | null;
