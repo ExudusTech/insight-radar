@@ -160,12 +160,14 @@ function BriefingEnrichPanel({
   initialDescription,
   canStart,
   currentUserId,
+  deadlineFinal,
 }: {
   missionId: string;
   missionName: string;
   initialDescription: string | null;
   canStart: boolean;
   currentUserId: string | null;
+  deadlineFinal: string | null;
 }) {
   const qc = useQueryClient();
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -176,6 +178,23 @@ function BriefingEnrichPanel({
   useEffect(() => {
     setDescription(initialDescription ?? "");
   }, [initialDescription]);
+
+  const { data: analysts = [] } = useQuery({
+    queryKey: ["profiles", "role", "analyst"],
+    queryFn: () => listProfilesWithRole("analyst"),
+  });
+  const { data: linkedAnalysts = [] } = useQuery({
+    queryKey: missionAnalystsKey(missionId),
+    queryFn: () => listMissionAnalysts(missionId),
+  });
+  const [selectedAnalystIds, setSelectedAnalystIds] = useState<string[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!hydrated && linkedAnalysts.length > 0) {
+      setSelectedAnalystIds(linkedAnalysts.map((a) => a.analyst_id));
+      setHydrated(true);
+    }
+  }, [linkedAnalysts, hydrated]);
 
   const saveMut = useMutation({
     mutationFn: () => updateMission(missionId, { description }),
@@ -188,7 +207,32 @@ function BriefingEnrichPanel({
 
   const startMut = useMutation({
     mutationFn: async () => {
-      await updateMission(missionId, { description });
+      if (selectedAnalystIds.length === 0) {
+        throw new Error("Selecione pelo menos um analista antes de iniciar");
+      }
+      if (deadlineFinal) {
+        const deadline = new Date(deadlineFinal);
+        const today = new Date();
+        const diffDays = Math.ceil(
+          (deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (diffDays < 0) {
+          throw new Error(
+            "A data de entrega já passou. Atualize o prazo antes de iniciar a missão.",
+          );
+        }
+        if (diffDays < 7) {
+          throw new Error(
+            `Prazo insuficiente: ${diffDays} dia(s) restante(s). O mínimo para condução da pesquisa é 7 dias, pois algumas etapas dependem de resposta dos alvos.`,
+          );
+        }
+        if (diffDays < 14) {
+          toast.warning(
+            `Atenção: apenas ${diffDays} dias até o prazo. Se a missão envolver agendamento de reuniões ou aguardo de respostas, considere estender para pelo menos 2 semanas.`,
+          );
+        }
+      }
+      await updateMission(missionId, { description, analyst_ids: selectedAnalystIds });
       const { supabase } = await import("@/integrations/supabase/client");
       const { error: statusErr } = await supabase
         .from("missions")
@@ -196,12 +240,11 @@ function BriefingEnrichPanel({
         .eq("id", missionId);
       if (statusErr) throw statusErr;
 
-      const analysts = await listMissionAnalysts(missionId);
-      if (analysts.length > 0) {
+      if (selectedAnalystIds.length > 0) {
         await sendNotificationsFn({
           data: {
-            notifications: analysts.map((a) => ({
-              user_id: a.analyst_id,
+            notifications: selectedAnalystIds.map((analystId) => ({
+              user_id: analystId,
               mission_id: missionId,
               type: "mission_started",
               message: `A missão "${missionName}" foi iniciada e está pronta para coleta.`,
@@ -222,6 +265,7 @@ function BriefingEnrichPanel({
     onSuccess: () => {
       toast.success("Missão iniciada");
       qc.invalidateQueries({ queryKey: missionDetailKey(missionId) });
+      qc.invalidateQueries({ queryKey: missionAnalystsKey(missionId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -294,6 +338,44 @@ function BriefingEnrichPanel({
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
         />
+      </div>
+      {canStart && (
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Analistas responsáveis
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {analysts.map((a) => {
+              const selected = selectedAnalystIds.includes(a.id);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() =>
+                    setSelectedAnalystIds((prev) =>
+                      selected ? prev.filter((id) => id !== a.id) : [...prev, a.id],
+                    )
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                    selected
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50",
+                  )}
+                >
+                  <Users className="h-3 w-3" />
+                  {a.full_name || a.email}
+                  {selected && <Check className="h-3 w-3" />}
+                </button>
+              );
+            })}
+            {analysts.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nenhum analista cadastrado.</p>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="flex">
         {canStart && (
           <Button
             size="sm"
