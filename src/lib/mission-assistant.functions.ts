@@ -280,6 +280,7 @@ export const processAssistantHistory = createServerFn({ method: "POST" })
     ]);
 
     if (!messages || messages.length === 0) {
+      console.log("[processHistory] no messages for target", data.targetId);
       return { blockUpdates: null };
     }
 
@@ -310,6 +311,7 @@ Exemplo do formato esperado:
       messages: [{ role: "user", content: conversationText }],
       maxTokens: 2048,
     });
+    console.log("[processHistory] LLM raw response (first 500):", text.slice(0, 500));
 
     let parsed: unknown = null;
     try {
@@ -325,5 +327,12 @@ Exemplo do formato esperado:
       }
     }
 
-    return { blockUpdates: sanitizeBlockUpdates(parsed) };
+    const clean = sanitizeBlockUpdates(parsed);
+    console.log(
+      "[processHistory] parsed keys:",
+      parsed && typeof parsed === "object" ? Object.keys(parsed as object) : null,
+      "sanitized blocks:",
+      clean ? Object.keys(clean) : null,
+    );
+    return { blockUpdates: clean };
   });
