@@ -15,6 +15,8 @@ const InputSchema = z.object({
     }),
   ).max(100),
   userMessage: z.string().max(10_000).nullable(),
+  imageBase64: z.string().max(12_000_000).nullable().optional(),
+  imageMimeType: z.string().max(80).nullable().optional(),
 });
 
 export const missionAssistant = createServerFn({ method: "POST" })
@@ -100,12 +102,38 @@ COMO SE COMPORTAR:
   3) Uma linha "🎯 **Objetivo da missão:** ${mission.objective ?? "—"}".
   4) Uma linha "Vamos começar pelo **Bloco ${data.block}**." e então "**Passo 1:**" com a primeira instrução operacional, usando os handles/URLs reais.
 - Responda sempre em português brasileiro
-- Seja direta e objetiva — a analista está em campo`;
+- Seja direta e objetiva — a analista está em campo
 
-    const messages: Array<{ role: "user" | "assistant"; content: string }> = [
-      ...data.conversationHistory,
-    ];
-    if (data.userMessage && data.userMessage.trim()) {
+PROCESSAMENTO DE EVIDÊNCIAS:
+- Ao receber um print (imagem): descreva de forma estruturada o que vê (plataforma, conteúdo, métricas, texto visível), extraia dados relevantes para o Bloco ${data.block}, resuma em bullets e avance para o próximo passo.
+- Ao receber texto colado de conversa (WhatsApp, DM, e-mail, chat): identifique padrões de exportação (hora, nome, mensagem), aponte quem atendeu, o tom (rápido/robótico/consultivo), e extraia preços/planos/condições. Resuma em bullets e avance.
+- Sempre confirme o que ficou registrado antes de pedir a próxima ação.`;
+
+    const messages: Array<{
+      role: "user" | "assistant";
+      content:
+        | string
+        | Array<
+            | { type: "text"; text: string }
+            | { type: "image_base64"; mediaType: string; data: string }
+          >;
+    }> = [...data.conversationHistory];
+
+    const hasImage = !!data.imageBase64;
+    if (hasImage) {
+      const text = data.userMessage?.trim() || "Veja o print que enviei:";
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text },
+          {
+            type: "image_base64",
+            mediaType: data.imageMimeType || "image/jpeg",
+            data: data.imageBase64!,
+          },
+        ],
+      });
+    } else if (data.userMessage && data.userMessage.trim()) {
       messages.push({ role: "user", content: data.userMessage });
     } else if (messages.length === 0) {
       messages.push({ role: "user", content: `Iniciar bloco ${data.block}.` });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Sparkles, Send, Loader2, Camera, CheckCircle2 } from "lucide-react";
+import { Sparkles, Send, Loader2, Camera, CheckCircle2, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,18 @@ import {
 } from "@/lib/assistant-messages.queries";
 import { missionAssistant } from "@/lib/mission-assistant.functions";
 import { logActivity } from "@/lib/activity-log";
+import { supabase } from "@/integrations/supabase/client";
+
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
 
 export function MissionAssistantPanel({
   missionId,
@@ -32,6 +44,8 @@ export function MissionAssistantPanel({
   const { data: user } = useCurrentUser();
   const callAssistant = useServerFn(missionAssistant);
   const [input, setInput] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: messages = [], isLoading } = useQuery({
@@ -44,20 +58,40 @@ export function MissionAssistantPanel({
   }, [messages.length]);
 
   const sendMut = useMutation({
-    mutationFn: async (userMessage: string | null) => {
+    mutationFn: async (payload: { userMessage: string | null; file: File | null }) => {
       if (!user?.id) throw new Error("Sem usuário");
+      const { userMessage, file } = payload;
       const history = messages.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
-      if (userMessage && userMessage.trim()) {
+
+      let imageBase64: string | null = null;
+      let imageMimeType: string | null = null;
+      let imagePath: string | null = null;
+
+      if (file) {
+        imageMimeType = file.type || "image/jpeg";
+        imageBase64 = await fileToBase64(file);
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        imagePath = `${missionId}/${targetId}/assistant/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("mission-evidences")
+          .upload(imagePath, file, { contentType: imageMimeType, upsert: false });
+        if (upErr) throw upErr;
+      }
+
+      if ((userMessage && userMessage.trim()) || file) {
         await saveAssistantMessage({
           missionId,
           targetId,
           block,
           analystId: user.id,
           role: "user",
-          content: userMessage,
+          content: userMessage?.trim() || (file ? "[imagem]" : ""),
+          metadata: imagePath
+            ? { image_path: imagePath, image_mime: imageMimeType }
+            : undefined,
         });
       }
       const res = await callAssistant({
@@ -68,6 +102,8 @@ export function MissionAssistantPanel({
           analystId: user.id,
           conversationHistory: history,
           userMessage: userMessage,
+          imageBase64,
+          imageMimeType,
         },
       });
       await saveAssistantMessage({
@@ -82,6 +118,8 @@ export function MissionAssistantPanel({
     },
     onSuccess: (aiMessage) => {
       setInput("");
+      setImageFile(null);
+      setImagePreview(null);
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId, block) });
       if (user?.id) {
         logActivity({
@@ -115,8 +153,23 @@ export function MissionAssistantPanel({
       : "Em andamento";
 
   const handleSend = () => {
-    if (!input.trim() || sendMut.isPending) return;
-    sendMut.mutate(input);
+    if (sendMut.isPending) return;
+    if (!input.trim() && !imageFile) return;
+    sendMut.mutate({ userMessage: input || null, file: imageFile });
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 8MB)");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -149,7 +202,7 @@ export function MissionAssistantPanel({
             block={block}
             targetName={targetName}
             loading={sendMut.isPending}
-            onStart={() => sendMut.mutate(null)}
+            onStart={() => sendMut.mutate({ userMessage: null, file: null })}
           />
         ) : (
           messages.map((m) => (
@@ -167,7 +220,8 @@ export function MissionAssistantPanel({
                 {m.role === "assistant" && (
                   <Sparkles className="inline h-3 w-3 mr-1 text-primary" />
                 )}
-                {m.content}
+                <MessageImage metadata={m.metadata as { image_path?: string } | null} />
+                {m.content && m.content !== "[imagem]" ? m.content : null}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 {new Date(m.created_at).toLocaleTimeString("pt-BR", {
@@ -195,7 +249,42 @@ export function MissionAssistantPanel({
       )}
 
       {messages.length > 0 && (
-        <div className="px-3 py-2 border-t flex items-end gap-2">
+        <div className="px-3 py-2 border-t space-y-2">
+          {imagePreview && (
+            <div className="relative inline-block">
+              <img
+                src={imagePreview}
+                alt="preview"
+                className="max-h-24 rounded border"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageFile(null);
+                  setImagePreview(null);
+                }}
+                className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5"
+                aria-label="Remover imagem"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+          <label
+            htmlFor={`img-upload-${targetId}-${block}`}
+            className="cursor-pointer p-2 rounded hover:bg-muted"
+            aria-label="Anexar imagem"
+          >
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            <input
+              id={`img-upload-${targetId}-${block}`}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+          </label>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -206,19 +295,55 @@ export function MissionAssistantPanel({
               }
             }}
             rows={1}
-            placeholder="Relate o que encontrou..."
+            placeholder="Relate o que encontrou ou cole uma conversa..."
             className="min-h-9 max-h-24 text-sm resize-none"
           />
-          <Button size="sm" onClick={handleSend} disabled={!input.trim() || sendMut.isPending}>
+          <Button
+            size="sm"
+            onClick={handleSend}
+            disabled={(!input.trim() && !imageFile) || sendMut.isPending}
+          >
             {sendMut.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Send className="h-3.5 w-3.5" />
             )}
           </Button>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+function MessageImage({ metadata }: { metadata: { image_path?: string } | null }) {
+  const path = metadata?.image_path;
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!path) return;
+    let active = true;
+    supabase.storage
+      .from("mission-evidences")
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => {
+        if (active && data?.signedUrl) setUrl(data.signedUrl);
+      });
+    return () => {
+      active = false;
+    };
+  }, [path]);
+  if (!path) return null;
+  if (!url) {
+    return (
+      <div className="h-24 w-32 rounded bg-muted animate-pulse mb-1" />
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt="evidência"
+      className="max-w-full max-h-64 rounded border mb-1"
+    />
   );
 }
 

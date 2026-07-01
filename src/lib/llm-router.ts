@@ -10,7 +10,37 @@ export type Provider   = "anthropic" | "openai" | "gemini";
 
 export interface LLMMessage {
   role: "user" | "assistant";
-  content: string;
+  content: LLMContent;
+}
+
+export type LLMContent =
+  | string
+  | Array<LLMContentBlock>;
+
+export type LLMContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_base64"; mediaType: string; data: string };
+
+function toAnthropicContent(content: LLMContent) {
+  if (typeof content === "string") return content;
+  return content.map((b) => {
+    if (b.type === "text") return { type: "text", text: b.text };
+    return {
+      type: "image",
+      source: { type: "base64", media_type: b.mediaType, data: b.data },
+    };
+  });
+}
+
+function toOpenAIContent(content: LLMContent) {
+  if (typeof content === "string") return content;
+  return content.map((b) => {
+    if (b.type === "text") return { type: "text", text: b.text };
+    return {
+      type: "image_url",
+      image_url: { url: `data:${b.mediaType};base64,${b.data}` },
+    };
+  });
 }
 
 export interface LLMCallParams {
@@ -102,7 +132,12 @@ async function callAnthropic(
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system: systemPrompt, messages }),
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: messages.map((m) => ({ role: m.role, content: toAnthropicContent(m.content) })),
+    }),
   });
   const rawBody = await res.text();
   if (!res.ok) return { text: "", status: res.status, rawBody };
@@ -127,7 +162,10 @@ async function callOpenAICompat(
   maxTokens: number,
   apiKey: string,
 ): Promise<RawResult> {
-  const oaiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+  const oaiMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages.map((m) => ({ role: m.role, content: toOpenAIContent(m.content) })),
+  ];
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
