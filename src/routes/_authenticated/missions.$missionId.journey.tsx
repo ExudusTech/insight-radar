@@ -153,7 +153,7 @@ function JourneyPage() {
         open={!!openTargetId}
         onOpenChange={(o) => !o && setOpenTargetId(null)}
         targetLabel={mission.target_label || "Alvo"}
-        defaultTab="collection"
+        defaultTab="assistant"
       />
     </div>
   );
