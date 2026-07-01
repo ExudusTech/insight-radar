@@ -102,7 +102,11 @@ export function CollectionTab({
     }
     setDrafts(initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length, targetId]);
+  }, [
+    targetId,
+    // recarrega quando qualquer notes/status/observation/doubt muda no cache
+    rows.map((r) => `${r.block}:${r.field_key}:${String(r.field_value ?? "")}`).join("|"),
+  ]);
 
   const saveMut = useMutation({
     mutationFn: async (block: CollectionBlock) => {
