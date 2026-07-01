@@ -108,3 +108,85 @@ export function countCompleteBlocks(rows: CollectionRow[]) {
   const idx = indexCollectionRows(rows);
   return COLLECTION_BLOCKS.filter((b) => idx[b].block_status === "done").length;
 }
+
+/** Formata "chave: valor" para exibir no notes do bloco. */
+function formatFieldLine(key: string, value: string) {
+  const label = key.replace(/_/g, " ");
+  const capitalized = label.charAt(0).toUpperCase() + label.slice(1);
+  return `- ${capitalized}: ${value}`;
+}
+
+/**
+ * Aplica campos extraídos pelo assistente ao "notes" do bloco (merge inteligente:
+ * atualiza linhas existentes e adiciona novas), promove status para in_progress
+ * quando ainda estiver not_started, e faz upsert dos field_keys granulares.
+ */
+export async function applyBlockUpdatesFromAssistant(params: {
+  missionId: string;
+  targetId: string;
+  userId: string;
+  blockUpdates: Record<string, Record<string, string>>;
+}): Promise<number> {
+  const { missionId, targetId, userId, blockUpdates } = params;
+  const existing = await listCollectionByTarget(targetId);
+  const indexed = indexCollectionRows(existing);
+  let totalFields = 0;
+
+  for (const [blk, fields] of Object.entries(blockUpdates)) {
+    if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
+    if (!fields || typeof fields !== "object") continue;
+    const block = blk as CollectionBlock;
+
+    // 1) upsert dos campos granulares
+    for (const [fieldKey, value] of Object.entries(fields)) {
+      const v = String(value ?? "").trim();
+      if (!v) continue;
+      try {
+        await upsertCollectionField({
+          missionId,
+          targetId,
+          block,
+          fieldKey,
+          value: v,
+          userId,
+        });
+        totalFields++;
+      } catch (e) {
+        console.warn("[collection] upsert field failed", block, fieldKey, e);
+      }
+    }
+
+    // 2) merge no notes (visível na aba Coleta)
+    const currentNotes = indexed[block]?.notes ?? "";
+    const lines = currentNotes.split("\n");
+    const nextLines = [...lines];
+    for (const [fieldKey, value] of Object.entries(fields)) {
+      const v = String(value ?? "").trim();
+      if (!v) continue;
+      const label = fieldKey.replace(/_/g, " ");
+      const capitalized = label.charAt(0).toUpperCase() + label.slice(1);
+      const prefix = `- ${capitalized}:`;
+      const idxLine = nextLines.findIndex((l) => l.trim().startsWith(prefix));
+      const newLine = formatFieldLine(fieldKey, v);
+      if (idxLine >= 0) nextLines[idxLine] = newLine;
+      else nextLines.push(newLine);
+    }
+    const mergedNotes = nextLines.filter((l) => l.trim()).join("\n");
+    if (mergedNotes && mergedNotes !== currentNotes) {
+      await upsertCollectionField({
+        missionId, targetId, block, fieldKey: "notes",
+        value: mergedNotes, userId,
+      });
+    }
+
+    // 3) status → in_progress se ainda estiver not_started
+    const currentStatus = indexed[block]?.block_status ?? "not_started";
+    if (currentStatus === "not_started") {
+      await upsertCollectionField({
+        missionId, targetId, block, fieldKey: "block_status",
+        value: "in_progress", userId,
+      });
+    }
+  }
+  return totalFields;
+}
