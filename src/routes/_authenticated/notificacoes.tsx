@@ -1,12 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2, Bell, Check, MessageSquare } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
@@ -18,6 +27,9 @@ import {
   createNotification,
   NOTIFICATION_TYPE_LABEL,
 } from "@/lib/notifications.queries";
+import { sendNotifications } from "@/lib/notifications.functions";
+import { getMission, type Mission } from "@/lib/missions.queries";
+import { parseLocalDate } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/notificacoes")({
@@ -28,6 +40,9 @@ function typeBadgeVariant(type: string): { variant: "secondary" | "destructive" 
   if (type === "doubt") return { variant: "secondary", emoji: "🟡" };
   if (type === "blocking") return { variant: "destructive", emoji: "🔴" };
   if (type === "feedback") return { variant: "default", emoji: "✅" };
+  if (type === "date_proposal") return { variant: "secondary", emoji: "📅" };
+  if (type === "mission_accepted") return { variant: "default", emoji: "✅" };
+  if (type === "mission_declined") return { variant: "destructive", emoji: "🚫" };
   return { variant: "outline", emoji: "🔵" };
 }
 
@@ -35,6 +50,12 @@ function NotificationsPage() {
   const { data: user } = useCurrentUser();
   const qc = useQueryClient();
   const uid = user?.id ?? "";
+  const sendNotificationsFn = useServerFn(sendNotifications);
+  const [refuseDialog, setRefuseDialog] = useState<{
+    open: boolean;
+    missionId: string | null;
+    mission: Mission | null;
+  }>({ open: false, missionId: null, mission: null });
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: notificationsKey(uid),
@@ -58,6 +79,126 @@ function NotificationsPage() {
       invalidate();
       toast.success("Todas marcadas como lidas");
     },
+  });
+
+  async function notifyAnalysts(
+    missionId: string,
+    type: string,
+    message: string,
+  ) {
+    const { data: analysts } = await supabase
+      .from("mission_analysts")
+      .select("analyst_id")
+      .eq("mission_id", missionId);
+    if (!analysts?.length) return;
+    await sendNotificationsFn({
+      data: {
+        notifications: analysts.map((a) => ({
+          user_id: a.analyst_id,
+          mission_id: missionId,
+          type,
+          message,
+        })),
+      },
+    });
+  }
+
+  const acceptProposalMut = useMutation({
+    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          status: "execution_started",
+          deadline_first: mission.proposed_deadline_partial,
+          deadline_final: mission.proposed_deadline_final,
+          proposed_deadline_partial: null,
+          proposed_deadline_final: null,
+          proposal_from: null,
+        })
+        .eq("id", missionId);
+      if (error) throw error;
+      await notifyAnalysts(
+        missionId,
+        "mission_accepted",
+        `Cliente aceitou os novos prazos para "${mission.name}". A missão está em andamento.`,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Prazos aceitos. Missão iniciada!");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["missions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const refuseProposalMut = useMutation({
+    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          status: "pending_acceptance",
+          proposed_deadline_partial: null,
+          proposed_deadline_final: null,
+          proposal_from: null,
+        })
+        .eq("id", missionId);
+      if (error) throw error;
+      await notifyAnalysts(
+        missionId,
+        "date_proposal",
+        `O cliente recusou sua proposta de prazos para "${mission.name}". Aguarde novas instruções.`,
+      );
+    },
+    onSuccess: (_data, vars) => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["missions"] });
+      setRefuseDialog({ open: true, missionId: vars.missionId, mission: vars.mission });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const acceptOriginalMut = useMutation({
+    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ status: "execution_started" })
+        .eq("id", missionId);
+      if (error) throw error;
+      await notifyAnalysts(
+        missionId,
+        "mission_accepted",
+        `O cliente aceitou os prazos originais para "${mission.name}". A missão está em andamento.`,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Missão retomada com os prazos originais.");
+      setRefuseDialog({ open: false, missionId: null, mission: null });
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["missions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const cancelMissionMut = useMutation({
+    mutationFn: async ({ missionId, mission }: { missionId: string; mission: Mission }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ status: "cancelled" })
+        .eq("id", missionId);
+      if (error) throw error;
+      await notifyAnalysts(
+        missionId,
+        "status_update",
+        `O cliente encerrou a missão "${mission.name}". Ela foi cancelada.`,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Missão encerrada.");
+      setRefuseDialog({ open: false, missionId: null, mission: null });
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["missions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
@@ -93,10 +234,97 @@ function NotificationsPage() {
               currentUserId={uid}
               onRead={(id) => readMut.mutate(id)}
               onInvalidate={invalidate}
+              onAcceptProposal={(missionId, mission) => {
+                acceptProposalMut.mutate({ missionId, mission });
+                readMut.mutate(n.id);
+              }}
+              onRefuseProposal={(missionId, mission) => {
+                refuseProposalMut.mutate({ missionId, mission });
+                readMut.mutate(n.id);
+              }}
+              proposalPending={acceptProposalMut.isPending || refuseProposalMut.isPending}
             />
           ))}
         </div>
       )}
+
+      <Dialog
+        open={refuseDialog.open}
+        onOpenChange={(o) =>
+          !o && setRefuseDialog({ open: false, missionId: null, mission: null })
+        }
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Proposta recusada</DialogTitle>
+            <DialogDescription>
+              O analista foi notificado. O que você deseja fazer agora?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Você pode aceitar os prazos originais da missão e continuar, ou
+              encerrar a missão.
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                variant="outline"
+                className="justify-start h-auto py-3 px-4"
+                disabled={acceptOriginalMut.isPending}
+                onClick={() => {
+                  if (refuseDialog.missionId && refuseDialog.mission) {
+                    acceptOriginalMut.mutate({
+                      missionId: refuseDialog.missionId,
+                      mission: refuseDialog.mission,
+                    });
+                  }
+                }}
+              >
+                <div className="text-left">
+                  <p className="font-medium text-sm">
+                    Aceitar datas originais e continuar
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    1ª entrega:{" "}
+                    {refuseDialog.mission?.deadline_first
+                      ? parseLocalDate(refuseDialog.mission.deadline_first).toLocaleDateString("pt-BR")
+                      : "—"}{" "}
+                    · Final:{" "}
+                    {refuseDialog.mission?.deadline_final
+                      ? parseLocalDate(refuseDialog.mission.deadline_final).toLocaleDateString("pt-BR")
+                      : "—"}
+                  </p>
+                </div>
+              </Button>
+              <Button
+                variant="destructive"
+                className="justify-start"
+                disabled={cancelMissionMut.isPending}
+                onClick={() => {
+                  if (refuseDialog.missionId && refuseDialog.mission) {
+                    cancelMissionMut.mutate({
+                      missionId: refuseDialog.missionId,
+                      mission: refuseDialog.mission,
+                    });
+                  }
+                }}
+              >
+                Desistir da missão
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                setRefuseDialog({ open: false, missionId: null, mission: null })
+              }
+            >
+              Fechar (decidir depois)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -108,11 +336,17 @@ function NotificationItem({
   currentUserId,
   onRead,
   onInvalidate,
+  onAcceptProposal,
+  onRefuseProposal,
+  proposalPending,
 }: {
   n: NItem;
   currentUserId: string;
   onRead: (id: string) => void;
   onInvalidate: () => void;
+  onAcceptProposal: (missionId: string, mission: Mission) => void;
+  onRefuseProposal: (missionId: string, mission: Mission) => void;
+  proposalPending: boolean;
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [reply, setReply] = useState("");
@@ -124,6 +358,20 @@ function NotificationItem({
   const target = (n as unknown as { target?: { id: string; name: string } | null }).target;
 
   const isDoubt = n.type === "doubt" || n.type === "blocking";
+  const isDateProposal = n.type === "date_proposal" && !!n.mission_id;
+
+  const { data: missionData } = useQuery({
+    queryKey: ["missions", "detail", n.mission_id ?? ""],
+    queryFn: () => getMission(n.mission_id as string),
+    enabled: isDateProposal,
+    staleTime: 30_000,
+  });
+
+  const showProposalActions =
+    isDateProposal &&
+    missionData?.proposal_from === "analyst" &&
+    missionData?.contractor_id === currentUserId &&
+    missionData?.status === "date_negotiation";
 
   const replyMut = useMutation({
     mutationFn: async () => {
@@ -247,6 +495,29 @@ function NotificationItem({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {showProposalActions && missionData && (
+            <div
+              className="flex gap-2 mt-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                size="sm"
+                disabled={proposalPending}
+                onClick={() => onAcceptProposal(missionData.id, missionData as Mission)}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" /> Aceitar proposta
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={proposalPending}
+                onClick={() => onRefuseProposal(missionData.id, missionData as Mission)}
+              >
+                Recusar
+              </Button>
             </div>
           )}
         </div>
