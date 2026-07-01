@@ -6,12 +6,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload, Rocket, FileText, Users, Check } from "lucide-react";
+import { Loader2, Upload, Rocket, FileText } from "lucide-react";
 import {
   getMission,
   listMissionAnalysts,
   listMissionContractors,
-  listProfilesWithRole,
   missionAnalystsKey,
   missionContractorsKey,
   missionDetailKey,
@@ -27,7 +26,6 @@ import {
 import { sendNotifications } from "@/lib/notifications.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -179,23 +177,6 @@ function BriefingEnrichPanel({
     setDescription(initialDescription ?? "");
   }, [initialDescription]);
 
-  const { data: analysts = [] } = useQuery({
-    queryKey: ["profiles", "role", "analyst"],
-    queryFn: () => listProfilesWithRole("analyst"),
-  });
-  const { data: linkedAnalysts = [] } = useQuery({
-    queryKey: missionAnalystsKey(missionId),
-    queryFn: () => listMissionAnalysts(missionId),
-  });
-  const [selectedAnalystIds, setSelectedAnalystIds] = useState<string[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    if (!hydrated && linkedAnalysts.length > 0) {
-      setSelectedAnalystIds(linkedAnalysts.map((a) => a.analyst_id));
-      setHydrated(true);
-    }
-  }, [linkedAnalysts, hydrated]);
-
   const saveMut = useMutation({
     mutationFn: () => updateMission(missionId, { description }),
     onSuccess: () => {
@@ -207,9 +188,6 @@ function BriefingEnrichPanel({
 
   const startMut = useMutation({
     mutationFn: async () => {
-      if (selectedAnalystIds.length === 0) {
-        throw new Error("Selecione pelo menos um analista antes de iniciar");
-      }
       if (deadlineFinal) {
         const deadline = new Date(deadlineFinal);
         const today = new Date();
@@ -232,7 +210,11 @@ function BriefingEnrichPanel({
           );
         }
       }
-      await updateMission(missionId, { description, analyst_ids: selectedAnalystIds });
+      await updateMission(missionId, { description });
+
+      const { autoAssignAnalyst } = await import("@/lib/missions.queries");
+      const assignedAnalystId = await autoAssignAnalyst(missionId);
+
       const { supabase } = await import("@/integrations/supabase/client");
       const { error: statusErr } = await supabase
         .from("missions")
@@ -240,15 +222,17 @@ function BriefingEnrichPanel({
         .eq("id", missionId);
       if (statusErr) throw statusErr;
 
-      if (selectedAnalystIds.length > 0) {
+      if (assignedAnalystId) {
         await sendNotificationsFn({
           data: {
-            notifications: selectedAnalystIds.map((analystId) => ({
-              user_id: analystId,
-              mission_id: missionId,
-              type: "mission_started",
-              message: `A missão "${missionName}" foi iniciada e está pronta para coleta.`,
-            })),
+            notifications: [
+              {
+                user_id: assignedAnalystId,
+                mission_id: missionId,
+                type: "mission_started",
+                message: `Nova missão atribuída: "${missionName}". Acesse para iniciar a estratégia.`,
+              },
+            ],
           },
         });
       }
@@ -263,7 +247,7 @@ function BriefingEnrichPanel({
       }
     },
     onSuccess: () => {
-      toast.success("Missão iniciada");
+      toast.success("Missão enviada! Nossa equipe de análise será acionada em breve.");
       qc.invalidateQueries({ queryKey: missionDetailKey(missionId) });
       qc.invalidateQueries({ queryKey: missionAnalystsKey(missionId) });
     },
@@ -339,42 +323,6 @@ function BriefingEnrichPanel({
           onChange={(e) => handleFiles(e.target.files)}
         />
       </div>
-      {canStart && (
-        <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Analistas responsáveis
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {analysts.map((a) => {
-              const selected = selectedAnalystIds.includes(a.id);
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() =>
-                    setSelectedAnalystIds((prev) =>
-                      selected ? prev.filter((id) => id !== a.id) : [...prev, a.id],
-                    )
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                    selected
-                      ? "bg-primary/10 border-primary text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/50",
-                  )}
-                >
-                  <Users className="h-3 w-3" />
-                  {a.full_name || a.email}
-                  {selected && <Check className="h-3 w-3" />}
-                </button>
-              );
-            })}
-            {analysts.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">Nenhum analista cadastrado.</p>
-            )}
-          </div>
-        </div>
-      )}
       <div className="flex">
         {canStart && (
           <Button
