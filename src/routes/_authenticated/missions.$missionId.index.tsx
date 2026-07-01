@@ -25,6 +25,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { DatePickerField, parseLocalDate } from "@/components/ui/date-picker";
 import {
   getMission,
   listMissionAnalysts,
@@ -151,11 +152,11 @@ function MissionOverview() {
               <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
               <KV
                 k="Primeira entrega"
-                v={mission.deadline_first ? new Date(mission.deadline_first).toLocaleDateString("pt-BR") : null}
+                v={mission.deadline_first ? parseLocalDate(mission.deadline_first).toLocaleDateString("pt-BR") : null}
               />
               <KV
                 k="Entrega final"
-                v={mission.deadline_final ? new Date(mission.deadline_final).toLocaleDateString("pt-BR") : null}
+                v={mission.deadline_final ? parseLocalDate(mission.deadline_final).toLocaleDateString("pt-BR") : null}
               />
             </>
           )}
