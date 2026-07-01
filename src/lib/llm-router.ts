@@ -43,10 +43,6 @@ function toOpenAIContent(content: LLMContent) {
   });
 }
 
-function hasImages(messages: LLMMessage[]) {
-  return messages.some((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "image_base64"));
-}
-
 export interface LLMCallParams {
   task: TaskType;
   messages: LLMMessage[];
