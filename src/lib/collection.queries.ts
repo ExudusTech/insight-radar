@@ -128,9 +128,11 @@ export async function applyBlockUpdatesFromAssistant(params: {
   blockUpdates: Record<string, Record<string, string>>;
 }): Promise<number> {
   const { missionId, targetId, userId, blockUpdates } = params;
+  console.log("[applyBlockUpdates] input blocks:", Object.keys(blockUpdates ?? {}));
   const existing = await listCollectionByTarget(targetId);
   const indexed = indexCollectionRows(existing);
   let totalFields = 0;
+  let firstError: unknown = null;
 
   for (const [blk, fields] of Object.entries(blockUpdates)) {
     if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
@@ -152,7 +154,8 @@ export async function applyBlockUpdatesFromAssistant(params: {
         });
         totalFields++;
       } catch (e) {
-        console.warn("[collection] upsert field failed", block, fieldKey, e);
+        console.error("[applyBlockUpdates] upsert field failed", block, fieldKey, e);
+        if (!firstError) firstError = e;
       }
     }
 
@@ -173,20 +176,32 @@ export async function applyBlockUpdatesFromAssistant(params: {
     }
     const mergedNotes = nextLines.filter((l) => l.trim()).join("\n");
     if (mergedNotes && mergedNotes !== currentNotes) {
-      await upsertCollectionField({
-        missionId, targetId, block, fieldKey: "notes",
-        value: mergedNotes, userId,
-      });
+      try {
+        await upsertCollectionField({
+          missionId, targetId, block, fieldKey: "notes",
+          value: mergedNotes, userId,
+        });
+      } catch (e) {
+        console.error("[applyBlockUpdates] notes upsert failed", block, e);
+        if (!firstError) firstError = e;
+      }
     }
 
     // 3) status → in_progress se ainda estiver not_started
     const currentStatus = indexed[block]?.block_status ?? "not_started";
     if (currentStatus === "not_started") {
-      await upsertCollectionField({
-        missionId, targetId, block, fieldKey: "block_status",
-        value: "in_progress", userId,
-      });
+      try {
+        await upsertCollectionField({
+          missionId, targetId, block, fieldKey: "block_status",
+          value: "in_progress", userId,
+        });
+      } catch (e) {
+        console.error("[applyBlockUpdates] status upsert failed", block, e);
+        if (!firstError) firstError = e;
+      }
     }
   }
+  console.log("[applyBlockUpdates] totalFields upserted:", totalFields);
+  if (firstError && totalFields === 0) throw firstError;
   return totalFields;
 }

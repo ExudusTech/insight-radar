@@ -212,6 +212,7 @@ export function MissionAssistantPanel({
       const res = await callProcessHistory({
         data: { missionId, targetId, analystId: user.id },
       });
+      console.log("[processMut] blockUpdates:", JSON.stringify(res.blockUpdates));
       const count = res.blockUpdates
         ? await applyBlockUpdatesFromAssistant({
             missionId,
@@ -220,6 +221,7 @@ export function MissionAssistantPanel({
             blockUpdates: res.blockUpdates,
           })
         : 0;
+      console.log("[processMut] fields applied:", count);
       return { count };
     },
     onSuccess: ({ count }) => {

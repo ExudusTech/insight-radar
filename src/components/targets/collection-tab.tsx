@@ -25,6 +25,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   COLLECTION_BLOCKS,
   BLOCK_STATUS_LABEL,
+  BLOCK_TITLES,
   collectionByTargetKey,
   countCompleteBlocks,
   indexCollectionRows,
@@ -228,7 +229,7 @@ export function CollectionTab({
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium">
-            Bloco {openBlock} de G — {BLOCK_STATUS_LABEL[drafts[openBlock]?.status ?? "not_started"]}
+            {openBlock} — {BLOCK_TITLES[openBlock]} · {BLOCK_STATUS_LABEL[drafts[openBlock]?.status ?? "not_started"]}
           </span>
           <span className="text-sm text-muted-foreground">{done}/7 blocos</span>
         </div>
@@ -252,7 +253,9 @@ export function CollectionTab({
             <Card className="overflow-hidden">
               <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/40">
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="font-mono">Bloco {block}</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    {block} — {BLOCK_TITLES[block]}
+                  </Badge>
                   <span className="text-sm text-muted-foreground">
                     {BLOCK_STATUS_LABEL[draft.status]}
                   </span>
