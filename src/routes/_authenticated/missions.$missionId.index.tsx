@@ -43,6 +43,7 @@ import {
   uploadAndCreateVersion,
 } from "@/lib/document-versions.queries";
 import { sendNotifications } from "@/lib/notifications.functions";
+import { assignAnalystToMission } from "@/lib/missions.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
 
@@ -389,6 +390,7 @@ function BriefingEnrichPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const sendNotificationsFn = useServerFn(sendNotifications);
+  const assignAnalystFn = useServerFn(assignAnalystToMission);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
 
@@ -409,8 +411,9 @@ function BriefingEnrichPanel({
     mutationFn: async () => {
       await updateMission(missionId, { description });
 
-      const { autoAssignAnalyst } = await import("@/lib/missions.queries");
-      const assignedAnalystId = await autoAssignAnalyst(missionId);
+      const { assignedId: assignedAnalystId } = await assignAnalystFn({
+        data: { missionId },
+      });
 
       const { supabase } = await import("@/integrations/supabase/client");
       const { error: statusErr } = await supabase
