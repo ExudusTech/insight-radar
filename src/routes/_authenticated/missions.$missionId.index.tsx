@@ -845,7 +845,7 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
               user_id: a.analyst_id,
               mission_id: mission.id,
               type: "date_proposal",
-              message: `O cliente propôs novos prazos para "${mission.name}": 1ª entrega em ${counter.partial ? format(new Date(counter.partial), "dd/MM/yyyy") : "-"}, entrega final em ${counter.final ? format(new Date(counter.final), "dd/MM/yyyy") : "-"}.`,
+              message: `O cliente propôs novos prazos para "${mission.name}": 1ª entrega em ${counter.partial ? format(parseLocalDate(counter.partial), "dd/MM/yyyy") : "-"}, entrega final em ${counter.final ? format(parseLocalDate(counter.final), "dd/MM/yyyy") : "-"}.`,
             })),
           },
         });
@@ -878,13 +878,13 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
           <div>
             <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
             <p className="font-medium">
-              {proposed_partial ? format(new Date(proposed_partial), "dd/MM/yyyy") : "—"}
+              {proposed_partial ? format(parseLocalDate(proposed_partial), "dd/MM/yyyy") : "—"}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
             <p className="font-medium">
-              {proposed_final ? format(new Date(proposed_final), "dd/MM/yyyy") : "—"}
+              {proposed_final ? format(parseLocalDate(proposed_final), "dd/MM/yyyy") : "—"}
             </p>
           </div>
         </div>
@@ -905,22 +905,18 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">1ª Entrega</label>
-                <Input
-                  type="date"
-                  value={counter.partial}
-                  onChange={(e) => setCounter((c) => ({ ...c, partial: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Entrega Final</label>
-                <Input
-                  type="date"
-                  value={counter.final}
-                  onChange={(e) => setCounter((c) => ({ ...c, final: e.target.value }))}
-                />
-              </div>
+              <DatePickerField
+                label="1ª Entrega"
+                value={counter.partial}
+                onChange={(v) => setCounter((c) => ({ ...c, partial: v }))}
+                disablePast
+              />
+              <DatePickerField
+                label="Entrega Final"
+                value={counter.final}
+                onChange={(v) => setCounter((c) => ({ ...c, final: v }))}
+                disablePast
+              />
             </div>
             <div className="flex gap-2">
               <Button
