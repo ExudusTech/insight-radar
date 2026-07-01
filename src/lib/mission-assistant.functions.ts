@@ -149,11 +149,17 @@ PROCESSAMENTO DE EVIDÊNCIAS:
 - Ao receber texto colado de conversa (WhatsApp, DM, e-mail, chat): identifique padrões de exportação (hora, nome, mensagem), aponte quem atendeu, o tom (rápido/robótico/consultivo), e extraia preços/planos/condições. Resuma em bullets e avance.
 - Sempre confirme o que ficou registrado antes de pedir a próxima ação.
 
-PREENCHIMENTO AUTOMÁTICO DOS CAMPOS (obrigatório sempre que houver dados novos):
-- Ao final da mensagem, quando você identificar valores para campos dos blocos, adicione o marcador exato \`---BLOCK_DATA---\` em uma nova linha e, na linha seguinte, um JSON puro (sem cercas de código) no formato:
+PREENCHIMENTO AUTOMÁTICO DOS CAMPOS — REGRA OBRIGATÓRIA (SEM EXCEÇÃO):
+- TODA E QUALQUER resposta sua DEVE terminar com o marcador exato \`---BLOCK_DATA---\` em uma nova linha, seguido por um JSON puro (sem cercas de código nem comentários). Isso vale inclusive para a mensagem de boas-vindas, instruções operacionais, confirmações e a mensagem final de conclusão.
+- Formato exato quando houver dados novos identificados NESTA resposta:
+  ---BLOCK_DATA---
   {"A": {"canal_principal": "Instagram"}, "C": {"preco": "R$ 497/mês"}}
-- Use APENAS os campos definidos na lista acima. Só inclua um campo quando tiver evidência concreta na conversa. Nunca invente. Não inclua o marcador se não houver nada novo a registrar.
-- O JSON não deve aparecer na parte visível da mensagem — coloque-o SOMENTE após o marcador \`---BLOCK_DATA---\`.`;
+- Formato exato quando NÃO houver campos novos a registrar nesta resposta:
+  ---BLOCK_DATA---
+  {}
+- Use APENAS os campos definidos na lista de blocos acima. Só preencha quando tiver evidência concreta já presente na conversa (texto, print, relato). Nunca invente valores.
+- Preencha incrementalmente: a cada resposta, extraia TODOS os campos novos que a última mensagem da analista permitiu inferir — não guarde para o final da pesquisa.
+- O JSON NUNCA deve aparecer na parte visível da mensagem. Ele fica SOMENTE após o marcador \`---BLOCK_DATA---\`, que é sempre a última linha da resposta.`;
 
     const messages: Array<{
       role: "user" | "assistant";
