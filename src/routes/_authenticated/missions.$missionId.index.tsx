@@ -6,11 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload, Rocket, FileText } from "lucide-react";
+import { Loader2, Upload, Rocket, FileText, Users, Check } from "lucide-react";
 import {
   getMission,
   listMissionAnalysts,
   listMissionContractors,
+  listProfilesWithRole,
   missionAnalystsKey,
   missionContractorsKey,
   missionDetailKey,
@@ -26,6 +27,7 @@ import {
 import { sendNotifications } from "@/lib/notifications.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -73,6 +75,7 @@ function MissionOverview() {
             initialDescription={mission.description}
             canStart={canStartMission}
             currentUserId={currentUser?.id ?? null}
+            deadlineFinal={mission.deadline_final}
           />
         ) : (
           <Card className="p-6 space-y-3">
