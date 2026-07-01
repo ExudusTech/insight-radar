@@ -165,22 +165,15 @@ export function MissionAssistantPanel({
 
       // Persist auto-filled block fields
       if (res.blockUpdates) {
-        for (const [blk, fields] of Object.entries(res.blockUpdates)) {
-          if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
-          for (const [fieldKey, value] of Object.entries(fields)) {
-            try {
-              await upsertCollectionField({
-                missionId,
-                targetId,
-                block: blk as CollectionBlock,
-                fieldKey,
-                value,
-                userId: user.id,
-              });
-            } catch (e) {
-              console.warn("[assistant] failed to upsert field", blk, fieldKey, e);
-            }
-          }
+        try {
+          await applyBlockUpdatesFromAssistant({
+            missionId,
+            targetId,
+            userId: user.id,
+            blockUpdates: res.blockUpdates,
+          });
+        } catch (e) {
+          console.warn("[assistant] applyBlockUpdatesFromAssistant failed", e);
         }
       }
 
