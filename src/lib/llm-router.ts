@@ -52,8 +52,8 @@ const ROUTING: Record<TaskType, { chain: ProviderConfig[] }> = {
   },
   assistant: {
     chain: [
-      { provider: "gemini",    model: "gemini-2.0-flash" },
       { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
+      { provider: "gemini",    model: "gemini-2.0-flash" },
       { provider: "openai",    model: "gpt-4o-mini" },
     ],
   },
