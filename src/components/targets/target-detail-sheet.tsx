@@ -162,7 +162,7 @@ export function TargetDetailSheet({
                     <Select
                       value={target.status}
                       onValueChange={(v) => statusMut.mutate(v as TargetStatus)}
-                      disabled={statusMut.isPending}
+                      disabled={statusMut.isPending || currentUser?.role === "contractor"}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
