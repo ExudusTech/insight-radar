@@ -25,13 +25,19 @@ export function TargetKanban({
   missionId,
   targets,
   onOpenTarget,
+  readOnly = false,
 }: {
   missionId: string;
   targets: TargetWithAnalyst[];
   onOpenTarget: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const qc = useQueryClient();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: readOnly ? Number.MAX_SAFE_INTEGER : 5 },
+    }),
+  );
 
   const byStatus = useMemo(() => {
     const map = new Map<TargetStatus, TargetWithAnalyst[]>();
@@ -51,6 +57,7 @@ export function TargetKanban({
   });
 
   function handleDragEnd(event: DragEndEvent) {
+    if (readOnly) return;
     const { active, over } = event;
     if (!over) return;
     const targetId = String(active.id);
