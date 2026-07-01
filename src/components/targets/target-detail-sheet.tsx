@@ -32,19 +32,12 @@ import {
   Globe,
   Mail,
   Sparkles,
-  ChevronDown,
   ClipboardList,
   Clock,
   Paperclip,
   LayoutDashboard,
   Brain,
 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { COLLECTION_BLOCKS } from "@/lib/collection.queries";
 import { MissionAssistantPanel } from "./MissionAssistantPanel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
@@ -270,24 +263,11 @@ export function TargetDetailSheet({
                 <CollectionTab missionId={target.mission_id} targetId={target.id} />
               </TabsContent>
               <TabsContent value="assistant" className="pt-5">
-                <div className="space-y-3">
-                  {COLLECTION_BLOCKS.map((block) => (
-                    <Collapsible key={block}>
-                      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50 group">
-                        <span>Bloco {block}</span>
-                        <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="pt-2">
-                        <MissionAssistantPanel
-                          missionId={target.mission_id}
-                          targetId={target.id}
-                          block={block}
-                          targetName={target.name}
-                        />
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
-                </div>
+                <MissionAssistantPanel
+                  missionId={target.mission_id}
+                  targetId={target.id}
+                  targetName={target.name}
+                />
               </TabsContent>
               <TabsContent value="timeline" className="pt-5">
                 <TimelineTab missionId={target.mission_id} targetId={target.id} />

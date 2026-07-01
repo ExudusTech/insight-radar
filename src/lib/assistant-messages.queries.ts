@@ -1,14 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export const assistantMessagesKey = (targetId: string, block: string) =>
-  ["assistant-messages", targetId, block] as const;
+/**
+ * A conversa do assistente é única por alvo (não por bloco).
+ * O campo `block` na tabela é mantido apenas por compatibilidade — usamos "all".
+ */
+export const ASSISTANT_UNIFIED_BLOCK = "all";
 
-export async function listAssistantMessages(targetId: string, block: string) {
+export const assistantMessagesKey = (targetId: string) =>
+  ["assistant-messages", targetId] as const;
+
+export async function listAssistantMessages(targetId: string) {
   const { data, error } = await supabase
     .from("assistant_messages")
     .select("*")
     .eq("target_id", targetId)
-    .eq("block", block)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data ?? [];

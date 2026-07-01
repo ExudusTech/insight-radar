@@ -40,7 +40,6 @@ import {
   getMissionContractorId,
   listSuperadminIds,
 } from "@/lib/notifications.queries";
-import { MissionAssistantPanel } from "./MissionAssistantPanel";
 
 type BlockExtras = { observation: string; doubt: string; doubt_blocking: boolean };
 
@@ -265,19 +264,6 @@ export function CollectionTab({
                       {instruction}
                     </div>
                   )}
-                  <MissionAssistantPanel
-                    missionId={missionId}
-                    targetId={targetId}
-                    block={block}
-                    onBlockCompleted={() => {
-                      setDrafts((s) => ({
-                        ...s,
-                        [block]: { ...(s[block] ?? draft), status: "done" },
-                      }));
-                      saveMut.mutate(block);
-                    }}
-                  />
-                  <div className="border-t my-3" />
                   <div>
                     <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Anotações

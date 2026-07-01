@@ -6,6 +6,47 @@ export type CollectionRow = Tables<"collection_data">;
 
 export const COLLECTION_BLOCKS: CollectionBlock[] = ["A", "B", "C", "D", "E", "F", "G"];
 
+/** Campos estruturados que o assistente identifica e preenche automaticamente. */
+export const BLOCK_FIELDS: Record<CollectionBlock, string[]> = {
+  A: ["canal_principal", "promessa", "tipo_conteudo", "cta", "frequencia_posts", "seguidores"],
+  B: ["canal_contato", "resposta_tempo", "nome_atendente", "abordagem", "script_inicial"],
+  C: ["produtos", "preco", "condicoes", "urgencia", "garantia", "upsell"],
+  D: ["depoimentos", "cases", "resultados_mostrados", "metricas_sociais"],
+  E: ["qualidade_atendimento", "objecoes_tratadas", "followup", "tom"],
+  F: ["proposta_enviada", "pdf", "video", "sequencia_emails"],
+  G: ["pontos_fortes", "pontos_fracos", "diferenciais", "oportunidades"],
+};
+
+export const BLOCK_TITLES: Record<CollectionBlock, string> = {
+  A: "Pesquisa pública",
+  B: "Primeiro contato",
+  C: "Funil e oferta",
+  D: "Prova social",
+  E: "Atendimento",
+  F: "Materiais",
+  G: "Síntese",
+};
+
+/** Retorna quantos campos estruturados foram preenchidos por bloco. */
+export function countFilledFieldsByBlock(rows: CollectionRow[]) {
+  const map: Record<string, number> = {};
+  for (const b of COLLECTION_BLOCKS) map[b] = 0;
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const expected = BLOCK_FIELDS[r.block as CollectionBlock] ?? [];
+    if (!expected.includes(r.field_key)) continue;
+    const v = r.field_value;
+    const hasValue =
+      v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
+    if (!hasValue) continue;
+    const key = `${r.block}:${r.field_key}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    map[r.block as string] = (map[r.block as string] ?? 0) + 1;
+  }
+  return map;
+}
+
 export const BLOCK_STATUS_LABEL: Record<string, string> = {
   not_started: "Não iniciado",
   in_progress: "Em andamento",
