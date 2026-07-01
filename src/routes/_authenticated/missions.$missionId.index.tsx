@@ -672,7 +672,7 @@ function AnalystActionPanel({
                 user_id: mission.contractor_id,
                 mission_id: mission.id,
                 type: "date_proposal",
-                message: `O analista da missão "${mission.name}" sugeriu novos prazos: 1ª entrega em ${propPartial ? format(new Date(propPartial), "dd/MM/yyyy") : "-"} e entrega final em ${propFinal ? format(new Date(propFinal), "dd/MM/yyyy") : "-"}.`,
+                message: `O analista da missão "${mission.name}" sugeriu novos prazos: 1ª entrega em ${propPartial ? format(parseLocalDate(propPartial), "dd/MM/yyyy") : "-"} e entrega final em ${propFinal ? format(parseLocalDate(propFinal), "dd/MM/yyyy") : "-"}.`,
               },
             ],
           },
@@ -706,7 +706,7 @@ function AnalystActionPanel({
               <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
               <p className="font-medium">
                 {mission.proposed_deadline_partial
-                  ? format(new Date(mission.proposed_deadline_partial), "dd/MM/yyyy")
+                  ? format(parseLocalDate(mission.proposed_deadline_partial), "dd/MM/yyyy")
                   : "—"}
               </p>
             </div>
@@ -714,7 +714,7 @@ function AnalystActionPanel({
               <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
               <p className="font-medium">
                 {mission.proposed_deadline_final
-                  ? format(new Date(mission.proposed_deadline_final), "dd/MM/yyyy")
+                  ? format(parseLocalDate(mission.proposed_deadline_final), "dd/MM/yyyy")
                   : "—"}
               </p>
             </div>
@@ -738,22 +738,18 @@ function AnalystActionPanel({
               Sugira datas alternativas para o cliente avaliar:
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">1ª Entrega</label>
-                <Input
-                  type="date"
-                  value={propPartial}
-                  onChange={(e) => setPropPartial(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Entrega Final</label>
-                <Input
-                  type="date"
-                  value={propFinal}
-                  onChange={(e) => setPropFinal(e.target.value)}
-                />
-              </div>
+              <DatePickerField
+                label="1ª Entrega"
+                value={propPartial}
+                onChange={setPropPartial}
+                disablePast
+              />
+              <DatePickerField
+                label="Entrega Final"
+                value={propFinal}
+                onChange={setPropFinal}
+                disablePast
+              />
             </div>
             <div className="flex gap-2">
               <Button
