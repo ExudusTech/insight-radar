@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -32,6 +33,11 @@ import {
   Mail,
   Sparkles,
   ChevronDown,
+  ClipboardList,
+  Clock,
+  Paperclip,
+  LayoutDashboard,
+  Brain,
 } from "lucide-react";
 import {
   Collapsible,
@@ -60,6 +66,7 @@ import {
   type TargetStatus,
 } from "@/lib/target-status";
 import { logActivity } from "@/lib/activity-log";
+import { cn } from "@/lib/utils";
 
 export function TargetDetailSheet({
   targetId,
@@ -75,8 +82,39 @@ export function TargetDetailSheet({
   defaultTab?: "overview" | "collection" | "timeline" | "evidences" | "ai" | "assistant";
 }) {
   const { data: currentUser } = useCurrentUser();
-  const resolvedDefault =
-    defaultTab ?? (currentUser?.role === "analyst" ? "assistant" : "overview");
+  const tabsByRole = {
+    analyst: [
+      { value: "assistant", label: "Assistente", icon: Sparkles },
+      { value: "collection", label: "Coleta", icon: ClipboardList },
+      { value: "timeline", label: "Timeline", icon: Clock },
+      { value: "evidences", label: "Evidências", icon: Paperclip },
+      { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
+    ],
+    contractor: [
+      { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
+      { value: "timeline", label: "Timeline", icon: Clock },
+      { value: "evidences", label: "Evidências", icon: Paperclip },
+      { value: "ai", label: "Análise IA", icon: Brain },
+    ],
+    superadmin: [
+      { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
+      { value: "assistant", label: "Assistente", icon: Sparkles },
+      { value: "collection", label: "Coleta", icon: ClipboardList },
+      { value: "timeline", label: "Timeline", icon: Clock },
+      { value: "evidences", label: "Evidências", icon: Paperclip },
+      { value: "ai", label: "Análise IA", icon: Brain },
+    ],
+  } as const;
+
+  const tabs = tabsByRole[currentUser?.role ?? "contractor"] ?? tabsByRole.contractor;
+  const allowedValues = tabs.map((t) => t.value);
+  const resolvedDefault = defaultTab && allowedValues.includes(defaultTab) ? defaultTab : tabs[0].value;
+  const [activeTab, setActiveTab] = useState<string>(resolvedDefault);
+
+  useEffect(() => {
+    setActiveTab(resolvedDefault);
+  }, [targetId, resolvedDefault]);
+
   const { data: target, isLoading } = useQuery({
     queryKey: targetDetailKey(targetId ?? ""),
     queryFn: () => getTarget(targetId!),
@@ -143,19 +181,24 @@ export function TargetDetailSheet({
               <StatusBadge status={target.status} />
               <PriorityBadge priority={target.priority} />
             </div>
-            <Tabs defaultValue={resolvedDefault} className="w-full">
-              <TabsList className="w-full justify-start overflow-x-auto">
-                <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                <TabsTrigger value="collection">Coleta</TabsTrigger>
-                <TabsTrigger value="assistant">
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Assistente IA
-                </TabsTrigger>
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="evidences">Evidências</TabsTrigger>
-                <TabsTrigger value="journey" disabled>Jornada</TabsTrigger>
-                <TabsTrigger value="ai">Análise IA</TabsTrigger>
-              </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <div className="flex flex-wrap gap-1.5 pb-3 border-b border-border mb-4">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setActiveTab(tab.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150",
+                      activeTab === tab.value
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <tab.icon className="h-3 w-3" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
               <TabsContent value="overview" className="space-y-5 pt-5">
                 <Section title="Status rápido">
                   <div className="col-span-2 space-y-3">
