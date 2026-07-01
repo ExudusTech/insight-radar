@@ -80,6 +80,8 @@ export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   in_review: "Em revisão",
   awaiting_approval: "Aguardando aprovação",
   approved: "Aprovada",
+  pending_acceptance: "Aguardando analista",
+  date_negotiation: "Negociando prazo",
   execution_started: "Execução iniciada",
   in_collection: "Em coleta",
   in_analysis: "Em análise",
