@@ -25,6 +25,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { DatePickerField, parseLocalDate } from "@/components/ui/date-picker";
 import {
   getMission,
   listMissionAnalysts,
@@ -151,11 +152,11 @@ function MissionOverview() {
               <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
               <KV
                 k="Primeira entrega"
-                v={mission.deadline_first ? new Date(mission.deadline_first).toLocaleDateString("pt-BR") : null}
+                v={mission.deadline_first ? parseLocalDate(mission.deadline_first).toLocaleDateString("pt-BR") : null}
               />
               <KV
                 k="Entrega final"
-                v={mission.deadline_final ? new Date(mission.deadline_final).toLocaleDateString("pt-BR") : null}
+                v={mission.deadline_final ? parseLocalDate(mission.deadline_final).toLocaleDateString("pt-BR") : null}
               />
             </>
           )}
@@ -282,7 +283,7 @@ function EditableDetails({ mission }: { mission: Mission }) {
 
   const finalHint = (() => {
     if (!mission.deadline_final) return null;
-    const d = new Date(mission.deadline_final);
+    const d = parseLocalDate(mission.deadline_final);
     const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
     if (diff < 0) return { text: "Esta data já passou.", tone: "error" as const };
     if (diff < 7)
@@ -292,11 +293,11 @@ function EditableDetails({ mission }: { mission: Mission }) {
 
   const partialHint = (() => {
     if (!mission.deadline_first) return null;
-    const d = new Date(mission.deadline_first);
+    const d = parseLocalDate(mission.deadline_first);
     if (d < today) return { text: "Esta data já passou.", tone: "error" as const };
     if (
       mission.deadline_final &&
-      d >= new Date(mission.deadline_final)
+      d >= parseLocalDate(mission.deadline_final)
     )
       return {
         text: "1ª entrega deve ser antes da entrega final.",
@@ -317,21 +318,30 @@ function EditableDetails({ mission }: { mission: Mission }) {
         value={mission.target_label ?? ""}
         onSave={(v) => save({ target_label: v || "Alvo" })}
       />
-      <EditableField
+      <DatePickerField
         label="Primeira entrega"
-        type="date"
         value={mission.deadline_first ?? ""}
-        onSave={(v) => save({ deadline_first: v || null })}
-        hint={partialHint?.text}
-        hintTone={partialHint?.tone}
+        onChange={(v) => {
+          save({ deadline_first: v || null }).catch((e) =>
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+          );
+        }}
+        error={partialHint?.text ?? null}
+        disablePast
+        size="sm"
       />
-      <EditableField
+      <DatePickerField
         label="Entrega final"
-        type="date"
         value={mission.deadline_final ?? ""}
-        onSave={(v) => save({ deadline_final: v || null })}
-        hint={finalHint?.text}
-        hintTone={finalHint?.tone}
+        onChange={(v) => {
+          save({ deadline_final: v || null }).catch((e) =>
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+          );
+        }}
+        error={finalHint?.tone === "error" ? finalHint.text : null}
+        warning={finalHint?.tone === "warning" ? finalHint.text : null}
+        disablePast
+        size="sm"
       />
     </div>
   );
@@ -343,7 +353,7 @@ function validateBeforeStart(mission: Mission): string[] {
   today.setHours(0, 0, 0, 0);
 
   if (mission.deadline_final) {
-    const df = new Date(mission.deadline_final);
+    const df = parseLocalDate(mission.deadline_final);
     const diff = Math.ceil((df.getTime() - today.getTime()) / 86400000);
     if (diff < 0)
       issues.push(
@@ -358,12 +368,12 @@ function validateBeforeStart(mission: Mission): string[] {
   }
 
   if (mission.deadline_first) {
-    const dp = new Date(mission.deadline_first);
+    const dp = parseLocalDate(mission.deadline_first);
     if (dp < today)
       issues.push(
         `A data da 1ª entrega (${format(dp, "dd/MM/yyyy")}) já passou. Atualize para uma data futura.`,
       );
-    if (mission.deadline_final && dp >= new Date(mission.deadline_final))
+    if (mission.deadline_final && dp >= parseLocalDate(mission.deadline_final))
       issues.push("A 1ª entrega deve ocorrer antes da entrega final.");
   }
 
@@ -662,7 +672,7 @@ function AnalystActionPanel({
                 user_id: mission.contractor_id,
                 mission_id: mission.id,
                 type: "date_proposal",
-                message: `O analista da missão "${mission.name}" sugeriu novos prazos: 1ª entrega em ${propPartial ? format(new Date(propPartial), "dd/MM/yyyy") : "-"} e entrega final em ${propFinal ? format(new Date(propFinal), "dd/MM/yyyy") : "-"}.`,
+                message: `O analista da missão "${mission.name}" sugeriu novos prazos: 1ª entrega em ${propPartial ? format(parseLocalDate(propPartial), "dd/MM/yyyy") : "-"} e entrega final em ${propFinal ? format(parseLocalDate(propFinal), "dd/MM/yyyy") : "-"}.`,
               },
             ],
           },
@@ -696,7 +706,7 @@ function AnalystActionPanel({
               <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
               <p className="font-medium">
                 {mission.proposed_deadline_partial
-                  ? format(new Date(mission.proposed_deadline_partial), "dd/MM/yyyy")
+                  ? format(parseLocalDate(mission.proposed_deadline_partial), "dd/MM/yyyy")
                   : "—"}
               </p>
             </div>
@@ -704,7 +714,7 @@ function AnalystActionPanel({
               <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
               <p className="font-medium">
                 {mission.proposed_deadline_final
-                  ? format(new Date(mission.proposed_deadline_final), "dd/MM/yyyy")
+                  ? format(parseLocalDate(mission.proposed_deadline_final), "dd/MM/yyyy")
                   : "—"}
               </p>
             </div>
@@ -728,22 +738,18 @@ function AnalystActionPanel({
               Sugira datas alternativas para o cliente avaliar:
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">1ª Entrega</label>
-                <Input
-                  type="date"
-                  value={propPartial}
-                  onChange={(e) => setPropPartial(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Entrega Final</label>
-                <Input
-                  type="date"
-                  value={propFinal}
-                  onChange={(e) => setPropFinal(e.target.value)}
-                />
-              </div>
+              <DatePickerField
+                label="1ª Entrega"
+                value={propPartial}
+                onChange={setPropPartial}
+                disablePast
+              />
+              <DatePickerField
+                label="Entrega Final"
+                value={propFinal}
+                onChange={setPropFinal}
+                disablePast
+              />
             </div>
             <div className="flex gap-2">
               <Button
@@ -839,7 +845,7 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
               user_id: a.analyst_id,
               mission_id: mission.id,
               type: "date_proposal",
-              message: `O cliente propôs novos prazos para "${mission.name}": 1ª entrega em ${counter.partial ? format(new Date(counter.partial), "dd/MM/yyyy") : "-"}, entrega final em ${counter.final ? format(new Date(counter.final), "dd/MM/yyyy") : "-"}.`,
+              message: `O cliente propôs novos prazos para "${mission.name}": 1ª entrega em ${counter.partial ? format(parseLocalDate(counter.partial), "dd/MM/yyyy") : "-"}, entrega final em ${counter.final ? format(parseLocalDate(counter.final), "dd/MM/yyyy") : "-"}.`,
             })),
           },
         });
@@ -872,13 +878,13 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
           <div>
             <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
             <p className="font-medium">
-              {proposed_partial ? format(new Date(proposed_partial), "dd/MM/yyyy") : "—"}
+              {proposed_partial ? format(parseLocalDate(proposed_partial), "dd/MM/yyyy") : "—"}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
             <p className="font-medium">
-              {proposed_final ? format(new Date(proposed_final), "dd/MM/yyyy") : "—"}
+              {proposed_final ? format(parseLocalDate(proposed_final), "dd/MM/yyyy") : "—"}
             </p>
           </div>
         </div>
@@ -899,22 +905,18 @@ function DateNegotiationPanel({ mission }: { mission: Mission }) {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">1ª Entrega</label>
-                <Input
-                  type="date"
-                  value={counter.partial}
-                  onChange={(e) => setCounter((c) => ({ ...c, partial: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium">Entrega Final</label>
-                <Input
-                  type="date"
-                  value={counter.final}
-                  onChange={(e) => setCounter((c) => ({ ...c, final: e.target.value }))}
-                />
-              </div>
+              <DatePickerField
+                label="1ª Entrega"
+                value={counter.partial}
+                onChange={(v) => setCounter((c) => ({ ...c, partial: v }))}
+                disablePast
+              />
+              <DatePickerField
+                label="Entrega Final"
+                value={counter.final}
+                onChange={(v) => setCounter((c) => ({ ...c, final: v }))}
+                disablePast
+              />
             </div>
             <div className="flex gap-2">
               <Button
