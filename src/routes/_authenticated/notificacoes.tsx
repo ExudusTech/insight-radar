@@ -364,14 +364,14 @@ function NotificationItem({
     queryKey: ["missions", "detail", n.mission_id ?? ""],
     queryFn: () => getMission(n.mission_id as string),
     enabled: isDateProposal,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
   const showProposalActions =
     isDateProposal &&
     missionData?.proposal_from === "analyst" &&
-    missionData?.contractor_id === currentUserId &&
-    missionData?.status === "date_negotiation";
+    (missionData?.status === "date_negotiation" ||
+      missionData?.status === "pending_acceptance");
 
   const replyMut = useMutation({
     mutationFn: async () => {
