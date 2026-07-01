@@ -21,6 +21,7 @@ import {
   countFilledFieldsByBlock,
   listCollectionByTarget,
   upsertCollectionField,
+  applyBlockUpdatesFromAssistant,
   type CollectionBlock,
 } from "@/lib/collection.queries";
 import { logActivity } from "@/lib/activity-log";
