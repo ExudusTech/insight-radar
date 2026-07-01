@@ -239,6 +239,24 @@ export function MissionAssistantPanel({
     reader.readAsDataURL(file);
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error("Imagem muito grande (máx 8MB)");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex items-center justify-between px-3 py-2 border-b">
