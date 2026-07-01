@@ -2,11 +2,29 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload, Rocket, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Loader2,
+  Upload,
+  Rocket,
+  FileText,
+  AlertTriangle,
+  Check,
+  CalendarClock,
+} from "lucide-react";
+import { format } from "date-fns";
 import {
   getMission,
   listMissionAnalysts,
@@ -15,6 +33,7 @@ import {
   missionContractorsKey,
   missionDetailKey,
   updateMission,
+  type Mission,
 } from "@/lib/missions.queries";
 import { getProduct } from "@/lib/products.queries";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -62,6 +81,10 @@ function MissionOverview() {
     isDraft && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
   const canStartMission =
     currentUser?.role === "contractor" || currentUser?.role === "superadmin";
+  const canEditDetails =
+    isDraft && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
+  const isAnalystOfMission =
+    !!currentUser && analysts.some((a) => a.analyst_id === currentUser.id);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -73,7 +96,7 @@ function MissionOverview() {
             initialDescription={mission.description}
             canStart={canStartMission}
             currentUserId={currentUser?.id ?? null}
-            deadlineFinal={mission.deadline_final}
+            mission={mission as Mission}
           />
         ) : (
           <Card className="p-6 space-y-3">
@@ -86,6 +109,26 @@ function MissionOverview() {
             <ComplementsList missionId={missionId} readOnly />
           </Card>
         )}
+
+        {currentUser?.role === "analyst" &&
+          mission.status === "pending_acceptance" &&
+          isAnalystOfMission && (
+            <AnalystActionPanel mission={mission as Mission} />
+          )}
+
+        {(currentUser?.role === "contractor" || currentUser?.role === "superadmin") &&
+          mission.status === "date_negotiation" &&
+          mission.proposal_from === "analyst" && (
+            <DateNegotiationPanel mission={mission as Mission} />
+          )}
+
+        {currentUser?.role === "analyst" &&
+          mission.status === "date_negotiation" &&
+          mission.proposal_from === "contractor" &&
+          isAnalystOfMission && (
+            <AnalystActionPanel mission={mission as Mission} showingCounterProposal />
+          )}
+
         <Card className="p-6 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Objetivo</h2>
           {mission.objective ? (
@@ -98,9 +141,23 @@ function MissionOverview() {
       <div className="space-y-5">
         <Card className="p-6 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h2>
-          <KV k="Segmento" v={mission.segment} />
-          <KV k="Rótulo dos alvos" v={mission.target_label} />
-          <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
+          {canEditDetails ? (
+            <EditableDetails mission={mission as Mission} />
+          ) : (
+            <>
+              <KV k="Segmento" v={mission.segment} />
+              <KV k="Rótulo dos alvos" v={mission.target_label} />
+              <KV k="Cliente principal" v={contractor?.full_name || contractor?.email} />
+              <KV
+                k="Primeira entrega"
+                v={mission.deadline_first ? new Date(mission.deadline_first).toLocaleDateString("pt-BR") : null}
+              />
+              <KV
+                k="Entrega final"
+                v={mission.deadline_final ? new Date(mission.deadline_final).toLocaleDateString("pt-BR") : null}
+              />
+            </>
+          )}
           {product && <KV k="Produto / Serviço" v={product.name} />}
           {extraContractors.length > 0 && (
             <div className="text-sm">
@@ -117,8 +174,6 @@ function MissionOverview() {
               </div>
             </div>
           )}
-          <KV k="Primeira entrega" v={mission.deadline_first ? new Date(mission.deadline_first).toLocaleDateString("pt-BR") : null} />
-          <KV k="Entrega final" v={mission.deadline_final ? new Date(mission.deadline_final).toLocaleDateString("pt-BR") : null} />
         </Card>
         <Card className="p-6 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Analistas</h2>
@@ -152,26 +207,183 @@ function KV({ k, v }: { k: string; v: string | null | undefined }) {
   );
 }
 
+function EditableField({
+  label,
+  value,
+  type = "text",
+  onSave,
+  hint,
+  hintTone,
+}: {
+  label: string;
+  value: string;
+  type?: "text" | "date";
+  onSave: (v: string) => Promise<void>;
+  hint?: string | null;
+  hintTone?: "error" | "warning";
+}) {
+  const [local, setLocal] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setLocal(value), [value]);
+  return (
+    <div className="text-sm space-y-1">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+        {label}
+        {saved && <Check className="h-3 w-3 text-emerald-600" />}
+      </div>
+      <Input
+        type={type}
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={async () => {
+          if (local === value) return;
+          try {
+            await onSave(local);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+          }
+        }}
+        className="h-8"
+      />
+      {hint && (
+        <p
+          className={`text-[11px] ${
+            hintTone === "error"
+              ? "text-destructive"
+              : "text-yellow-600 dark:text-yellow-400"
+          }`}
+        >
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function EditableDetails({ mission }: { mission: Mission }) {
+  const qc = useQueryClient();
+  const save = async (patch: Partial<Mission>) => {
+    await updateMission(mission.id, patch as never);
+    qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const finalHint = (() => {
+    if (!mission.deadline_final) return null;
+    const d = new Date(mission.deadline_final);
+    const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) return { text: "Esta data já passou.", tone: "error" as const };
+    if (diff < 7)
+      return { text: "Prazo muito curto (mínimo 7 dias).", tone: "warning" as const };
+    return null;
+  })();
+
+  const partialHint = (() => {
+    if (!mission.deadline_first) return null;
+    const d = new Date(mission.deadline_first);
+    if (d < today) return { text: "Esta data já passou.", tone: "error" as const };
+    if (
+      mission.deadline_final &&
+      d >= new Date(mission.deadline_final)
+    )
+      return {
+        text: "1ª entrega deve ser antes da entrega final.",
+        tone: "error" as const,
+      };
+    return null;
+  })();
+
+  return (
+    <div className="space-y-3">
+      <EditableField
+        label="Segmento"
+        value={mission.segment ?? ""}
+        onSave={(v) => save({ segment: v || null })}
+      />
+      <EditableField
+        label="Rótulo dos alvos"
+        value={mission.target_label ?? ""}
+        onSave={(v) => save({ target_label: v || "Alvo" })}
+      />
+      <EditableField
+        label="Primeira entrega"
+        type="date"
+        value={mission.deadline_first ?? ""}
+        onSave={(v) => save({ deadline_first: v || null })}
+        hint={partialHint?.text}
+        hintTone={partialHint?.tone}
+      />
+      <EditableField
+        label="Entrega final"
+        type="date"
+        value={mission.deadline_final ?? ""}
+        onSave={(v) => save({ deadline_final: v || null })}
+        hint={finalHint?.text}
+        hintTone={finalHint?.tone}
+      />
+    </div>
+  );
+}
+
+function validateBeforeStart(mission: Mission): string[] {
+  const issues: string[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (mission.deadline_final) {
+    const df = new Date(mission.deadline_final);
+    const diff = Math.ceil((df.getTime() - today.getTime()) / 86400000);
+    if (diff < 0)
+      issues.push(
+        `A data de entrega final (${format(df, "dd/MM/yyyy")}) já passou. Defina uma nova data.`,
+      );
+    else if (diff < 7)
+      issues.push(
+        `A entrega final está a apenas ${diff} dia(s). O mínimo recomendado é 7 dias para que o analista consiga conduzir todas as etapas da pesquisa.`,
+      );
+  } else {
+    issues.push("Defina a data de entrega final antes de iniciar.");
+  }
+
+  if (mission.deadline_first) {
+    const dp = new Date(mission.deadline_first);
+    if (dp < today)
+      issues.push(
+        `A data da 1ª entrega (${format(dp, "dd/MM/yyyy")}) já passou. Atualize para uma data futura.`,
+      );
+    if (mission.deadline_final && dp >= new Date(mission.deadline_final))
+      issues.push("A 1ª entrega deve ocorrer antes da entrega final.");
+  }
+
+  return issues;
+}
+
 function BriefingEnrichPanel({
   missionId,
   missionName,
   initialDescription,
   canStart,
   currentUserId,
-  deadlineFinal,
+  mission,
 }: {
   missionId: string;
   missionName: string;
   initialDescription: string | null;
   canStart: boolean;
   currentUserId: string | null;
-  deadlineFinal: string | null;
+  mission: Mission;
 }) {
   const qc = useQueryClient();
   const [description, setDescription] = useState(initialDescription ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const sendNotificationsFn = useServerFn(sendNotifications);
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
 
   useEffect(() => {
     setDescription(initialDescription ?? "");
@@ -188,28 +400,6 @@ function BriefingEnrichPanel({
 
   const startMut = useMutation({
     mutationFn: async () => {
-      if (deadlineFinal) {
-        const deadline = new Date(deadlineFinal);
-        const today = new Date();
-        const diffDays = Math.ceil(
-          (deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        if (diffDays < 0) {
-          throw new Error(
-            "A data de entrega já passou. Atualize o prazo antes de iniciar a missão.",
-          );
-        }
-        if (diffDays < 7) {
-          throw new Error(
-            `Prazo insuficiente: ${diffDays} dia(s) restante(s). O mínimo para condução da pesquisa é 7 dias, pois algumas etapas dependem de resposta dos alvos.`,
-          );
-        }
-        if (diffDays < 14) {
-          toast.warning(
-            `Atenção: apenas ${diffDays} dias até o prazo. Se a missão envolver agendamento de reuniões ou aguardo de respostas, considere estender para pelo menos 2 semanas.`,
-          );
-        }
-      }
       await updateMission(missionId, { description });
 
       const { autoAssignAnalyst } = await import("@/lib/missions.queries");
@@ -218,7 +408,7 @@ function BriefingEnrichPanel({
       const { supabase } = await import("@/integrations/supabase/client");
       const { error: statusErr } = await supabase
         .from("missions")
-        .update({ status: "execution_started" })
+        .update({ status: "pending_acceptance" })
         .eq("id", missionId);
       if (statusErr) throw statusErr;
 
@@ -229,8 +419,8 @@ function BriefingEnrichPanel({
               {
                 user_id: assignedAnalystId,
                 mission_id: missionId,
-                type: "mission_started",
-                message: `Nova missão atribuída: "${missionName}". Acesse para iniciar a estratégia.`,
+                type: "mission_pending_acceptance",
+                message: `Nova missão para revisar: "${missionName}". Aceite ou proponha novos prazos.`,
               },
             ],
           },
@@ -240,19 +430,29 @@ function BriefingEnrichPanel({
         await logActivity({
           userId: currentUserId,
           missionId,
-          action: "mission_started",
+          action: "mission_sent_for_acceptance",
           entityType: "mission",
           entityId: missionId,
         });
       }
     },
     onSuccess: () => {
-      toast.success("Missão enviada! Nossa equipe de análise será acionada em breve.");
+      toast.success("Missão enviada ao analista. Aguardando aceite.");
       qc.invalidateQueries({ queryKey: missionDetailKey(missionId) });
       qc.invalidateQueries({ queryKey: missionAnalystsKey(missionId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleStartClick = () => {
+    const issues = validateBeforeStart(mission);
+    if (issues.length > 0) {
+      setValidationIssues(issues);
+      setShowValidationDialog(true);
+      return;
+    }
+    startMut.mutate();
+  };
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0 || !currentUserId) return;
@@ -278,6 +478,7 @@ function BriefingEnrichPanel({
   }
 
   return (
+    <>
     <Card className="p-6 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -328,7 +529,7 @@ function BriefingEnrichPanel({
           <Button
             size="sm"
             className="ml-auto"
-            onClick={() => startMut.mutate()}
+            onClick={handleStartClick}
             disabled={startMut.isPending}
           >
             {startMut.isPending ? (
@@ -341,6 +542,383 @@ function BriefingEnrichPanel({
         )}
       </div>
       <ComplementsList missionId={missionId} readOnly={false} />
+    </Card>
+    <Dialog open={showValidationDialog} onOpenChange={setShowValidationDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Verifique as informações antes de iniciar</DialogTitle>
+          <DialogDescription>
+            Encontramos pontos que precisam ser ajustados para garantir que a missão possa ser
+            executada com sucesso.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {validationIssues.map((issue, i) => (
+            <div
+              key={i}
+              className="flex gap-2 text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-md p-3"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{issue}</span>
+            </div>
+          ))}
+          <p className="text-sm text-muted-foreground pt-1">
+            Ajuste os campos na lateral e tente novamente.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowValidationDialog(false)}>
+            Voltar e corrigir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}
+
+function AnalystActionPanel({
+  mission,
+  showingCounterProposal,
+}: {
+  mission: Mission;
+  showingCounterProposal?: boolean;
+}) {
+  const [showDateForm, setShowDateForm] = useState(false);
+  const [propPartial, setPropPartial] = useState(
+    mission.proposed_deadline_partial ?? mission.deadline_first ?? "",
+  );
+  const [propFinal, setPropFinal] = useState(
+    mission.proposed_deadline_final ?? mission.deadline_final ?? "",
+  );
+  const qc = useQueryClient();
+  const sendNotificationsFn = useServerFn(sendNotifications);
+
+  const acceptMut = useMutation({
+    mutationFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const patch: Record<string, unknown> = { status: "execution_started" };
+      if (showingCounterProposal) {
+        patch.deadline_first = mission.proposed_deadline_partial;
+        patch.deadline_final = mission.proposed_deadline_final;
+        patch.proposed_deadline_partial = null;
+        patch.proposed_deadline_final = null;
+        patch.proposal_from = null;
+      }
+      const { error } = await supabase.from("missions").update(patch).eq("id", mission.id);
+      if (error) throw error;
+      if (mission.contractor_id) {
+        await sendNotificationsFn({
+          data: {
+            notifications: [
+              {
+                user_id: mission.contractor_id,
+                mission_id: mission.id,
+                type: "mission_accepted",
+                message: `Sua missão "${mission.name}" foi aceita e a coleta de dados iniciou.`,
+              },
+            ],
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Missão aceita!");
+      qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const proposeDateMut = useMutation({
+    mutationFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          status: "date_negotiation",
+          proposed_deadline_partial: propPartial || null,
+          proposed_deadline_final: propFinal || null,
+          proposal_from: "analyst",
+        })
+        .eq("id", mission.id);
+      if (error) throw error;
+      if (mission.contractor_id) {
+        await sendNotificationsFn({
+          data: {
+            notifications: [
+              {
+                user_id: mission.contractor_id,
+                mission_id: mission.id,
+                type: "date_proposal",
+                message: `O analista da missão "${mission.name}" sugeriu novos prazos: 1ª entrega em ${propPartial ? format(new Date(propPartial), "dd/MM/yyyy") : "-"} e entrega final em ${propFinal ? format(new Date(propFinal), "dd/MM/yyyy") : "-"}.`,
+              },
+            ],
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Proposta enviada ao cliente.");
+      qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
+      setShowDateForm(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="border-blue-200 bg-blue-50/30 dark:bg-blue-950/20 dark:border-blue-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold">
+          {showingCounterProposal ? "Cliente propôs novos prazos" : "Nova missão atribuída"}
+        </CardTitle>
+        <CardDescription className="text-xs">
+          {showingCounterProposal
+            ? "O cliente propôs estas datas em resposta à sua sugestão."
+            : "Revise os detalhes e confirme sua disponibilidade."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {showingCounterProposal && (
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
+              <p className="font-medium">
+                {mission.proposed_deadline_partial
+                  ? format(new Date(mission.proposed_deadline_partial), "dd/MM/yyyy")
+                  : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
+              <p className="font-medium">
+                {mission.proposed_deadline_final
+                  ? format(new Date(mission.proposed_deadline_final), "dd/MM/yyyy")
+                  : "—"}
+              </p>
+            </div>
+          </div>
+        )}
+        {!showDateForm ? (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => acceptMut.mutate()} disabled={acceptMut.isPending}>
+              {acceptMut.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <Check className="h-3.5 w-3.5" />{" "}
+              {showingCounterProposal ? "Aceitar proposta" : "Aceitar missão"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowDateForm(true)}>
+              <CalendarClock className="h-3.5 w-3.5" /> Propor{" "}
+              {showingCounterProposal ? "outras datas" : "novos prazos"}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Sugira datas alternativas para o cliente avaliar:
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">1ª Entrega</label>
+                <Input
+                  type="date"
+                  value={propPartial}
+                  onChange={(e) => setPropPartial(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Entrega Final</label>
+                <Input
+                  type="date"
+                  value={propFinal}
+                  onChange={(e) => setPropFinal(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => proposeDateMut.mutate()}
+                disabled={proposeDateMut.isPending}
+              >
+                {proposeDateMut.isPending && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                )}
+                Enviar proposta
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowDateForm(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DateNegotiationPanel({ mission }: { mission: Mission }) {
+  const [counter, setCounter] = useState({
+    partial: mission.deadline_first ?? "",
+    final: mission.deadline_final ?? "",
+  });
+  const [showCounter, setShowCounter] = useState(false);
+  const qc = useQueryClient();
+  const sendNotificationsFn = useServerFn(sendNotifications);
+
+  const acceptProposalMut = useMutation({
+    mutationFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          status: "execution_started",
+          deadline_first: mission.proposed_deadline_partial,
+          deadline_final: mission.proposed_deadline_final,
+          proposed_deadline_partial: null,
+          proposed_deadline_final: null,
+          proposal_from: null,
+        })
+        .eq("id", mission.id);
+      if (error) throw error;
+      const { data: ma } = await supabase
+        .from("mission_analysts")
+        .select("analyst_id")
+        .eq("mission_id", mission.id);
+      if (ma?.length) {
+        await sendNotificationsFn({
+          data: {
+            notifications: ma.map((a) => ({
+              user_id: a.analyst_id,
+              mission_id: mission.id,
+              type: "mission_accepted",
+              message: `Cliente aceitou os novos prazos para "${mission.name}". A missão está em andamento.`,
+            })),
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Prazos aceitos. Missão iniciada!");
+      qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const counterProposeMut = useMutation({
+    mutationFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          proposed_deadline_partial: counter.partial || null,
+          proposed_deadline_final: counter.final || null,
+          proposal_from: "contractor",
+          status: "date_negotiation",
+        })
+        .eq("id", mission.id);
+      if (error) throw error;
+      const { data: ma } = await supabase
+        .from("mission_analysts")
+        .select("analyst_id")
+        .eq("mission_id", mission.id);
+      if (ma?.length) {
+        await sendNotificationsFn({
+          data: {
+            notifications: ma.map((a) => ({
+              user_id: a.analyst_id,
+              mission_id: mission.id,
+              type: "date_proposal",
+              message: `O cliente propôs novos prazos para "${mission.name}": 1ª entrega em ${counter.partial ? format(new Date(counter.partial), "dd/MM/yyyy") : "-"}, entrega final em ${counter.final ? format(new Date(counter.final), "dd/MM/yyyy") : "-"}.`,
+            })),
+          },
+        });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Contraproposta enviada ao analista.");
+      qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
+      setShowCounter(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const proposed_partial = mission.proposed_deadline_partial;
+  const proposed_final = mission.proposed_deadline_final;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/30 dark:bg-amber-950/20 dark:border-amber-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-amber-600" />
+          Proposta de novos prazos
+        </CardTitle>
+        <CardDescription className="text-xs">
+          O analista responsável sugeriu ajustar os prazos desta missão.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">1ª Entrega proposta</p>
+            <p className="font-medium">
+              {proposed_partial ? format(new Date(proposed_partial), "dd/MM/yyyy") : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Entrega final proposta</p>
+            <p className="font-medium">
+              {proposed_final ? format(new Date(proposed_final), "dd/MM/yyyy") : "—"}
+            </p>
+          </div>
+        </div>
+        {!showCounter ? (
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => acceptProposalMut.mutate()}
+              disabled={acceptProposalMut.isPending}
+            >
+              {acceptProposalMut.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <Check className="h-3.5 w-3.5" /> Aceitar proposta
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCounter(true)}>
+              Propor outras datas
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">1ª Entrega</label>
+                <Input
+                  type="date"
+                  value={counter.partial}
+                  onChange={(e) => setCounter((c) => ({ ...c, partial: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Entrega Final</label>
+                <Input
+                  type="date"
+                  value={counter.final}
+                  onChange={(e) => setCounter((c) => ({ ...c, final: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => counterProposeMut.mutate()}
+                disabled={counterProposeMut.isPending}
+              >
+                Enviar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowCounter(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }
