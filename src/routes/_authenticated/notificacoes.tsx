@@ -369,9 +369,10 @@ function NotificationItem({
 
   const showProposalActions =
     isDateProposal &&
-    missionData?.proposal_from === "analyst" &&
-    (missionData?.status === "date_negotiation" ||
-      missionData?.status === "pending_acceptance");
+    !n.read_at &&
+    !!missionData &&
+    missionData.status !== "execution_started" &&
+    missionData.status !== "cancelled";
 
   const replyMut = useMutation({
     mutationFn: async () => {
