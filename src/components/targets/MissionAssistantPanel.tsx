@@ -237,3 +237,72 @@ export function MissionAssistantPanel({
     </div>
   );
 }
+
+const BLOCK_STEPS: Array<{ letter: string; label: string }> = [
+  { letter: "A", label: "Pesquisa pública (redes sociais, site)" },
+  { letter: "B", label: "Primeiro contato" },
+  { letter: "C", label: "Análise de funil e oferta" },
+  { letter: "D", label: "Prova social" },
+  { letter: "E", label: "Atendimento" },
+  { letter: "F", label: "Materiais enviados" },
+  { letter: "G", label: "Síntese final" },
+];
+
+function WelcomeScreen({
+  block,
+  targetName,
+  loading,
+  onStart,
+}: {
+  block: string;
+  targetName?: string;
+  loading: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[300px] space-y-6 p-4">
+      <div className="text-center space-y-2">
+        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+          <Sparkles className="h-6 w-6 text-primary" />
+        </div>
+        <h3 className="font-semibold text-lg">
+          Pesquisa de {targetName ?? "alvo"}
+        </h3>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Vou te guiar pela coleta de inteligência sobre este alvo. Vamos trabalhar juntos passo a passo.
+        </p>
+      </div>
+
+      <div className="w-full max-w-sm space-y-1.5">
+        {BLOCK_STEPS.map((s) => (
+          <div
+            key={s.letter}
+            className={`flex items-center gap-2 text-xs ${
+              s.letter === block ? "text-foreground font-medium" : "text-muted-foreground"
+            }`}
+          >
+            <div
+              className={`h-4 w-4 rounded-full border flex items-center justify-center text-[10px] ${
+                s.letter === block
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-muted-foreground/30"
+              }`}
+            >
+              {s.letter}
+            </div>
+            {s.label}
+          </div>
+        ))}
+      </div>
+
+      <Button size="lg" onClick={onStart} disabled={loading} className="w-full max-w-sm">
+        {loading ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4 mr-2" />
+        )}
+        Iniciar pesquisa com IA
+      </Button>
+    </div>
+  );
+}
