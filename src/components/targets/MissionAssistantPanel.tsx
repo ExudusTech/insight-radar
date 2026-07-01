@@ -239,6 +239,24 @@ export function MissionAssistantPanel({
     reader.readAsDataURL(file);
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
+    if (imageItem) {
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error("Imagem muito grande (máx 8MB)");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex items-center justify-between px-3 py-2 border-b">
@@ -368,8 +386,9 @@ export function MissionAssistantPanel({
                 handleSend();
               }
             }}
+            onPaste={handlePaste}
             rows={1}
-            placeholder="Relate o que encontrou ou cole uma conversa..."
+            placeholder="Relate o que encontrou, cole uma conversa ou Ctrl+V para colar um print..."
             className="min-h-9 max-h-24 text-sm resize-none"
           />
           <Button
@@ -384,6 +403,9 @@ export function MissionAssistantPanel({
             )}
           </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground px-1">
+            💡 Cole prints direto aqui com Ctrl+V (ou Cmd+V no Mac)
+          </p>
         </div>
       )}
     </div>
