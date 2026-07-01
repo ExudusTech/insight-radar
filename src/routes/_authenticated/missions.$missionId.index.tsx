@@ -283,7 +283,7 @@ function EditableDetails({ mission }: { mission: Mission }) {
 
   const finalHint = (() => {
     if (!mission.deadline_final) return null;
-    const d = new Date(mission.deadline_final);
+    const d = parseLocalDate(mission.deadline_final);
     const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
     if (diff < 0) return { text: "Esta data já passou.", tone: "error" as const };
     if (diff < 7)
@@ -293,11 +293,11 @@ function EditableDetails({ mission }: { mission: Mission }) {
 
   const partialHint = (() => {
     if (!mission.deadline_first) return null;
-    const d = new Date(mission.deadline_first);
+    const d = parseLocalDate(mission.deadline_first);
     if (d < today) return { text: "Esta data já passou.", tone: "error" as const };
     if (
       mission.deadline_final &&
-      d >= new Date(mission.deadline_final)
+      d >= parseLocalDate(mission.deadline_final)
     )
       return {
         text: "1ª entrega deve ser antes da entrega final.",
@@ -318,21 +318,31 @@ function EditableDetails({ mission }: { mission: Mission }) {
         value={mission.target_label ?? ""}
         onSave={(v) => save({ target_label: v || "Alvo" })}
       />
-      <EditableField
+      <DatePickerField
         label="Primeira entrega"
-        type="date"
         value={mission.deadline_first ?? ""}
-        onSave={(v) => save({ deadline_first: v || null })}
-        hint={partialHint?.text}
-        hintTone={partialHint?.tone}
+        onChange={(v) => {
+          save({ deadline_first: v || null }).catch((e) =>
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+          );
+        }}
+        error={partialHint?.tone === "error" ? partialHint.text : null}
+        warning={partialHint?.tone === "warning" ? partialHint.text : null}
+        disablePast
+        size="sm"
       />
-      <EditableField
+      <DatePickerField
         label="Entrega final"
-        type="date"
         value={mission.deadline_final ?? ""}
-        onSave={(v) => save({ deadline_final: v || null })}
-        hint={finalHint?.text}
-        hintTone={finalHint?.tone}
+        onChange={(v) => {
+          save({ deadline_final: v || null }).catch((e) =>
+            toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+          );
+        }}
+        error={finalHint?.tone === "error" ? finalHint.text : null}
+        warning={finalHint?.tone === "warning" ? finalHint.text : null}
+        disablePast
+        size="sm"
       />
     </div>
   );
