@@ -1,14 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Target as TargetIcon, Loader2, Calendar, ArrowRight } from "lucide-react";
-import { listMissions, missionsListKey } from "@/lib/missions.queries";
+import { Plus, Search, Target as TargetIcon, Loader2, Calendar, ArrowRight, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { deleteMission, listMissions, missionsListKey } from "@/lib/missions.queries";
 import { MISSION_STATUS_LABEL } from "@/lib/target-status";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/missions/")({
 function MissionsPage() {
   const { data: user } = useCurrentUser();
   const canCreate = user?.role === "superadmin" || user?.role === "contractor";
+  const canDelete = user?.role === "superadmin";
   const cardsView = user?.role === "analyst" || user?.role === "contractor";
   const { data: missions, isLoading } = useQuery({
     queryKey: missionsListKey,
@@ -94,9 +107,12 @@ function MissionsPage() {
                 return (
                   <TableRow key={m.id} className="cursor-pointer">
                     <TableCell className="font-medium">
-                      <Link to="/missions/$missionId" params={{ missionId: m.id }} className="hover:underline">
-                        {m.name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link to="/missions/$missionId" params={{ missionId: m.id }} className="hover:underline">
+                          {m.name}
+                        </Link>
+                        {canDelete && <DeleteMissionButton id={m.id} name={m.name} />}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {contractor?.full_name || contractor?.email || "—"}
@@ -116,6 +132,53 @@ function MissionsPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+function DeleteMissionButton({ id, name }: { id: string; name: string }) {
+  const qc = useQueryClient();
+  const mut = useMutation({
+    mutationFn: () => deleteMission(id),
+    onSuccess: () => {
+      toast.success("Missão apagada");
+      qc.invalidateQueries({ queryKey: missionsListKey });
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao apagar missão"),
+  });
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Apagar missão"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Apagar missão</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja apagar a missão &quot;{name}&quot;? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={mut.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={mut.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              mut.mutate();
+            }}
+          >
+            {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apagar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
