@@ -264,8 +264,15 @@ function EditableField({
 
 function EditableDetails({ mission }: { mission: Mission }) {
   const qc = useQueryClient();
-  const save = async (patch: Partial<Mission>) => {
-    await updateMission(mission.id, patch as never);
+  const save = async (patch: {
+    segment?: string | null;
+    target_label?: string;
+    deadline_first?: string | null;
+    deadline_final?: string | null;
+  }) => {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { error } = await supabase.from("missions").update(patch).eq("id", mission.id);
+    if (error) throw error;
     qc.invalidateQueries({ queryKey: missionDetailKey(mission.id) });
   };
 
