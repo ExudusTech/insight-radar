@@ -154,6 +154,11 @@ export async function updateMission(id: string, patch: Partial<CreateMissionInpu
   return data;
 }
 
+export async function deleteMission(id: string) {
+  const { error } = await supabase.from("missions").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateMissionFromExtraction(
   missionId: string,
   extracted: {
