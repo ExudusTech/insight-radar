@@ -109,7 +109,7 @@ export function TargetDetailSheet({
   const tabs = tabsByRole[currentUser?.role ?? "contractor"] ?? tabsByRole.contractor;
   const allowedValues = tabs.map((t) => t.value);
   const resolvedDefault = defaultTab && allowedValues.includes(defaultTab) ? defaultTab : tabs[0].value;
-  const [activeTab, setActiveTab] = useState(resolvedDefault);
+  const [activeTab, setActiveTab] = useState<string>(resolvedDefault);
 
   useEffect(() => {
     setActiveTab(resolvedDefault);
