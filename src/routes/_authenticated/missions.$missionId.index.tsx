@@ -390,6 +390,7 @@ function BriefingEnrichPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const sendNotificationsFn = useServerFn(sendNotifications);
+  const assignAnalystFn = useServerFn(assignAnalystToMission);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
 
@@ -410,8 +411,9 @@ function BriefingEnrichPanel({
     mutationFn: async () => {
       await updateMission(missionId, { description });
 
-      const { autoAssignAnalyst } = await import("@/lib/missions.queries");
-      const assignedAnalystId = await autoAssignAnalyst(missionId);
+      const { assignedId: assignedAnalystId } = await assignAnalystFn({
+        data: { missionId },
+      });
 
       const { supabase } = await import("@/integrations/supabase/client");
       const { error: statusErr } = await supabase
