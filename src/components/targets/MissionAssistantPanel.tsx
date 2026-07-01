@@ -118,14 +118,7 @@ export function MissionAssistantPanel({
           imageMimeType,
         },
       });
-      await saveAssistantMessage({
-        missionId,
-        targetId,
-        block: ASSISTANT_UNIFIED_BLOCK,
-        analystId: user.id,
-        role: "assistant",
-        content: res.message,
-      });
+      // Assistant message is persisted server-side by missionAssistant (RLS restricts client inserts to role='user').
 
       // Persist auto-filled block fields
       if (res.blockUpdates) {
