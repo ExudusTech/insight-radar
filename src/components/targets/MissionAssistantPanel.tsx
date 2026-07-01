@@ -120,6 +120,20 @@ export function MissionAssistantPanel({
     sendMut.mutate(input);
   };
 
+  useEffect(() => {
+    if (
+      !isLoading &&
+      messages.length === 0 &&
+      !autoStartedRef.current &&
+      !sendMut.isPending &&
+      user?.id
+    ) {
+      autoStartedRef.current = true;
+      sendMut.mutate(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, messages.length, user?.id]);
+
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex items-center justify-between px-3 py-2 border-b">
