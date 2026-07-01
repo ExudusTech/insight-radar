@@ -91,6 +91,22 @@ export async function upsertCollectionField(params: {
   if (error) throw error;
 }
 
+async function promoteTargetStatusFromCollection(targetId: string) {
+  const { data: target, error: readError } = await supabase
+    .from("targets")
+    .select("status")
+    .eq("id", targetId)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (target?.status !== "not_started") return;
+
+  const { error: updateError } = await supabase
+    .from("targets")
+    .update({ status: "public_research" })
+    .eq("id", targetId);
+  if (updateError) throw updateError;
+}
+
 /** Returns map block -> { notes, block_status } */
 export function indexCollectionRows(rows: CollectionRow[]) {
   const map: Record<string, { notes: string; block_status: string }> = {};
@@ -203,5 +219,14 @@ export async function applyBlockUpdatesFromAssistant(params: {
   }
   console.log("[applyBlockUpdates] totalFields upserted:", totalFields);
   if (firstError && totalFields === 0) throw firstError;
+
+  if (totalFields > 0) {
+    try {
+      await promoteTargetStatusFromCollection(targetId);
+    } catch (e) {
+      console.warn("[applyBlockUpdates] target status promotion failed", e);
+    }
+  }
+
   return totalFields;
 }

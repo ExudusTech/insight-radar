@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callLLM } from "@/lib/llm-router";
+import { callLLM, type LLMContentBlock } from "@/lib/llm-router";
 import { BLOCK_FIELDS, BLOCK_TITLES, COLLECTION_BLOCKS } from "@/lib/collection.queries";
 
 const InputSchema = z.object({
@@ -235,6 +235,64 @@ function buildBlocksSchemaSectionForExtraction() {
   ).join("\n");
 }
 
+function cleanHistoryContent(role: string, content: string, hasImage: boolean) {
+  const withoutMarker = (() => {
+    if (role !== "assistant") return content;
+    const markerIdx = content.lastIndexOf("---BLOCK_DATA---");
+    return markerIdx !== -1 ? content.slice(0, markerIdx).trim() : content;
+  })();
+  if (!hasImage) return withoutMarker;
+  const imageNote = "[ANALISTA enviou uma imagem neste ponto — considerar como evidência visual associada à mensagem.]";
+  if (!withoutMarker.trim() || withoutMarker.trim() === "[imagem]") return imageNote;
+  return `${withoutMarker}\n${imageNote}`;
+}
+
+async function loadHistoryImages(
+  messages: Array<{ role: string; content: string; metadata: Record<string, unknown> | null }>,
+) {
+  const imageMessages = messages.filter((m) => typeof m.metadata?.image_path === "string");
+  if (imageMessages.length === 0) return [] as LLMContentBlock[];
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const blocks: LLMContentBlock[] = [];
+
+  for (const [idx, message] of imageMessages.slice(0, 6).entries()) {
+    const imagePath = String(message.metadata?.image_path ?? "");
+    const imageMime = String(message.metadata?.image_mime ?? "image/jpeg");
+    try {
+      const { data, error } = await supabaseAdmin.storage
+        .from("mission-evidences")
+        .createSignedUrl(imagePath, 60);
+      if (error || !data?.signedUrl) {
+        console.warn("[processHistory] signed URL failed", imagePath, error);
+        continue;
+      }
+
+      const res = await fetch(data.signedUrl);
+      if (!res.ok) {
+        console.warn("[processHistory] image fetch failed", imagePath, res.status);
+        continue;
+      }
+
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      blocks.push({
+        type: "text",
+        text: `\n\n[IMAGEM ${idx + 1} enviada pela analista no histórico. Mensagem associada: ${String(message.content ?? "").slice(0, 500)}]`,
+      });
+      blocks.push({ type: "image_base64", mediaType: imageMime, data: btoa(binary) });
+    } catch (e) {
+      console.warn("[processHistory] image load failed", imagePath, e);
+    }
+  }
+
+  return blocks;
+}
+
 function sanitizeBlockUpdates(
   raw: unknown,
 ): Record<string, Record<string, string>> | null {
@@ -269,7 +327,7 @@ export const processAssistantHistory = createServerFn({ method: "POST" })
     const [{ data: messages }, { data: target }] = await Promise.all([
       supabase
         .from("assistant_messages")
-        .select("role, content")
+        .select("role, content, metadata")
         .eq("target_id", data.targetId)
         .order("created_at", { ascending: true }),
       supabase
@@ -293,7 +351,10 @@ ${buildBlocksSchemaSectionForExtraction()}
 
 REGRAS:
 - Retorne APENAS um JSON puro (sem cercas de código, sem texto antes ou depois).
-- Use apenas evidências concretas presentes na conversa — não invente.
+- Analise TODA a conversa e extraia qualquer informação relevante sobre o alvo, mesmo que parcial.
+- Seja generoso na interpretação: se a analista mencionou algo sobre preço, canal, atendimento, materiais, prova social, oferta ou posicionamento, mesmo de forma indireta, extraia.
+- Prefira ter mais campos com dados parciais do que poucos campos "perfeitos".
+- Use apenas evidências concretas presentes na conversa e nas imagens anexadas — não invente.
 - Se um campo não puder ser inferido com segurança, omita-o.
 - Use somente os blocos (A–G) e chaves listados acima.
 
@@ -301,14 +362,30 @@ Exemplo do formato esperado:
 {"A": {"canal_principal": "Instagram", "seguidores": "12k"}, "C": {"preco": "R$ 497"}}`;
 
     const conversationText = messages
-      .map((m) => `${m.role === "user" ? "ANALISTA" : "ASSISTENTE"}: ${m.content}`)
+      .map((m) => {
+        const hasImage = typeof (m.metadata as Record<string, unknown> | null)?.image_path === "string";
+        return `${m.role === "user" ? "ANALISTA" : "ASSISTENTE"}: ${cleanHistoryContent(m.role, m.content, hasImage)}`;
+      })
       .join("\n\n")
       .slice(0, 60_000);
+
+    const imageBlocks = await loadHistoryImages(
+      messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        metadata: (m.metadata ?? null) as Record<string, unknown> | null,
+      })),
+    );
+    console.log("[processHistory] messages:", messages.length, "images loaded:", imageBlocks.filter((b) => b.type === "image_base64").length);
+
+    const extractionContent: string | LLMContentBlock[] = imageBlocks.length > 0
+      ? [{ type: "text", text: conversationText }, ...imageBlocks]
+      : conversationText;
 
     const { text } = await callLLM({
       task: "assistant",
       systemPrompt: extractionPrompt,
-      messages: [{ role: "user", content: conversationText }],
+      messages: [{ role: "user", content: extractionContent }],
       maxTokens: 2048,
     });
     console.log("[processHistory] LLM raw response (first 500):", text.slice(0, 500));
