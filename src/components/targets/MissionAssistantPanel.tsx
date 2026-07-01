@@ -19,6 +19,7 @@ export function MissionAssistantPanel({
   missionId,
   targetId,
   block,
+  targetName,
   onBlockCompleted,
 }: {
   missionId: string;
@@ -160,21 +161,12 @@ export function MissionAssistantPanel({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="py-6 text-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => sendMut.mutate(null)}
-              disabled={sendMut.isPending}
-            >
-              {sendMut.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              Iniciar bloco {block} com assistente
-            </Button>
-          </div>
+          <WelcomeScreen
+            block={block}
+            targetName={targetName}
+            loading={sendMut.isPending}
+            onStart={() => sendMut.mutate(null)}
+          />
         ) : (
           messages.map((m) => (
             <div
