@@ -51,22 +51,6 @@ function Dashboard() {
         <KpiCard label="Pendências críticas" value={fmt(kpis?.critical)} icon={AlertTriangle} tone="warning" />
       </div>
 
-      <Card className="p-8">
-        <div className="max-w-2xl space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">Sua plataforma está pronta</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Fases 1 e 2 concluídas (fundação, missões e alvos com Kanban). Fase 3 — documento-base
-            com extração por IA — em andamento. Próximas: coleta guiada, timeline, evidências e
-            relatórios automatizados.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Badge variant="outline">Fase 1 · Fundação ✓</Badge>
-            <Badge variant="outline">Fase 2 · Missões + Alvos ✓</Badge>
-            <Badge variant="default">Fase 3 · IA de extração ●</Badge>
-            <Badge variant="outline" className="opacity-60">Fase 4 · Coleta Guiada</Badge>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
