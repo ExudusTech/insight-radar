@@ -136,27 +136,6 @@ async function callAnthropic(
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system: systemPrompt, messages }),
-});
-  // (unused — see invokeProvider)
-  void 0;
-  return {} as never;
-}
-
-async function callAnthropicReal(
-  model: string,
-  systemPrompt: string,
-  messages: LLMMessage[],
-  maxTokens: number,
-  apiKey: string,
-): Promise<RawResult> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
@@ -187,7 +166,10 @@ async function callOpenAICompat(
   maxTokens: number,
   apiKey: string,
 ): Promise<RawResult> {
-  const oaiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+  const oaiMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages.map((m) => ({ role: m.role, content: toOpenAIContent(m.content) })),
+  ];
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
