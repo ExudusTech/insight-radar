@@ -43,6 +43,7 @@ import {
   uploadAndCreateVersion,
 } from "@/lib/document-versions.queries";
 import { sendNotifications } from "@/lib/notifications.functions";
+import { assignAnalystToMission } from "@/lib/missions.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
 
