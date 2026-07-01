@@ -23,6 +23,7 @@ import {
   applyBlockUpdatesFromAssistant,
   type CollectionBlock,
 } from "@/lib/collection.queries";
+import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,8 @@ export function MissionAssistantPanel({
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
       if (blockUpdates) {
         qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
+        qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
+        qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
       }
       if (user?.id) {
         logActivity({
@@ -226,6 +229,8 @@ export function MissionAssistantPanel({
     },
     onSuccess: ({ count }) => {
       qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
+      qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
+      qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
       if (count > 0) {
         toast.success(`${count} campo(s) extraído(s) e salvo(s) com sucesso!`);
       } else {
