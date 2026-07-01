@@ -42,6 +42,8 @@ export function MissionAssistantPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
 
+  const autoStartedRef = useRef(false);
+
   const sendMut = useMutation({
     mutationFn: async (userMessage: string | null) => {
       if (!user?.id) throw new Error("Sem usuário");
