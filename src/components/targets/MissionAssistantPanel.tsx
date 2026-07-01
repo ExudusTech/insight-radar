@@ -2,19 +2,30 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Sparkles, Send, Loader2, Camera, CheckCircle2, Paperclip, X } from "lucide-react";
+import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
+  ASSISTANT_UNIFIED_BLOCK,
   assistantMessagesKey,
   listAssistantMessages,
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
 import { missionAssistant } from "@/lib/mission-assistant.functions";
+import {
+  BLOCK_FIELDS,
+  BLOCK_TITLES,
+  COLLECTION_BLOCKS,
+  collectionByTargetKey,
+  countFilledFieldsByBlock,
+  listCollectionByTarget,
+  upsertCollectionField,
+  type CollectionBlock,
+} from "@/lib/collection.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 async function fileToBase64(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
@@ -30,15 +41,11 @@ async function fileToBase64(file: File): Promise<string> {
 export function MissionAssistantPanel({
   missionId,
   targetId,
-  block,
   targetName,
-  onBlockCompleted,
 }: {
   missionId: string;
   targetId: string;
-  block: string;
   targetName?: string;
-  onBlockCompleted?: () => void;
 }) {
   const qc = useQueryClient();
   const { data: user } = useCurrentUser();
@@ -49,9 +56,15 @@ export function MissionAssistantPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: assistantMessagesKey(targetId, block),
-    queryFn: () => listAssistantMessages(targetId, block),
+    queryKey: assistantMessagesKey(targetId),
+    queryFn: () => listAssistantMessages(targetId),
   });
+
+  const { data: collectionRows = [] } = useQuery({
+    queryKey: collectionByTargetKey(targetId),
+    queryFn: () => listCollectionByTarget(targetId),
+  });
+  const filledByBlock = countFilledFieldsByBlock(collectionRows);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -85,7 +98,7 @@ export function MissionAssistantPanel({
         await saveAssistantMessage({
           missionId,
           targetId,
-          block,
+          block: ASSISTANT_UNIFIED_BLOCK,
           analystId: user.id,
           role: "user",
           content: userMessage?.trim() || (file ? "[imagem]" : ""),
@@ -98,7 +111,6 @@ export function MissionAssistantPanel({
         data: {
           missionId,
           targetId,
-          block,
           analystId: user.id,
           conversationHistory: history,
           userMessage: userMessage,
@@ -109,18 +121,43 @@ export function MissionAssistantPanel({
       await saveAssistantMessage({
         missionId,
         targetId,
-        block,
+        block: ASSISTANT_UNIFIED_BLOCK,
         analystId: user.id,
         role: "assistant",
         content: res.message,
       });
-      return res.message;
+
+      // Persist auto-filled block fields
+      if (res.blockUpdates) {
+        for (const [blk, fields] of Object.entries(res.blockUpdates)) {
+          if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
+          for (const [fieldKey, value] of Object.entries(fields)) {
+            try {
+              await upsertCollectionField({
+                missionId,
+                targetId,
+                block: blk as CollectionBlock,
+                fieldKey,
+                value,
+                userId: user.id,
+              });
+            } catch (e) {
+              console.warn("[assistant] failed to upsert field", blk, fieldKey, e);
+            }
+          }
+        }
+      }
+
+      return { message: res.message, blockUpdates: res.blockUpdates };
     },
-    onSuccess: (aiMessage) => {
+    onSuccess: ({ message, blockUpdates }) => {
       setInput("");
       setImageFile(null);
       setImagePreview(null);
-      qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId, block) });
+      qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
+      if (blockUpdates) {
+        qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
+      }
       if (user?.id) {
         logActivity({
           userId: user.id,
@@ -129,9 +166,11 @@ export function MissionAssistantPanel({
           entityType: "target",
           entityId: targetId,
           details: {
-            block,
             has_user_message: !!input.trim(),
-            block_completed: !!aiMessage?.includes("✅"),
+            fields_updated: blockUpdates
+              ? Object.values(blockUpdates).reduce((n, f) => n + Object.keys(f).length, 0)
+              : 0,
+            research_complete: !!message?.includes("✅ Pesquisa concluída"),
           },
         });
       }
@@ -143,14 +182,8 @@ export function MissionAssistantPanel({
     () => [...messages].reverse().find((m) => m.role === "assistant"),
     [messages],
   );
-  const blockDone = !!lastAssistant?.content?.includes(`✅ Bloco ${block} concluído`);
+  const researchDone = !!lastAssistant?.content?.includes("✅ Pesquisa concluída");
   const evidenceRequested = !!lastAssistant?.content?.includes("📸 Evidência necessária");
-
-  const status = messages.length === 0
-    ? "Iniciando"
-    : blockDone
-      ? "Concluído"
-      : "Em andamento";
 
   const handleSend = () => {
     if (sendMut.isPending) return;
@@ -177,10 +210,16 @@ export function MissionAssistantPanel({
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Sparkles className="h-4 w-4 text-primary" />
-          Assistente — Bloco {block}
+          Assistente de pesquisa
         </div>
-        <Badge variant={blockDone ? "default" : "outline"}>{status}</Badge>
+        {researchDone && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-600">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Pesquisa concluída
+          </span>
+        )}
       </div>
+
+      <BlockProgress filled={filledByBlock} />
 
       {evidenceRequested && (
         <div className="px-3 py-2 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 text-xs flex items-center gap-1.5 border-b">
@@ -191,7 +230,7 @@ export function MissionAssistantPanel({
 
       <div
         ref={scrollRef}
-        className="max-h-80 overflow-y-auto px-3 py-3 space-y-3"
+        className="max-h-[420px] overflow-y-auto px-3 py-3 space-y-3"
       >
         {isLoading ? (
           <div className="grid place-items-center py-6">
@@ -199,7 +238,6 @@ export function MissionAssistantPanel({
           </div>
         ) : messages.length === 0 ? (
           <WelcomeScreen
-            block={block}
             targetName={targetName}
             loading={sendMut.isPending}
             onStart={() => sendMut.mutate({ userMessage: null, file: null })}
@@ -239,15 +277,6 @@ export function MissionAssistantPanel({
         )}
       </div>
 
-      {blockDone && onBlockCompleted && (
-        <div className="px-3 py-2 border-t bg-green-50 dark:bg-green-950/30">
-          <Button size="sm" className="w-full" onClick={onBlockCompleted}>
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Salvar bloco como concluído
-          </Button>
-        </div>
-      )}
-
       {messages.length > 0 && (
         <div className="px-3 py-2 border-t space-y-2">
           {imagePreview && (
@@ -272,13 +301,13 @@ export function MissionAssistantPanel({
           )}
           <div className="flex items-end gap-2">
           <label
-            htmlFor={`img-upload-${targetId}-${block}`}
+            htmlFor={`img-upload-${targetId}`}
             className="cursor-pointer p-2 rounded hover:bg-muted"
             aria-label="Anexar imagem"
           >
             <Paperclip className="h-4 w-4 text-muted-foreground" />
             <input
-              id={`img-upload-${targetId}-${block}`}
+              id={`img-upload-${targetId}`}
               type="file"
               accept="image/*"
               className="hidden"
@@ -316,6 +345,38 @@ export function MissionAssistantPanel({
   );
 }
 
+function BlockProgress({ filled }: { filled: Record<string, number> }) {
+  return (
+    <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b bg-muted/20">
+      {COLLECTION_BLOCKS.map((b) => {
+        const total = BLOCK_FIELDS[b].length;
+        const got = filled[b] ?? 0;
+        const done = got >= total;
+        const started = got > 0;
+        return (
+          <div
+            key={b}
+            title={`Bloco ${b} — ${BLOCK_TITLES[b]} (${got}/${total})`}
+            className={cn(
+              "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+              done
+                ? "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
+                : started
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-muted-foreground/20 text-muted-foreground",
+            )}
+          >
+            <span className="font-mono">{b}</span>
+            <span className="opacity-70">
+              {got}/{total}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function MessageImage({ metadata }: { metadata: { image_path?: string } | null }) {
   const path = metadata?.image_path;
   const [url, setUrl] = useState<string | null>(null);
@@ -347,23 +408,11 @@ function MessageImage({ metadata }: { metadata: { image_path?: string } | null }
   );
 }
 
-const BLOCK_STEPS: Array<{ letter: string; label: string }> = [
-  { letter: "A", label: "Pesquisa pública (redes sociais, site)" },
-  { letter: "B", label: "Primeiro contato" },
-  { letter: "C", label: "Análise de funil e oferta" },
-  { letter: "D", label: "Prova social" },
-  { letter: "E", label: "Atendimento" },
-  { letter: "F", label: "Materiais enviados" },
-  { letter: "G", label: "Síntese final" },
-];
-
 function WelcomeScreen({
-  block,
   targetName,
   loading,
   onStart,
 }: {
-  block: string;
   targetName?: string;
   loading: boolean;
   onStart: () => void;
@@ -378,28 +427,21 @@ function WelcomeScreen({
           Pesquisa de {targetName ?? "alvo"}
         </h3>
         <p className="text-sm text-muted-foreground max-w-xs">
-          Vou te guiar pela coleta de inteligência sobre este alvo. Vamos trabalhar juntos passo a passo.
+          Vou te guiar em UMA conversa que cobre os 7 blocos de pesquisa. Faço perguntas
+          estratégicas e preencho os campos automaticamente conforme você reporta o que encontrou.
         </p>
       </div>
 
       <div className="w-full max-w-sm space-y-1.5">
-        {BLOCK_STEPS.map((s) => (
+        {COLLECTION_BLOCKS.map((b) => (
           <div
-            key={s.letter}
-            className={`flex items-center gap-2 text-xs ${
-              s.letter === block ? "text-foreground font-medium" : "text-muted-foreground"
-            }`}
+            key={b}
+            className="flex items-center gap-2 text-xs text-muted-foreground"
           >
-            <div
-              className={`h-4 w-4 rounded-full border flex items-center justify-center text-[10px] ${
-                s.letter === block
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-muted-foreground/30"
-              }`}
-            >
-              {s.letter}
+            <div className="h-4 w-4 rounded-full border border-muted-foreground/30 flex items-center justify-center text-[10px]">
+              {b}
             </div>
-            {s.label}
+            {BLOCK_TITLES[b]}
           </div>
         ))}
       </div>
