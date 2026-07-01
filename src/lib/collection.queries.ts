@@ -38,7 +38,7 @@ export function countFilledFieldsByBlock(rows: CollectionRow[]) {
     const v = r.field_value;
     const hasValue =
       v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
-    if (!hasValue) return;
+    if (!hasValue) continue;
     const key = `${r.block}:${r.field_key}`;
     if (seen.has(key)) continue;
     seen.add(key);
