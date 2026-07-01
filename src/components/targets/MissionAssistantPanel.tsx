@@ -43,8 +43,6 @@ export function MissionAssistantPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
 
-  const autoStartedRef = useRef(false);
-
   const sendMut = useMutation({
     mutationFn: async (userMessage: string | null) => {
       if (!user?.id) throw new Error("Sem usuário");
@@ -120,20 +118,6 @@ export function MissionAssistantPanel({
     if (!input.trim() || sendMut.isPending) return;
     sendMut.mutate(input);
   };
-
-  useEffect(() => {
-    if (
-      !isLoading &&
-      messages.length === 0 &&
-      !autoStartedRef.current &&
-      !sendMut.isPending &&
-      user?.id
-    ) {
-      autoStartedRef.current = true;
-      sendMut.mutate(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, messages.length, user?.id]);
 
   return (
     <div className="rounded-lg border bg-card">
