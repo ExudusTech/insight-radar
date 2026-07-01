@@ -196,6 +196,7 @@ export function MissionAssistantPanel({
       setImageFile(null);
       setImagePreview(null);
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
+      qc.invalidateQueries({ queryKey: evidencesByTargetKey(targetId) });
       if (blockUpdates) {
         qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
         qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
