@@ -86,7 +86,9 @@ function MissionsPage() {
           <EmptyState canCreate={canCreate} />
         ) : cardsView ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger-children">
-            {filtered.map((m) => <MissionCard key={m.id} missionId={m.id} name={m.name} segment={m.segment} deadline={m.deadline_final} status={m.status} />)}
+            {filtered.map((m) => (
+              <MissionCard key={m.id} missionId={m.id} name={m.name} segment={m.segment} deadline={m.deadline_final} status={m.status} role={user?.role} />
+            ))}
           </div>
         ) : (
           <Table>
@@ -188,12 +190,14 @@ function MissionCard({
   segment,
   deadline,
   status,
+  role,
 }: {
   missionId: string;
   name: string;
   segment: string | null;
   deadline: string | null;
   status: keyof typeof MISSION_STATUS_LABEL;
+  role?: string | null;
 }) {
   const { data: stats } = useQuery({
     queryKey: ["mission-stats", missionId],
@@ -253,7 +257,10 @@ function MissionCard({
           {deadline ? (daysLeft! >= 0 ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"}` : "Prazo expirado") : "Sem prazo"}
         </div>
         <Button asChild size="sm" className="group-hover:shadow-[var(--shadow-glow)] transition-shadow">
-          <Link to="/missions/$missionId/journey" params={{ missionId }}>
+          <Link
+            to={role === "analyst" ? "/missions/$missionId/journey" : "/missions/$missionId"}
+            params={{ missionId }}
+          >
             Continuar <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </Button>
