@@ -739,6 +739,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          accepts_missions: boolean
           avatar_url: string | null
           created_at: string
           email: string
@@ -750,6 +751,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accepts_missions?: boolean
           avatar_url?: string | null
           created_at?: string
           email: string
@@ -761,6 +763,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accepts_missions?: boolean
           avatar_url?: string | null
           created_at?: string
           email?: string

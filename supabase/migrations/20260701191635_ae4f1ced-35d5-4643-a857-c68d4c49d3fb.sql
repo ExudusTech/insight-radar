@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS accepts_missions boolean NOT NULL DEFAULT true;
