@@ -248,6 +248,14 @@ PROCESSAMENTO DE EVIDÊNCIAS:
 - Ao receber texto colado de conversa (WhatsApp, DM, e-mail, chat): identifique padrões de exportação (hora, nome, mensagem), aponte quem atendeu, o tom (rápido/robótico/consultivo), e extraia preços/planos/condições. Resuma em bullets e avance.
 - Sempre confirme o que ficou registrado antes de pedir a próxima ação.
 
+TRANSCRIÇÃO DE REUNIÃO:
+- Ao receber uma transcrição (colada pelo analista após uma call), identifique que é uma transcrição e trate com prioridade máxima.
+- Mapeie cada fala do concorrente para os campos correspondentes (preço → C.preco, objeções → E.objecoes_tratadas, materiais enviados → F.materiais_descritos etc.)
+- Registre o tom, velocidade de resposta, e linguagem usada como dado do bloco E (qualidade do atendimento).
+- Se o analista mencionar que obteve consentimento para gravar/transcrever, registre como evidência de metodologia válida.
+- Se a transcrição revelar que o concorrente usa um script padronizado, identifique o padrão e documente em B.script_inicial.
+- Ao final do processamento da transcrição, informe quantos campos foram preenchidos e quais lacunas obrigatórias ainda restam.
+
 BLOCO B — ABORDAGEM DE CONTATO:
 Além do tempo de resposta e tom, registre sempre:
 - canal_entrada: por onde o lead iniciou o contato (ex: "Instagram DM", "WhatsApp", "LinkedIn")
@@ -678,4 +686,139 @@ ${targetSections || "(nenhum dado coletado ainda)"}
       maxTokens: 2048,
     });
     return { answer: text };
+  });
+
+// ============================================================
+// Task 6 — Roteiro de reunião online (meeting script)
+// ============================================================
+
+const MeetingScriptInputSchema = z.object({
+  missionId: z.string().uuid(),
+  targetId: z.string().uuid(),
+});
+
+export const generateMeetingScript = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => MeetingScriptInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const [{ data: target }, { data: rows }] = await Promise.all([
+      supabase
+        .from("targets")
+        .select("name, brand, category, canal_abordagem, persona_lead")
+        .eq("id", data.targetId)
+        .single(),
+      supabase
+        .from("collection_data")
+        .select("block, field_key, field_value")
+        .eq("target_id", data.targetId),
+    ]);
+    if (!target) throw new Error("Alvo não encontrado");
+
+    const allRows = rows ?? [];
+    const completion = calcRequiredCompletion(allRows);
+    const collected = allRows
+      .filter((r) => {
+        const v = r.field_value;
+        return v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
+      })
+      .map((r) => `${r.block}.${r.field_key}: ${r.field_value}`)
+      .join("\n");
+
+    const missingRequiredText = completion.missingRequired.map((g) => `- ${g}`).join("\n") ||
+      "Nenhuma — coleta suficiente para síntese";
+    const conditionalText = Object.entries(BLOCK_FIELDS_CONDITIONAL)
+      .flatMap(([b, fs]) => fs.map((f) => `${b}.${f}`))
+      .join(", ");
+
+    const prompt = `Você é um estrategista de inteligência competitiva. Com base nas informações já coletadas sobre o concorrente, gere um roteiro estruturado para uma reunião/call de vendas conduzida por um analista disfarçado de lead.
+
+CONCORRENTE: ${target.name} ${target.brand ?? ""}
+PERSONA DO ANALISTA: ${JSON.stringify(target.persona_lead ?? {})}
+CANAL DE ABORDAGEM: ${target.canal_abordagem ?? "não definido"}
+
+JÁ COLETADO:
+${collected || "(nenhum dado coletado ainda)"}
+
+LACUNAS OBRIGATÓRIAS AINDA PENDENTES:
+${missingRequiredText}
+
+LACUNAS CONDICIONAIS (tentar obter naturalmente se o concorrente colaborar):
+${conditionalText}
+
+---
+
+Gere um roteiro com as seguintes seções:
+
+## 🎯 Objetivo da reunião
+[O que o analista deve extrair nessa call com base nos gaps]
+
+## 🧊 Quebra-gelo e contextualização
+[Como abrir a conversa de forma natural dentro da persona]
+
+## ❓ Perguntas para preencher lacunas obrigatórias
+[Lista de perguntas diretas mas naturais para cada gap obrigatório pendente]
+
+## 💬 Assuntos para provocar naturalmente
+[Tópicos que induzem o concorrente a revelar informações condicionais (preço, processo, materiais) sem perguntar diretamente]
+
+## 🎙️ Protocolo de transcrição (IMPORTANTE — ler antes da call)
+- Ao iniciar a call, o analista deve dizer: "Você se importa se eu usar o TacTiq para transcrever a reunião? Isso me ajuda a não precisar tomar notas enquanto conversamos."
+- Se o concorrente disser que já grava/transcreve por conta própria: "Ótimo! Você poderia me enviar a transcrição depois? Fica mais fácil para eu revisar os pontos que discutirmos."
+- Se o concorrente recusar ambos: conduzir normalmente e tomar notas no sistema imediatamente após a call.
+
+## 🚩 Sinais a observar
+[Comportamentos, hesitações, scripts, gatilhos de urgência ou escassez que o analista deve documentar]
+
+## ✅ Checklist pós-call
+[O que o analista deve registrar no sistema imediatamente após encerrar a reunião]`;
+
+    const { text: scriptContent } = await callLLM({
+      task: "assistant",
+      systemPrompt: "Você é um estrategista sênior de inteligência competitiva especializado em mystery shopping B2B.",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 3072,
+    });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: last } = await supabaseAdmin
+      .from("document_versions")
+      .select("version_number")
+      .eq("mission_id", data.missionId)
+      .eq("doc_type", "meeting_script")
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = (last?.version_number ?? 0) + 1;
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("document_versions")
+      .insert({
+        mission_id: data.missionId,
+        doc_type: "meeting_script",
+        doc_label: `Roteiro de reunião — ${target.name}`,
+        file_name: `roteiro-reuniao-${target.name.replace(/\s+/g, "-").toLowerCase()}-v${nextVersion}.md`,
+        version_number: nextVersion,
+        author_id: context.userId,
+        extracted_data: { target_id: data.targetId, target_name: target.name, content: scriptContent },
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    // Persist as assistant message so it appears in the chat thread
+    const chatContent = `[ROTEIRO DE REUNIÃO]\n\n${scriptContent}`;
+    const { error: msgErr } = await supabaseAdmin.from("assistant_messages").insert({
+      mission_id: data.missionId,
+      target_id: data.targetId,
+      block: "all",
+      analyst_id: context.userId,
+      role: "assistant",
+      content: chatContent,
+    });
+    if (msgErr) console.warn("[meetingScript] failed to persist chat message", msgErr);
+
+    return { script: scriptContent, documentId: inserted.id };
   });

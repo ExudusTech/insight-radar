@@ -32,6 +32,8 @@ const CHANNEL_OPTIONS = [
   "LinkedIn",
   "E-mail",
   "Ligação",
+  "Reunião online (videocall)",
+  "Reunião online (ligação)",
 ];
 
 export function ApproachStrategySection({
