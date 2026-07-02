@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Loader2, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
+import { cn } from "@/lib/utils";
 
 type PersonaObject = { nome?: string; contexto?: string; [k: string]: unknown };
 
@@ -47,25 +48,37 @@ export function ApproachStrategySection({
 }) {
   const qc = useQueryClient();
   const initialPersona = parsePersona(personaLead);
-  const [canal, setCanal] = useState(canalAbordagem ?? "");
+  const parseCanais = (raw: string | null) =>
+    (raw ?? "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+  const [canais, setCanais] = useState<string[]>(parseCanais(canalAbordagem));
   const [nome, setNome] = useState(initialPersona.nome ?? "");
   const [contexto, setContexto] = useState(initialPersona.contexto ?? "");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setCanal(canalAbordagem ?? "");
+    setCanais(parseCanais(canalAbordagem));
     const p = parsePersona(personaLead);
     setNome(p.nome ?? "");
     setContexto(p.contexto ?? "");
   }, [targetId, canalAbordagem, personaLead]);
 
+  const toggleCanal = (canal: string) => {
+    setCanais((prev) =>
+      prev.includes(canal) ? prev.filter((c) => c !== canal) : [...prev, canal],
+    );
+  };
+
   const mut = useMutation({
     mutationFn: async () => {
       const persona = { nome: nome.trim() || null, contexto: contexto.trim() || null };
+      const canalStr = canais.join(", ");
       const { error, data } = await supabase
         .from("targets")
         .update({
-          canal_abordagem: canal.trim() || null,
+          canal_abordagem: canalStr || null,
           persona_lead: persona as never,
         })
         .eq("id", targetId)
@@ -100,20 +113,28 @@ export function ApproachStrategySection({
       <div className="space-y-2">
         <div>
           <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Canal de abordagem
+            Canais de abordagem
           </label>
-          <Input
-            value={canal}
-            onChange={(e) => setCanal(e.target.value)}
-            list={`channels-${targetId}`}
-            placeholder="Ex: Instagram DM, WhatsApp, formulário no site"
-            className="h-8 mt-1"
-          />
-          <datalist id={`channels-${targetId}`}>
-            {CHANNEL_OPTIONS.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {CHANNEL_OPTIONS.map((c) => {
+              const active = canais.includes(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleCanal(c)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    active
+                      ? "border-amber-600 bg-amber-600 text-white hover:bg-amber-700"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
