@@ -1,23 +1,7 @@
 import { useMemo } from "react";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  TARGET_STATUS_LABEL,
-  TARGET_STATUS_ORDER,
-  TARGET_STATUS_TOKEN,
-  type TargetStatus,
-} from "@/lib/target-status";
+import { useQuery } from "@tanstack/react-query";
 import { TargetCard } from "./target-card";
-import { targetsByMissionKey, updateTargetStatus, type Target } from "@/lib/targets.queries";
+import { type Target } from "@/lib/targets.queries";
 import { supabase } from "@/integrations/supabase/client";
 import {
   BLOCK_FIELDS,
@@ -27,11 +11,18 @@ import {
   indexCollectionRows,
   type CollectionRow,
 } from "@/lib/collection.queries";
+import {
+  TARGET_PHASE_META,
+  TARGET_PHASE_ORDER,
+  calcTargetPhase,
+  type TargetPhase,
+} from "@/lib/target-phase";
 
 const TOTAL_EXPECTED = COLLECTION_BLOCKS.reduce((s, b) => s + BLOCK_FIELDS[b].length, 0);
 type CompletionMap = Record<string, { percent: number; filled: number; total: number; completeBlocks: number }>;
+type RowsByTarget = Record<string, CollectionRow[]>;
 
-function useMissionCompletion(missionId: string): CompletionMap {
+function useMissionCollection(missionId: string): { completion: CompletionMap; rowsByTarget: RowsByTarget } {
   const { data = [] } = useQuery({
     queryKey: ["collection-data", "by-mission", missionId],
     queryFn: async () => {
@@ -44,17 +35,40 @@ function useMissionCompletion(missionId: string): CompletionMap {
     },
   });
   return useMemo(() => {
-    const byTarget: Record<string, CollectionRow[]> = {};
-    for (const r of data) (byTarget[r.target_id] ??= []).push(r);
-    const out: CompletionMap = {};
-    for (const [tid, rows] of Object.entries(byTarget)) {
+    const rowsByTarget: RowsByTarget = {};
+    for (const r of data) (rowsByTarget[r.target_id] ??= []).push(r);
+    const completion: CompletionMap = {};
+    for (const [tid, rows] of Object.entries(rowsByTarget)) {
       const percent = calcTargetCompletionPercent(rows);
       const filled = Object.values(countFilledFieldsByBlock(rows)).reduce((s, n) => s + n, 0);
       const idx = indexCollectionRows(rows);
       const completeBlocks = COLLECTION_BLOCKS.filter((b) => idx[b].block_status === "done").length;
-      out[tid] = { percent, filled, total: TOTAL_EXPECTED, completeBlocks };
+      completion[tid] = { percent, filled, total: TOTAL_EXPECTED, completeBlocks };
     }
-    return out;
+    return { completion, rowsByTarget };
+  }, [data]);
+}
+
+function useBriefsByTarget(missionId: string): Set<string> {
+  const { data = [] } = useQuery({
+    queryKey: ["document-versions", "briefs", "by-mission", missionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("document_versions")
+        .select("extracted_data")
+        .eq("mission_id", missionId)
+        .eq("doc_type", "competitor_brief");
+      if (error) throw error;
+      return (data ?? []) as { extracted_data: unknown }[];
+    },
+  });
+  return useMemo(() => {
+    const s = new Set<string>();
+    for (const r of data) {
+      const ed = r.extracted_data as { target_id?: string } | null;
+      if (ed?.target_id) s.add(ed.target_id);
+    }
+    return s;
   }, [data]);
 }
 
@@ -64,111 +78,84 @@ export function TargetKanban({
   missionId,
   targets,
   onOpenTarget,
-  readOnly = false,
 }: {
   missionId: string;
   targets: TargetWithAnalyst[];
   onOpenTarget: (id: string) => void;
   readOnly?: boolean;
 }) {
-  const qc = useQueryClient();
-  const completion = useMissionCompletion(missionId);
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: readOnly ? Number.MAX_SAFE_INTEGER : 5 },
-    }),
-  );
+  const { completion, rowsByTarget } = useMissionCollection(missionId);
+  const briefs = useBriefsByTarget(missionId);
 
-  const byStatus = useMemo(() => {
-    const map = new Map<TargetStatus, TargetWithAnalyst[]>();
-    for (const s of TARGET_STATUS_ORDER) map.set(s, []);
-    for (const t of targets) map.get(t.status)?.push(t);
+  const phaseByTarget = useMemo(() => {
+    const map: Record<string, TargetPhase> = {};
+    for (const t of targets) {
+      map[t.id] = calcTargetPhase(rowsByTarget[t.id] ?? [], {
+        briefGenerated: briefs.has(t.id),
+      });
+    }
     return map;
-  }, [targets]);
+  }, [targets, rowsByTarget, briefs]);
 
-  const mutation = useMutation({
-    mutationFn: (vars: { id: string; to: TargetStatus; from: TargetStatus }) =>
-      updateTargetStatus(vars.id, vars.to, vars.from, missionId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) }),
-    onError: (e: Error) => {
-      toast.error(e.message);
-      qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
-    },
-  });
-
-  function handleDragEnd(event: DragEndEvent) {
-    if (readOnly) return;
-    const { active, over } = event;
-    if (!over) return;
-    const targetId = String(active.id);
-    const overId = String(over.id);
-    const moved = targets.find((t) => t.id === targetId);
-    if (!moved) return;
-    // over.id is either a column id (status) or another card id
-    const toStatus = (TARGET_STATUS_ORDER as string[]).includes(overId)
-      ? (overId as TargetStatus)
-      : targets.find((t) => t.id === overId)?.status;
-    if (!toStatus || toStatus === moved.status) return;
-    mutation.mutate({ id: targetId, to: toStatus, from: moved.status });
-  }
+  const byPhase = useMemo(() => {
+    const map = new Map<TargetPhase, TargetWithAnalyst[]>();
+    for (const p of TARGET_PHASE_ORDER) map.set(p, []);
+    for (const t of targets) map.get(phaseByTarget[t.id] ?? "mapeamento")!.push(t);
+    return map;
+  }, [targets, phaseByTarget]);
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-3">
-        {TARGET_STATUS_ORDER.map((status) => (
-          <KanbanColumn
-            key={status}
-            status={status}
-            items={byStatus.get(status) ?? []}
-            onOpenTarget={onOpenTarget}
-            completion={completion}
-          />
-        ))}
-      </div>
-    </DndContext>
+    <div className="flex gap-3 overflow-x-auto pb-3">
+      {TARGET_PHASE_ORDER.map((phase) => (
+        <PhaseColumn
+          key={phase}
+          phase={phase}
+          items={byPhase.get(phase) ?? []}
+          onOpenTarget={onOpenTarget}
+          completion={completion}
+          phaseByTarget={phaseByTarget}
+        />
+      ))}
+    </div>
   );
 }
 
-function KanbanColumn({
-  status,
+function PhaseColumn({
+  phase,
   items,
   onOpenTarget,
   completion,
+  phaseByTarget,
 }: {
-  status: TargetStatus;
+  phase: TargetPhase;
   items: TargetWithAnalyst[];
   onOpenTarget: (id: string) => void;
   completion: CompletionMap;
+  phaseByTarget: Record<string, TargetPhase>;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
-  const token = TARGET_STATUS_TOKEN[status];
+  const meta = TARGET_PHASE_META[phase];
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex flex-col w-64 shrink-0 rounded-lg border border-border bg-surface/60 ${isOver ? "ring-2 ring-primary/40" : ""}`}
-    >
-      <div
-        className="px-3 py-2 rounded-t-lg border-b border-border flex items-center justify-between"
-        style={{ background: `var(--status-${token}-bg)`, color: `var(--status-${token}-fg)` }}
-      >
-        <span className="text-xs font-semibold leading-tight">{TARGET_STATUS_LABEL[status]}</span>
+    <div className="flex flex-col w-64 shrink-0 rounded-lg border border-border bg-surface/60">
+      <div className="px-3 py-2 rounded-t-lg border-b border-border flex items-center justify-between bg-muted/40">
+        <span className="text-xs font-semibold leading-tight">
+          {meta.icon} {meta.label}
+        </span>
         <span className="text-[11px] font-medium opacity-80">{items.length}</span>
       </div>
-      <SortableContext items={items.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 p-2 space-y-2 min-h-32">
-          {items.map((t) => (
-            <TargetCard
-              key={t.id}
-              target={t}
-              onClick={() => onOpenTarget(t.id)}
-              completion={completion[t.id] ?? { percent: 0, filled: 0, total: TOTAL_EXPECTED, completeBlocks: 0 }}
-            />
-          ))}
-          {items.length === 0 && (
-            <div className="text-[11px] text-muted-foreground text-center py-4 italic">vazio</div>
-          )}
-        </div>
-      </SortableContext>
+      <div className="flex-1 p-2 space-y-2 min-h-32">
+        {items.map((t) => (
+          <TargetCard
+            key={t.id}
+            target={t}
+            onClick={() => onOpenTarget(t.id)}
+            phase={phaseByTarget[t.id] ?? phase}
+            completion={completion[t.id] ?? { percent: 0, filled: 0, total: TOTAL_EXPECTED, completeBlocks: 0 }}
+          />
+        ))}
+        {items.length === 0 && (
+          <div className="text-[11px] text-muted-foreground text-center py-4 italic">vazio</div>
+        )}
+      </div>
     </div>
   );
 }

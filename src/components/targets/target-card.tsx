@@ -1,40 +1,28 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import type { Target } from "@/lib/targets.queries";
 import { PriorityBadge } from "./priority-badge";
 import { Instagram, Linkedin, Phone } from "lucide-react";
 import { COLLECTION_BLOCKS, BLOCK_FIELDS } from "@/lib/collection.queries";
+import { TargetPhasePipeline } from "./TargetPhasePipeline";
+import type { TargetPhase } from "@/lib/target-phase";
 
 export function TargetCard({
   target,
   onClick,
   completion,
+  phase,
 }: {
   target: Target & { analyst?: { full_name: string | null } | null };
   onClick?: () => void;
   completion?: { percent: number; filled: number; total: number; completeBlocks: number };
+  phase?: TargetPhase;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: target.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   const pct = completion?.percent ?? 0;
   const barColor = pct >= 71 ? "bg-emerald-500" : pct >= 31 ? "bg-amber-500" : "bg-red-500";
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
       onClick={onClick}
-      className="bg-card border border-border rounded-md p-3 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)] cursor-grab active:cursor-grabbing transition-shadow"
+      className="bg-card border border-border rounded-md p-3 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-elevated)] cursor-pointer transition-shadow"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-medium leading-tight truncate">{target.name}</div>
@@ -43,6 +31,7 @@ export function TargetCard({
       {target.brand && (
         <div className="text-xs text-muted-foreground mt-0.5 truncate">{target.brand}</div>
       )}
+      {phase && <TargetPhasePipeline phase={phase} />}
       {completion && (
         <div className="mt-2 space-y-1">
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">

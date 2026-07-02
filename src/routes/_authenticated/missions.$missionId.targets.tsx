@@ -58,7 +58,11 @@ function TargetsTab() {
           readOnly={readOnly}
         />
       ) : (
-        <TargetTable targets={targets ?? []} onOpenTarget={setOpenTargetId} />
+        <TargetTable
+          targets={targets ?? []}
+          onOpenTarget={setOpenTargetId}
+          missionId={missionId}
+        />
       )}
 
       <TargetDetailSheet
