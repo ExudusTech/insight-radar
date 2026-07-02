@@ -17,6 +17,78 @@ export const BLOCK_FIELDS: Record<CollectionBlock, string[]> = {
   G: ["pontos_fortes", "pontos_fracos", "diferenciais", "oportunidades"],
 };
 
+/**
+ * Campos OBRIGATÓRIOS: a analista sempre consegue preencher,
+ * independente de o concorrente cooperar ou responder.
+ * São o critério de suficiência para declarar coleta pronta.
+ */
+export const BLOCK_FIELDS_REQUIRED: Record<string, string[]> = {
+  A: ["canal_principal", "cta"],
+  B: ["resposta_tempo", "abordagem"],
+  C: ["produtos"],
+  D: ["depoimentos"],
+  E: ["qualidade_atendimento", "tom"],
+  F: [],
+  G: ["pontos_fortes", "pontos_fracos"],
+};
+
+/**
+ * Campos CONDICIONAIS: só existem se o concorrente avançar no funil.
+ * Se não preenchidos, registrar como "não obtido" na síntese.
+ */
+export const BLOCK_FIELDS_CONDITIONAL: Record<string, string[]> = {
+  A: ["promessa", "tipo_conteudo", "frequencia_posts", "seguidores"],
+  B: ["canal_contato", "script_inicial", "followup"],
+  C: ["preco", "condicoes", "urgencia", "garantia"],
+  D: ["cases", "resultados_mostrados"],
+  E: ["objecoes_tratadas"],
+  F: ["proposta_enviada", "materiais_descritos"],
+  G: ["diferenciais"],
+};
+
+/** Calcula se os campos obrigatórios estão suficientemente preenchidos */
+export function calcRequiredCompletion(rows: CollectionRow[]): {
+  totalRequired: number;
+  filledRequired: number;
+  percent: number;
+  missingRequired: string[];
+  readyForSynthesis: boolean;
+  filledByBlock: Record<string, Set<string>>;
+} {
+  const filledByBlock = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (!filledByBlock.has(row.block)) filledByBlock.set(row.block, new Set());
+    const val = String(row.field_value ?? "").trim();
+    if (val && val !== "null" && val !== "—" && val !== "não obtido") {
+      filledByBlock.get(row.block)!.add(row.field_key);
+    }
+  }
+
+  let totalRequired = 0;
+  let filledRequired = 0;
+  const missingRequired: string[] = [];
+
+  for (const [blk, fields] of Object.entries(BLOCK_FIELDS_REQUIRED)) {
+    for (const f of fields) {
+      totalRequired++;
+      if (filledByBlock.get(blk)?.has(f)) filledRequired++;
+      else missingRequired.push(`${blk}.${f}`);
+    }
+  }
+
+  const percent = totalRequired > 0 ? Math.round((filledRequired / totalRequired) * 100) : 0;
+  const filledObj: Record<string, Set<string>> = {};
+  filledByBlock.forEach((v, k) => (filledObj[k] = v));
+  return {
+    totalRequired,
+    filledRequired,
+    percent,
+    missingRequired,
+    readyForSynthesis: missingRequired.length === 0,
+    filledByBlock: filledObj,
+  };
+}
+
 export const BLOCK_TITLES: Record<CollectionBlock, string> = {
   A: "Pesquisa pública",
   B: "Primeiro contato",
@@ -126,10 +198,7 @@ export function countCompleteBlocks(rows: CollectionRow[]) {
 }
 
 export function calcTargetCompletionPercent(rows: CollectionRow[]): number {
-  const totalExpected = Object.values(BLOCK_FIELDS).reduce((s, f) => s + f.length, 0);
-  const filled = countFilledFieldsByBlock(rows);
-  const totalFilled = Object.values(filled).reduce((s, n) => s + n, 0);
-  return totalExpected > 0 ? Math.round((totalFilled / totalExpected) * 100) : 0;
+  return calcRequiredCompletion(rows).percent;
 }
 
 /** Formata "chave: valor" para exibir no notes do bloco. */
