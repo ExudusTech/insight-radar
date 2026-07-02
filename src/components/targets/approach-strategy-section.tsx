@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, ShieldAlert } from "lucide-react";
+import { Check, Loader2, Lock, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { cn } from "@/lib/utils";
