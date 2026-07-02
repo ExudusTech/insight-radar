@@ -687,3 +687,138 @@ ${targetSections || "(nenhum dado coletado ainda)"}
     });
     return { answer: text };
   });
+
+// ============================================================
+// Task 6 — Roteiro de reunião online (meeting script)
+// ============================================================
+
+const MeetingScriptInputSchema = z.object({
+  missionId: z.string().uuid(),
+  targetId: z.string().uuid(),
+});
+
+export const generateMeetingScript = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => MeetingScriptInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const [{ data: target }, { data: rows }] = await Promise.all([
+      supabase
+        .from("targets")
+        .select("name, brand, category, canal_abordagem, persona_lead")
+        .eq("id", data.targetId)
+        .single(),
+      supabase
+        .from("collection_data")
+        .select("block, field_key, field_value, notes")
+        .eq("target_id", data.targetId),
+    ]);
+    if (!target) throw new Error("Alvo não encontrado");
+
+    const allRows = rows ?? [];
+    const completion = calcRequiredCompletion(allRows);
+    const collected = allRows
+      .filter((r) => {
+        const v = r.field_value;
+        const hasVal = v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
+        return hasVal || (r.notes && String(r.notes).trim());
+      })
+      .map((r) => `${r.block}.${r.field_key}: ${r.field_value ?? r.notes}`)
+      .join("\n");
+
+    const missingRequiredText = completion.missingRequired.map((g) => `- ${g}`).join("\n") ||
+      "Nenhuma — coleta suficiente para síntese";
+    const conditionalText = Object.entries(BLOCK_FIELDS_CONDITIONAL)
+      .flatMap(([b, fs]) => fs.map((f) => `${b}.${f}`))
+      .join(", ");
+
+    const prompt = `Você é um estrategista de inteligência competitiva. Com base nas informações já coletadas sobre o concorrente, gere um roteiro estruturado para uma reunião/call de vendas conduzida por um analista disfarçado de lead.
+
+CONCORRENTE: ${target.name} ${target.brand ?? ""}
+PERSONA DO ANALISTA: ${JSON.stringify(target.persona_lead ?? {})}
+CANAL DE ABORDAGEM: ${target.canal_abordagem ?? "não definido"}
+
+JÁ COLETADO:
+${collected || "(nenhum dado coletado ainda)"}
+
+LACUNAS OBRIGATÓRIAS AINDA PENDENTES:
+${missingRequiredText}
+
+LACUNAS CONDICIONAIS (tentar obter naturalmente se o concorrente colaborar):
+${conditionalText}
+
+---
+
+Gere um roteiro com as seguintes seções:
+
+## 🎯 Objetivo da reunião
+[O que o analista deve extrair nessa call com base nos gaps]
+
+## 🧊 Quebra-gelo e contextualização
+[Como abrir a conversa de forma natural dentro da persona]
+
+## ❓ Perguntas para preencher lacunas obrigatórias
+[Lista de perguntas diretas mas naturais para cada gap obrigatório pendente]
+
+## 💬 Assuntos para provocar naturalmente
+[Tópicos que induzem o concorrente a revelar informações condicionais (preço, processo, materiais) sem perguntar diretamente]
+
+## 🎙️ Protocolo de transcrição (IMPORTANTE — ler antes da call)
+- Ao iniciar a call, o analista deve dizer: "Você se importa se eu usar o TacTiq para transcrever a reunião? Isso me ajuda a não precisar tomar notas enquanto conversamos."
+- Se o concorrente disser que já grava/transcreve por conta própria: "Ótimo! Você poderia me enviar a transcrição depois? Fica mais fácil para eu revisar os pontos que discutirmos."
+- Se o concorrente recusar ambos: conduzir normalmente e tomar notas no sistema imediatamente após a call.
+
+## 🚩 Sinais a observar
+[Comportamentos, hesitações, scripts, gatilhos de urgência ou escassez que o analista deve documentar]
+
+## ✅ Checklist pós-call
+[O que o analista deve registrar no sistema imediatamente após encerrar a reunião]`;
+
+    const { text: scriptContent } = await callLLM({
+      task: "assistant",
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 3072,
+    });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: last } = await supabaseAdmin
+      .from("document_versions")
+      .select("version_number")
+      .eq("mission_id", data.missionId)
+      .eq("doc_type", "meeting_script")
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = (last?.version_number ?? 0) + 1;
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("document_versions")
+      .insert({
+        mission_id: data.missionId,
+        doc_type: "meeting_script",
+        doc_label: `Roteiro de reunião — ${target.name}`,
+        file_name: `roteiro-reuniao-${target.name.replace(/\s+/g, "-").toLowerCase()}-v${nextVersion}.md`,
+        version_number: nextVersion,
+        author_id: context.userId,
+        extracted_data: { target_id: data.targetId, target_name: target.name, content: scriptContent },
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    // Persist as assistant message so it appears in the chat thread
+    const chatContent = `[ROTEIRO DE REUNIÃO]\n\n${scriptContent}`;
+    const { error: msgErr } = await supabaseAdmin.from("assistant_messages").insert({
+      mission_id: data.missionId,
+      target_id: data.targetId,
+      block: "all",
+      analyst_id: context.userId,
+      role: "assistant",
+      content: chatContent,
+    });
+    if (msgErr) console.warn("[meetingScript] failed to persist chat message", msgErr);
+
+    return { script: scriptContent, documentId: inserted.id };
+  });
