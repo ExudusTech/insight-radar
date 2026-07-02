@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callLLM, type LLMContentBlock, type LLMMessage } from "@/lib/llm-router";
-import { BLOCK_FIELDS, BLOCK_TITLES, COLLECTION_BLOCKS } from "@/lib/collection.queries";
+import {
+  BLOCK_FIELDS,
+  BLOCK_FIELDS_CONDITIONAL,
+  BLOCK_TITLES,
+  COLLECTION_BLOCKS,
+  calcRequiredCompletion,
+} from "@/lib/collection.queries";
 
 const InputSchema = z.object({
   missionId: z.string().uuid(),
@@ -104,25 +110,40 @@ export const missionAssistant = createServerFn({ method: "POST" })
       if (!filled[row.block]) filled[row.block] = new Set();
       filled[row.block].add(row.field_key);
     }
-    const gaps: string[] = [];
     const filledSummary: string[] = [];
     for (const blk of COLLECTION_BLOCKS) {
-      const fs = BLOCK_FIELDS[blk] ?? [];
-      const done: string[] = [];
-      const pend: string[] = [];
-      for (const f of fs) {
-        if (filled[blk]?.has(f)) done.push(f);
-        else pend.push(f);
+      const done = Array.from(filled[blk] ?? []);
+      if (done.length > 0) {
+        filledSummary.push(`${blk} (${BLOCK_TITLES[blk]}): ${done.join(", ")}`);
       }
-      if (done.length > 0) filledSummary.push(`${blk} (${BLOCK_TITLES[blk]}): ${done.join(", ")}`);
-      for (const p of pend) gaps.push(`${blk}.${p}`);
     }
-    const gapsSummary = gaps.length > 0
-      ? `\nLACUNAS AINDA PENDENTES (${gaps.length}):\n${gaps.map((g) => `- ${g}`).join("\n")}`
-      : "\nTODOS OS CAMPOS ESTÃO PREENCHIDOS — pronto para síntese final.";
     const filledBlock = filledSummary.length > 0
       ? `\nJÁ COLETADO:\n${filledSummary.map((s) => `- ${s}`).join("\n")}`
       : "\nJÁ COLETADO: (nada ainda)";
+
+    const completion = calcRequiredCompletion(filledRows ?? []);
+    const requiredGaps = completion.missingRequired.map((g) => {
+      const [blk, field] = g.split(".");
+      return `- ${blk} (${BLOCK_TITLES[blk as keyof typeof BLOCK_TITLES]}): ${field?.replace(/_/g, " ")}`;
+    });
+    const hasContact = (filled["B"]?.size ?? 0) > 0;
+    const conditionalGaps: string[] = [];
+    if (hasContact) {
+      for (const [blk, fields] of Object.entries(BLOCK_FIELDS_CONDITIONAL)) {
+        for (const f of fields) {
+          if (!filled[blk]?.has(f)) {
+            conditionalGaps.push(`- ${blk} (${BLOCK_TITLES[blk as keyof typeof BLOCK_TITLES]}): ${f.replace(/_/g, " ")}`);
+          }
+        }
+      }
+    }
+    const gapsSummary = completion.readyForSynthesis
+      ? `\n✅ CAMPOS OBRIGATÓRIOS COMPLETOS (${completion.filledRequired}/${completion.totalRequired}). Este concorrente está PRONTO PARA SÍNTESE. Ao final desta mensagem, informe a analista que pode digitar "síntese" para gerar o parecer final.`
+      : `\nCOMPLETUDE: ${completion.percent}% dos campos obrigatórios preenchidos (${completion.filledRequired}/${completion.totalRequired}).
+
+LACUNAS OBRIGATÓRIAS (${requiredGaps.length} — sempre coletáveis):
+${requiredGaps.join("\n")}
+${hasContact && conditionalGaps.length > 0 ? `\nLACUNAS CONDICIONAIS (${conditionalGaps.length} — só se o concorrente cooperar):\n${conditionalGaps.join("\n")}` : ""}`;
 
     const isResuming = data.conversationHistory.length > 0 && !data.userMessage && !data.imageBase64;
 
@@ -175,8 +196,10 @@ Abra a resposta assim:
 Não repita perguntas cujas respostas já estão em JÁ COLETADO.` : ""}
 
 AO FINAL DE CADA RESPOSTA (antes do ---BLOCK_DATA---):
-- Se ainda há lacunas: escreva "📋 **Pendências:** ainda faltam ${gaps.length} campos. Próximo passo: [instrução específica para o campo mais crítico pendente]."
-- Se não há lacunas: escreva "✅ **Coleta completa!** Todos os campos foram preenchidos. Digite 'síntese' para gerar o parecer final."
+- Se campos obrigatórios ainda faltam: "📋 **Completude:** ${completion.percent}% — faltam ${completion.missingRequired.length} campos obrigatórios. Próxima ação: [instrução para o campo mais prioritário pendente]."
+- IMPORTANTE: campos condicionais (preço, materiais, follow-up) só solicite se o concorrente já tiver demonstrado engajamento. Se não houve resposta após 2+ tentativas, registre como "não obtido" e avance para os campos de experiência do lead, que a analista sempre pode preencher.
+- Se todos os obrigatórios preenchidos: "✅ **Coleta suficiente para análise!** Todos os campos essenciais foram preenchidos. Digite 'síntese' para gerar o parecer — campos condicionais ainda em aberto serão registrados como 'dado não obtido' e isso é informação válida."
+- NUNCA sugira uma nova rodada de tentativas de contato se o concorrente já ignorou 3+ interações. Registre como "sem resposta após múltiplas tentativas" e finalize o bloco B.
 
 SÍNTESE FINAL:
 Quando a analista pedir "síntese", "parecer", "resumo final", "finalizar" ou "gerar parecer":

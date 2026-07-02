@@ -15,12 +15,14 @@ import {
 import { missionAssistant, processAssistantHistory, generateCompetitorBrief } from "@/lib/mission-assistant.functions";
 import {
   BLOCK_FIELDS,
+  BLOCK_FIELDS_REQUIRED,
   BLOCK_TITLES,
   COLLECTION_BLOCKS,
   collectionByTargetKey,
   countFilledFieldsByBlock,
   listCollectionByTarget,
   applyBlockUpdatesFromAssistant,
+  calcRequiredCompletion,
   type CollectionBlock,
 } from "@/lib/collection.queries";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
@@ -110,6 +112,7 @@ export function MissionAssistantPanel({
     queryFn: () => listCollectionByTarget(targetId),
   });
   const filledByBlock = countFilledFieldsByBlock(collectionRows);
+  const requiredCompletion = calcRequiredCompletion(collectionRows);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -322,7 +325,28 @@ export function MissionAssistantPanel({
         )}
       </div>
 
-      <BlockProgress filled={filledByBlock} />
+      <BlockProgress filled={filledByBlock} required={requiredCompletion.filledByBlock} />
+      <div className="px-3 py-2 border-b">
+        <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+          <span>Campos essenciais</span>
+          <span>
+            {requiredCompletion.percent}% ({requiredCompletion.filledRequired}/{requiredCompletion.totalRequired})
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn(
+              "h-full transition-all",
+              requiredCompletion.percent >= 100
+                ? "bg-emerald-500"
+                : requiredCompletion.percent >= 50
+                  ? "bg-amber-500"
+                  : "bg-red-500",
+            )}
+            style={{ width: `${requiredCompletion.percent}%` }}
+          />
+        </div>
+      </div>
 
       {messages.length > 0 && (
         <div className="px-3 py-2 border-b">
@@ -503,25 +527,36 @@ export function MissionAssistantPanel({
   );
 }
 
-function BlockProgress({ filled }: { filled: Record<string, number> }) {
+function BlockProgress({
+  filled,
+  required,
+}: {
+  filled: Record<string, number>;
+  required: Record<string, Set<string>>;
+}) {
   return (
     <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b bg-muted/20">
       {COLLECTION_BLOCKS.map((b) => {
         const total = BLOCK_FIELDS[b].length;
         const got = filled[b] ?? 0;
-        const done = got >= total;
+        const reqFields = BLOCK_FIELDS_REQUIRED[b] ?? [];
+        const reqFilled = reqFields.filter((f) => required[b]?.has(f)).length;
+        const reqDone = reqFields.length > 0 && reqFilled === reqFields.length;
+        const reqPartial = reqFilled > 0 && !reqDone;
         const started = got > 0;
         return (
           <div
             key={b}
-            title={`Bloco ${b} — ${BLOCK_TITLES[b]} (${got}/${total})`}
+            title={`${b} — ${BLOCK_TITLES[b]} · essenciais ${reqFilled}/${reqFields.length} · total ${got}/${total}`}
             className={cn(
               "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-              done
+              reqDone
                 ? "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
-                : started
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-muted-foreground/20 text-muted-foreground",
+                : reqPartial
+                  ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                  : started
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-muted-foreground/20 text-muted-foreground",
             )}
           >
             <span className="font-mono">{b}</span>
