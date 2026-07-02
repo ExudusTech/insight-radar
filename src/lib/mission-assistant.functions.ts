@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callLLM, type LLMContentBlock } from "@/lib/llm-router";
+import { callLLM, type LLMContentBlock, type LLMMessage } from "@/lib/llm-router";
 import { BLOCK_FIELDS, BLOCK_TITLES, COLLECTION_BLOCKS } from "@/lib/collection.queries";
 
 const InputSchema = z.object({
