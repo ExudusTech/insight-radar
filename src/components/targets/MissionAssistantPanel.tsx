@@ -114,6 +114,11 @@ export function MissionAssistantPanel({
     queryKey: collectionByTargetKey(targetId),
     queryFn: () => listCollectionByTarget(targetId),
   });
+  const { data: targetData } = useQuery({
+    queryKey: targetDetailKey(targetId),
+    queryFn: () => getTarget(targetId),
+  });
+  const canalAbordagem = (targetData as { canal_abordagem?: string | null } | null | undefined)?.canal_abordagem;
   const filledByBlock = countFilledFieldsByBlock(collectionRows);
   const requiredCompletion = calcRequiredCompletion(collectionRows);
 
