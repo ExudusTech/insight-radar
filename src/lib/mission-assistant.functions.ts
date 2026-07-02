@@ -80,7 +80,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
     const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
-        .select("name, objective, segment")
+        .select("name, objective, segment, canais_obrigatorios")
         .eq("id", data.missionId)
         .single(),
       supabase
@@ -192,9 +192,17 @@ LinkedIn: ${target.linkedin ?? "—"}
 WhatsApp: ${target.whatsapp ?? "—"}
 
 ESTRATÉGIA DE ABORDAGEM DESTE CONCORRENTE:
-${(target as { canal_abordagem?: string | null }).canal_abordagem
-  ? `Canal designado: ${(target as { canal_abordagem?: string | null }).canal_abordagem} — use EXCLUSIVAMENTE este canal para iniciar e, sempre que possível, manter o contato. Se o concorrente tentar migrar para outro canal, documente (canal_continuidade) mas não inicie contatos paralelos no canal original.`
-  : "Canal de abordagem não definido — confirme com o superadmin antes de iniciar."}
+${(() => {
+  const canal = (target as { canal_abordagem?: string | null }).canal_abordagem;
+  const obrig = (mission as { canais_obrigatorios?: string[] | null }).canais_obrigatorios;
+  if (canal) {
+    return `Canal designado: ${canal} — use EXCLUSIVAMENTE este canal para iniciar e, sempre que possível, manter o contato. Se o concorrente tentar migrar para outro canal, documente (canal_continuidade) mas não inicie contatos paralelos no canal original.`;
+  }
+  if (obrig && obrig.length > 0) {
+    return `Canal não definido especificamente para este alvo. Canais obrigatórios da missão: ${obrig.join(", ")}. Use esses como referência ao orientar o analista, e registre por qual canal o concorrente respondeu (canal_entrada).`;
+  }
+  return "Canal não definido. Oriente o analista a identificar e registrar por qual canal o concorrente se expõe antes de iniciar a abordagem.";
+})()}
 ${(() => {
   const p = (target as { persona_lead?: unknown }).persona_lead;
   if (!p || (typeof p === "object" && Object.keys(p as object).length === 0)) return "";
