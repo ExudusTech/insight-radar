@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/document-versions.queries";
 import { extractMissionDocument } from "@/lib/document-versions.functions";
 import { missionBriefingAssistant, type BriefingScope } from "@/lib/mission-briefing.functions";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/missions/new")({
@@ -188,6 +189,10 @@ function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { listening, start: startMic, stop: stopMic } = useSpeechRecognition((text) => {
+    setInput((prev) => (prev ? prev + " " + text : text));
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  });
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -268,6 +273,17 @@ function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
               disabled={pending || !!createdId}
               className="resize-none flex-1"
             />
+            <Button
+              type="button"
+              variant={listening ? "destructive" : "outline"}
+              size="icon"
+              className="h-10 w-10"
+              onClick={listening ? stopMic : startMic}
+              disabled={pending || !!createdId}
+              title={listening ? "Parar gravação" : "Falar (pt-BR)"}
+            >
+              {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
             <Button onClick={send} disabled={pending || !input.trim() || !!createdId} size="icon" className="h-10 w-10">
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
