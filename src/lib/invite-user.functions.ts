@@ -2,6 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const inputSchema = z.object({
   email: z.string().email(),
   full_name: z.string().min(1),
@@ -84,6 +93,9 @@ export const inviteUser = createServerFn({ method: "POST" })
 
       const roleLabel =
         data.role === "superadmin" ? "Superadmin" : data.role === "contractor" ? "Cliente" : "Analista";
+      const safeName = escapeHtml(data.full_name);
+      const safeRole = escapeHtml(roleLabel);
+      const safeLink = escapeHtml(actionLink);
 
       const html = `
         <div style="font-family:'DM Sans',Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#ffffff;color:#0f0f0f;">
@@ -91,19 +103,19 @@ export const inviteUser = createServerFn({ method: "POST" })
             Bem-vindo(a) ao ExudusTech Insights Radar
           </h1>
           <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">
-            Olá <strong>${data.full_name}</strong>, sua conta foi criada com o perfil <strong>${roleLabel}</strong>.
+            Olá <strong>${safeName}</strong>, sua conta foi criada com o perfil <strong>${safeRole}</strong>.
           </p>
           <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">
             Para definir sua senha e acessar a plataforma, clique no botão abaixo:
           </p>
           <p style="text-align:center;margin:24px 0;">
-            <a href="${actionLink}" style="display:inline-block;background:#c8102e;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">
+            <a href="${safeLink}" style="display:inline-block;background:#c8102e;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;">
               Definir senha e acessar
             </a>
           </p>
           <p style="font-size:13px;color:#666;line-height:1.6;margin:24px 0 0;">
             Se o botão não funcionar, copie e cole este link no navegador:<br/>
-            <span style="word-break:break-all;color:#c8102e;">${actionLink}</span>
+            <span style="word-break:break-all;color:#c8102e;">${safeLink}</span>
           </p>
           <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
           <p style="font-size:12px;color:#999;margin:0;">
