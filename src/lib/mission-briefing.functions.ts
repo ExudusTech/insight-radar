@@ -30,6 +30,20 @@ FLUXO DA CONVERSA (uma pergunta por vez, adaptando-se às respostas):
 5. Prazo — data limite para entrega.
 6. Restrições — algo que o analista não deve fazer ou prioridade absoluta.
 
+A cada resposta sua, no final da mensagem (após o texto conversacional), inclua SEMPRE um bloco de escopo com o que já foi coletado até agora (pode ter campos vazios). Este bloco é oculto para o usuário — não o comente na mensagem. Formato exato:
+
+---ESCOPO---
+{
+  "objetivo": "texto ou vazio",
+  "concorrentes": ["nome1", "nome2"],
+  "cobertura_canais": "360|selecionado|",
+  "canais_obrigatorios": ["Instagram DM"],
+  "profundidade": "observacao|contato|qualificacao|reuniao|contratacao|",
+  "prazo": "YYYY-MM-DD ou vazio",
+  "restricoes": "texto ou vazio"
+}
+---/ESCOPO---
+
 REGRAS:
 - Seja conversacional e direto. Aceite respostas incompletas e peça complemento suavemente.
 - Infira categoria dos concorrentes pelo contexto.
@@ -86,6 +100,29 @@ function extractCreateBlock(text: string): { cleanText: string; payload: Mission
   }
 }
 
+export type BriefingScope = {
+  objetivo?: string;
+  concorrentes?: string[];
+  cobertura_canais?: string;
+  canais_obrigatorios?: string[];
+  profundidade?: string;
+  prazo?: string;
+  restricoes?: string;
+};
+
+function extractScopeBlock(text: string): { cleanText: string; scope: BriefingScope | null } {
+  const re = /---ESCOPO---([\s\S]*?)---\/ESCOPO---/;
+  const m = text.match(re);
+  if (!m) return { cleanText: text, scope: null };
+  let raw = m[1].trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    const scope = JSON.parse(raw) as BriefingScope;
+    return { cleanText: text.replace(re, "").trim(), scope };
+  } catch {
+    return { cleanText: text.replace(re, "").trim(), scope: null };
+  }
+}
+
 function isValidDate(d?: string | null): d is string {
   if (!d) return false;
   return /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -102,10 +139,11 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       maxTokens: 1800,
     });
 
-    const { cleanText, payload } = extractCreateBlock(text);
+    const { cleanText: t1, payload } = extractCreateBlock(text);
+    const { cleanText, scope } = extractScopeBlock(t1);
 
     if (!payload) {
-      return { text: cleanText || text, missionCreated: false as const };
+      return { text: cleanText || text, missionCreated: false as const, scope };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -166,6 +204,7 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       text: cleanText || "Missão criada com sucesso!",
       missionCreated: true as const,
       missionId: mission.id,
+      scope,
       preview: {
         title: payload.title ?? null,
         description: payload.description ?? null,
