@@ -23,9 +23,12 @@ export function MissionForm() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
 
+  const isContractor = user?.role === "contractor";
+
   const { data: contractors = [] } = useQuery({
     queryKey: ["profiles", "role", "contractor"],
     queryFn: () => listProfilesWithRole("contractor"),
+    enabled: !isContractor,
   });
   const { data: analysts = [] } = useQuery({
     queryKey: ["profiles", "role", "analyst"],
@@ -37,7 +40,7 @@ export function MissionForm() {
     description: "",
     objective: "",
     segment: "",
-    contractor_id: "",
+    contractor_id: isContractor ? user!.id : "",
     product_id: "",
     deadline_first: "",
     deadline_final: "",
@@ -131,6 +134,13 @@ export function MissionForm() {
         <h2 className="text-base font-semibold">Atribuições</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Cliente principal / Responsável">
+            {isContractor ? (
+              <Input
+                value={user?.profile?.full_name || user?.email || "Você"}
+                disabled
+                readOnly
+              />
+            ) : (
             <Select value={form.contractor_id} onValueChange={(v) => setForm({ ...form, contractor_id: v })}>
               <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
               <SelectContent>
@@ -144,6 +154,7 @@ export function MissionForm() {
                 ))}
               </SelectContent>
             </Select>
+            )}
           </Field>
           <Field label="Produto / Serviço analisado">
             {!form.contractor_id ? (
@@ -164,28 +175,30 @@ export function MissionForm() {
               </Select>
             )}
           </Field>
-          <Field label="Acesso adicional (outros usuários do cliente)">
-            <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
-              {contractors.filter((c) => c.id !== form.contractor_id).length === 0 && (
-                <div className="text-xs text-muted-foreground p-2">Nenhum outro cliente disponível</div>
-              )}
-              {contractors
-                .filter((c) => c.id !== form.contractor_id)
-                .map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={selectedContractors.includes(c.id)}
-                      onCheckedChange={(v) =>
-                        setSelectedContractors((prev) =>
-                          v ? [...prev, c.id] : prev.filter((id) => id !== c.id),
-                        )
-                      }
-                    />
-                    <span className="truncate">{c.full_name || c.email}</span>
-                  </label>
-                ))}
-            </div>
-          </Field>
+          {!isContractor && (
+            <Field label="Acesso adicional (outros usuários do cliente)">
+              <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
+                {contractors.filter((c) => c.id !== form.contractor_id).length === 0 && (
+                  <div className="text-xs text-muted-foreground p-2">Nenhum outro cliente disponível</div>
+                )}
+                {contractors
+                  .filter((c) => c.id !== form.contractor_id)
+                  .map((c) => (
+                    <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={selectedContractors.includes(c.id)}
+                        onCheckedChange={(v) =>
+                          setSelectedContractors((prev) =>
+                            v ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                          )
+                        }
+                      />
+                      <span className="truncate">{c.full_name || c.email}</span>
+                    </label>
+                  ))}
+              </div>
+            </Field>
+          )}
           <Field label="Analistas atribuídos">
             <div className="rounded-md border border-border p-2 max-h-40 overflow-y-auto space-y-1.5">
               {analysts.length === 0 && (
