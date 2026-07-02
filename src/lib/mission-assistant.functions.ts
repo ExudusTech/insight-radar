@@ -182,6 +182,19 @@ Instagram: ${target.instagram ?? "—"}
 LinkedIn: ${target.linkedin ?? "—"}
 WhatsApp: ${target.whatsapp ?? "—"}
 
+ESTRATÉGIA DE ABORDAGEM DESTE CONCORRENTE:
+${(target as { canal_abordagem?: string | null }).canal_abordagem
+  ? `Canal designado: ${(target as { canal_abordagem?: string | null }).canal_abordagem} — use EXCLUSIVAMENTE este canal para iniciar e, sempre que possível, manter o contato. Se o concorrente tentar migrar para outro canal, documente (canal_continuidade) mas não inicie contatos paralelos no canal original.`
+  : "Canal de abordagem não definido — confirme com o superadmin antes de iniciar."}
+${(() => {
+  const p = (target as { persona_lead?: unknown }).persona_lead;
+  if (!p || (typeof p === "object" && Object.keys(p as object).length === 0)) return "";
+  const rendered = typeof p === "string" ? p : JSON.stringify(p, null, 2);
+  return `Persona fictícia em uso: ${rendered} — mantenha consistência com esses dados em todas as interações com este concorrente.`;
+})()}
+
+ALERTA OPERACIONAL: O analista está abordando múltiplos concorrentes em paralelo. Manter canais e personas distintas por concorrente reduz o risco de exposição. Nunca use o mesmo número de WhatsApp ou perfil de Instagram para dois concorrentes diferentes.
+
 BLOCOS E CAMPOS QUE VOCÊ DEVE PREENCHER (uma única conversa cobre TODOS):
 ${buildBlocksSchemaSection()}
 ${filledBlock}
