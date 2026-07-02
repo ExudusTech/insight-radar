@@ -235,11 +235,13 @@ export async function applyBlockUpdatesFromAssistant(params: {
   const indexed = indexCollectionRows(existing);
   let totalFields = 0;
   let firstError: unknown = null;
+  const blocksUpdated: CollectionBlock[] = [];
 
   for (const [blk, fields] of Object.entries(blockUpdates)) {
     if (!COLLECTION_BLOCKS.includes(blk as CollectionBlock)) continue;
     if (!fields || typeof fields !== "object") continue;
     const block = blk as CollectionBlock;
+    let blockHadField = false;
 
     // 1) upsert dos campos granulares
     for (const [fieldKey, value] of Object.entries(fields)) {
@@ -255,11 +257,13 @@ export async function applyBlockUpdatesFromAssistant(params: {
           userId,
         });
         totalFields++;
+        blockHadField = true;
       } catch (e) {
         console.error("[applyBlockUpdates] upsert field failed", block, fieldKey, e);
         if (!firstError) firstError = e;
       }
     }
+    if (blockHadField) blocksUpdated.push(block);
 
     // 2) merge no notes (visível na aba Coleta)
     const currentNotes = indexed[block]?.notes ?? "";
@@ -305,6 +309,37 @@ export async function applyBlockUpdatesFromAssistant(params: {
   }
   console.log("[applyBlockUpdates] totalFields upserted:", totalFields);
   if (firstError && totalFields === 0) throw firstError;
+
+  // Auto-promote block_status → 'done' quando todos os obrigatórios do bloco estiverem preenchidos
+  if (blocksUpdated.length > 0) {
+    try {
+      const refreshed = await listCollectionByTarget(targetId);
+      const filledByBlock = new Map<string, Set<string>>();
+      for (const row of refreshed) {
+        const val = String(row.field_value ?? "").trim();
+        if (!val || val === "null" || val === "—" || val === "não obtido") continue;
+        if (!filledByBlock.has(row.block)) filledByBlock.set(row.block, new Set());
+        filledByBlock.get(row.block)!.add(row.field_key);
+      }
+      for (const blk of new Set(blocksUpdated)) {
+        const required = BLOCK_FIELDS_REQUIRED[blk] ?? [];
+        if (required.length === 0) continue;
+        const filled = filledByBlock.get(blk) ?? new Set<string>();
+        const allFilled = required.every((f) => filled.has(f));
+        if (!allFilled) continue;
+        const currentStatus = String(
+          refreshed.find((r) => r.block === blk && r.field_key === "block_status")?.field_value ?? "not_started",
+        );
+        if (currentStatus === "done") continue;
+        await upsertCollectionField({
+          missionId, targetId, block: blk, fieldKey: "block_status",
+          value: "done", userId,
+        });
+      }
+    } catch (e) {
+      console.warn("[applyBlockUpdates] auto-complete block_status failed", e);
+    }
+  }
 
   if (totalFields > 0) {
     try {
