@@ -89,7 +89,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
         .eq("status", "frozen"),
       supabase
         .from("targets")
-        .select("name, brand, category, site, instagram, linkedin, whatsapp, email")
+        .select("name, brand, category, site, instagram, linkedin, whatsapp, email, canal_abordagem, persona_lead")
         .eq("id", data.targetId)
         .single(),
       supabase
