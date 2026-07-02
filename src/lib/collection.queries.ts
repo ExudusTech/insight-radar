@@ -9,7 +9,17 @@ export const COLLECTION_BLOCKS: CollectionBlock[] = ["A", "B", "C", "D", "E", "F
 /** Campos estruturados que o assistente identifica e preenche automaticamente. */
 export const BLOCK_FIELDS: Record<CollectionBlock, string[]> = {
   A: ["canal_principal", "promessa", "tipo_conteudo", "cta", "frequencia_posts", "seguidores"],
-  B: ["canal_contato", "resposta_tempo", "nome_atendente", "abordagem", "script_inicial"],
+  B: [
+    "canal_contato",
+    "resposta_tempo",
+    "nome_atendente",
+    "abordagem",
+    "script_inicial",
+    "canal_entrada",
+    "canal_continuidade",
+    "tipo_continuidade",
+    "coerencia_canal",
+  ],
   C: ["produtos", "preco", "condicoes", "urgencia", "garantia", "upsell"],
   D: ["depoimentos", "cases", "resultados_mostrados", "metricas_sociais"],
   E: ["qualidade_atendimento", "objecoes_tratadas", "followup", "tom"],
@@ -24,7 +34,7 @@ export const BLOCK_FIELDS: Record<CollectionBlock, string[]> = {
  */
 export const BLOCK_FIELDS_REQUIRED: Record<string, string[]> = {
   A: ["canal_principal", "cta"],
-  B: ["resposta_tempo", "abordagem"],
+  B: ["resposta_tempo", "abordagem", "canal_entrada"],
   C: ["produtos"],
   D: ["depoimentos"],
   E: ["qualidade_atendimento", "tom"],
@@ -38,7 +48,7 @@ export const BLOCK_FIELDS_REQUIRED: Record<string, string[]> = {
  */
 export const BLOCK_FIELDS_CONDITIONAL: Record<string, string[]> = {
   A: ["promessa", "tipo_conteudo", "frequencia_posts", "seguidores"],
-  B: ["canal_contato", "script_inicial", "followup"],
+  B: ["canal_contato", "script_inicial", "followup", "canal_continuidade", "tipo_continuidade", "coerencia_canal"],
   C: ["preco", "condicoes", "urgencia", "garantia"],
   D: ["cases", "resultados_mostrados"],
   E: ["objecoes_tratadas"],
