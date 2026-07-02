@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Check, Loader2, ShieldAlert } from "lucide-react";
+import { Check, Loader2, Lock, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { cn } from "@/lib/utils";
@@ -41,10 +41,12 @@ export function ApproachStrategySection({
   targetId,
   canalAbordagem,
   personaLead,
+  readonly,
 }: {
   targetId: string;
   canalAbordagem: string | null;
   personaLead: unknown;
+  readonly?: boolean;
 }) {
   const qc = useQueryClient();
   const initialPersona = parsePersona(personaLead);
@@ -64,6 +66,43 @@ export function ApproachStrategySection({
     setNome(p.nome ?? "");
     setContexto(p.contexto ?? "");
   }, [targetId, canalAbordagem, personaLead]);
+
+  if (readonly) {
+    const personaNome = parsePersona(personaLead).nome ?? nome;
+    const personaContexto = parsePersona(personaLead).contexto ?? contexto;
+    return (
+      <div className="space-y-3 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 p-4">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-amber-600" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Estratégia de abordagem
+          </h3>
+          <Lock className="h-3 w-3 text-muted-foreground ml-auto" />
+        </div>
+        {canalAbordagem ? (
+          <div className="flex flex-wrap gap-1.5">
+            {parseCanais(canalAbordagem).map((c) => (
+              <span
+                key={c}
+                className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground italic">Canais não definidos no briefing.</p>
+        )}
+        {(personaNome || personaContexto) && (
+          <div className="text-[11px] text-muted-foreground">
+            <span className="font-medium">Persona:</span>{" "}
+            {personaNome}
+            {personaContexto ? ` — ${personaContexto}` : ""}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const toggleCanal = (canal: string) => {
     setCanais((prev) =>
