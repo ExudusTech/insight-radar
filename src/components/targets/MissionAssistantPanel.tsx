@@ -366,6 +366,18 @@ export function MissionAssistantPanel({
         </div>
       </div>
 
+      {!canalAbordagem && (
+        <div className="px-3 pt-3">
+          <Alert className="border-amber-500/50 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-amber-600 dark:text-amber-400 text-sm">
+              Canal de abordagem não definido para este alvo. A IA usará orientações gerais da missão.
+              {user?.role === "superadmin" && " Configure os canais na aba Visão Geral."}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {messages.length > 0 && (
         <div className="px-3 py-2 border-b">
           <div className="flex flex-col sm:flex-row gap-2">
