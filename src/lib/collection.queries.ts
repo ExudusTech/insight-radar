@@ -47,7 +47,7 @@ export const BLOCK_FIELDS_CONDITIONAL: Record<string, string[]> = {
 };
 
 /** Calcula se os campos obrigatórios estão suficientemente preenchidos */
-export function calcRequiredCompletion(rows: CollectionRow[]): {
+export function calcRequiredCompletion(rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>): {
   totalRequired: number;
   filledRequired: number;
   percent: number;
