@@ -12,7 +12,7 @@ import {
   listAssistantMessages,
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
-import { missionAssistant, processAssistantHistory } from "@/lib/mission-assistant.functions";
+import { missionAssistant, processAssistantHistory, generateCompetitorBrief } from "@/lib/mission-assistant.functions";
 import {
   BLOCK_FIELDS,
   BLOCK_TITLES,
@@ -91,6 +91,7 @@ export function MissionAssistantPanel({
   const { data: user } = useCurrentUser();
   const callAssistant = useServerFn(missionAssistant);
   const callProcessHistory = useServerFn(processAssistantHistory);
+  const callGenerateBrief = useServerFn(generateCompetitorBrief);
   const [input, setInput] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -261,6 +262,13 @@ export function MissionAssistantPanel({
   );
   const researchDone = !!lastAssistant?.content?.includes("✅ Pesquisa concluída");
   const evidenceRequested = !!lastAssistant?.content?.includes("📸 Evidência necessária");
+  const synthesisReady = !!lastAssistant?.content?.includes("## Perfil do Concorrente");
+
+  const briefMut = useMutation({
+    mutationFn: () => callGenerateBrief({ data: { missionId, targetId } }),
+    onSuccess: () => toast.success("Parecer salvo em Documentos da missão."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao salvar parecer"),
+  });
 
   const handleSend = () => {
     if (sendMut.isPending) return;
@@ -342,6 +350,24 @@ export function MissionAssistantPanel({
         <div className="px-3 py-2 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 text-xs flex items-center gap-1.5 border-b">
           <Camera className="h-3.5 w-3.5" />
           Evidência solicitada — acesse a aba Evidências
+        </div>
+      )}
+
+      {synthesisReady && (
+        <div className="px-3 py-2 border-b bg-emerald-50 dark:bg-emerald-950/30">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs w-full"
+            onClick={() => briefMut.mutate()}
+            disabled={briefMut.isPending}
+          >
+            {briefMut.isPending ? (
+              <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Salvando parecer...</>
+            ) : (
+              <><CheckCircle2 className="h-3 w-3 mr-1" /> Salvar parecer como documento da missão</>
+            )}
+          </Button>
         </div>
       )}
 

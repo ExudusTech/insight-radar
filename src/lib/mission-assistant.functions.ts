@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { callLLM, type LLMContentBlock } from "@/lib/llm-router";
+import { callLLM, type LLMContentBlock, type LLMMessage } from "@/lib/llm-router";
 import { BLOCK_FIELDS, BLOCK_TITLES, COLLECTION_BLOCKS } from "@/lib/collection.queries";
 
 const InputSchema = z.object({
@@ -70,7 +70,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const [{ data: mission }, { data: docs }, { data: target }] = await Promise.all([
+    const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
         .select("name, objective, segment")
@@ -86,10 +86,45 @@ export const missionAssistant = createServerFn({ method: "POST" })
         .select("name, brand, category, site, instagram, linkedin, whatsapp, email")
         .eq("id", data.targetId)
         .single(),
+      supabase
+        .from("collection_data")
+        .select("block, field_key, field_value")
+        .eq("target_id", data.targetId),
     ]);
 
     if (!mission) throw new Error("Missão não encontrada");
     if (!target) throw new Error("Alvo não encontrado");
+
+    // Compute filled fields and gaps
+    const filled: Record<string, Set<string>> = {};
+    for (const row of filledRows ?? []) {
+      const v = row.field_value;
+      const hasValue = v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
+      if (!hasValue) continue;
+      if (!filled[row.block]) filled[row.block] = new Set();
+      filled[row.block].add(row.field_key);
+    }
+    const gaps: string[] = [];
+    const filledSummary: string[] = [];
+    for (const blk of COLLECTION_BLOCKS) {
+      const fs = BLOCK_FIELDS[blk] ?? [];
+      const done: string[] = [];
+      const pend: string[] = [];
+      for (const f of fs) {
+        if (filled[blk]?.has(f)) done.push(f);
+        else pend.push(f);
+      }
+      if (done.length > 0) filledSummary.push(`${blk} (${BLOCK_TITLES[blk]}): ${done.join(", ")}`);
+      for (const p of pend) gaps.push(`${blk}.${p}`);
+    }
+    const gapsSummary = gaps.length > 0
+      ? `\nLACUNAS AINDA PENDENTES (${gaps.length}):\n${gaps.map((g) => `- ${g}`).join("\n")}`
+      : "\nTODOS OS CAMPOS ESTÃO PREENCHIDOS — pronto para síntese final.";
+    const filledBlock = filledSummary.length > 0
+      ? `\nJÁ COLETADO:\n${filledSummary.map((s) => `- ${s}`).join("\n")}`
+      : "\nJÁ COLETADO: (nada ainda)";
+
+    const isResuming = data.conversationHistory.length > 0 && !data.userMessage && !data.imageBase64;
 
     const frozenDocs = docs ?? [];
 
@@ -128,6 +163,34 @@ WhatsApp: ${target.whatsapp ?? "—"}
 
 BLOCOS E CAMPOS QUE VOCÊ DEVE PREENCHER (uma única conversa cobre TODOS):
 ${buildBlocksSchemaSection()}
+${filledBlock}
+${gapsSummary}
+${isResuming ? `
+MODO RETOMADA (o analista retomou a conversa sem nova mensagem):
+Abra a resposta assim:
+1) "Bem-vindo de volta! Aqui está o resumo do que já coletamos sobre ${target.name}:"
+2) Liste os blocos com dados (ex.: "✅ A — Pesquisa pública: canal_principal, promessa, cta").
+3) Liste os blocos incompletos com o que falta (ex.: "⚠️ C — Funil e oferta: faltam preco, garantia").
+4) "Vamos continuar? **Próxima ação:** [instrução operacional para o campo pendente mais crítico]".
+Não repita perguntas cujas respostas já estão em JÁ COLETADO.` : ""}
+
+AO FINAL DE CADA RESPOSTA (antes do ---BLOCK_DATA---):
+- Se ainda há lacunas: escreva "📋 **Pendências:** ainda faltam ${gaps.length} campos. Próximo passo: [instrução específica para o campo mais crítico pendente]."
+- Se não há lacunas: escreva "✅ **Coleta completa!** Todos os campos foram preenchidos. Digite 'síntese' para gerar o parecer final."
+
+SÍNTESE FINAL:
+Quando a analista pedir "síntese", "parecer", "resumo final", "finalizar" ou "gerar parecer":
+1. Leia todos os dados coletados nos blocos A–G (usando JÁ COLETADO acima e o histórico da conversa).
+2. Produza um parecer estruturado com as seções (use exatamente estes títulos em markdown):
+   ## Perfil do Concorrente
+   ## Estratégia de Captação (entrada do funil)
+   ## Oferta e Precificação
+   ## Qualidade do Atendimento
+   ## Prova Social e Reputação
+   ## Materiais e Sequência de Vendas
+   ## Pontos Fortes
+   ## Pontos Fracos e Oportunidades
+3. Ao final pergunte: "Deseja salvar este parecer como documento da missão?"
 
 COMO SE COMPORTAR:
 - Você conduz UMA única conversa holística que cobre os 7 blocos (A a G). Nunca peça a mesma coisa duas vezes.
@@ -412,4 +475,162 @@ Exemplo do formato esperado:
       clean ? Object.keys(clean) : null,
     );
     return { blockUpdates: clean };
+  });
+
+// ============================================================
+// Task 4 — Síntese final por concorrente (competitor brief)
+// ============================================================
+
+const BriefInputSchema = z.object({
+  missionId: z.string().uuid(),
+  targetId: z.string().uuid(),
+});
+
+function buildCollectedContext(
+  rows: Array<{ block: string; field_key: string; field_value: unknown }>,
+) {
+  const grouped: Record<string, Record<string, string>> = {};
+  for (const r of rows) {
+    const v = r.field_value;
+    if (v === null || v === undefined) continue;
+    const s = String(v).trim();
+    if (!s || s === "null") continue;
+    if (!grouped[r.block]) grouped[r.block] = {};
+    grouped[r.block][r.field_key] = s;
+  }
+  return COLLECTION_BLOCKS.map((b) => {
+    const fields = grouped[b] ?? {};
+    const lines = Object.entries(fields)
+      .filter(([k]) => k !== "notes" && k !== "block_status")
+      .map(([k, v]) => `- ${k}: ${v}`);
+    return `### Bloco ${b} — ${BLOCK_TITLES[b]}\n${lines.length ? lines.join("\n") : "(sem dados)"}${fields.notes ? `\nNotas: ${fields.notes}` : ""}`;
+  }).join("\n\n");
+}
+
+export const generateCompetitorBrief = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => BriefInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const [{ data: target }, { data: mission }, { data: rows }] = await Promise.all([
+      supabase.from("targets").select("name, brand, category").eq("id", data.targetId).single(),
+      supabase.from("missions").select("name, objective, segment").eq("id", data.missionId).single(),
+      supabase
+        .from("collection_data")
+        .select("block, field_key, field_value")
+        .eq("target_id", data.targetId),
+    ]);
+    if (!target) throw new Error("Alvo não encontrado");
+    if (!mission) throw new Error("Missão não encontrada");
+
+    const ctx = buildCollectedContext(rows ?? []);
+    const systemPrompt = `Você é um analista sênior de inteligência competitiva. Produza um parecer executivo em português brasileiro, direto e acionável, usando APENAS os dados coletados abaixo.
+
+MISSÃO: ${mission.name} — Objetivo: ${mission.objective ?? "—"} — Segmento: ${mission.segment ?? "—"}
+ALVO: ${target.name} ${target.brand ?? ""} (${target.category ?? "—"})
+
+DADOS COLETADOS:
+${ctx}
+
+Formato de saída (markdown, use exatamente estes títulos):
+## Perfil do Concorrente
+## Estratégia de Captação (entrada do funil)
+## Oferta e Precificação
+## Qualidade do Atendimento
+## Prova Social e Reputação
+## Materiais e Sequência de Vendas
+## Pontos Fortes
+## Pontos Fracos e Oportunidades`;
+
+    const { text } = await callLLM({
+      task: "report",
+      systemPrompt,
+      messages: [{ role: "user", content: `Gere o parecer final sobre ${target.name}.` }],
+      maxTokens: 4096,
+    });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: last } = await supabaseAdmin
+      .from("document_versions")
+      .select("version_number")
+      .eq("mission_id", data.missionId)
+      .eq("doc_type", "competitor_brief")
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = (last?.version_number ?? 0) + 1;
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("document_versions")
+      .insert({
+        mission_id: data.missionId,
+        doc_type: "competitor_brief",
+        doc_label: `Parecer — ${target.name}`,
+        file_name: `parecer-${target.name.replace(/\s+/g, "-").toLowerCase()}.md`,
+        version_number: nextVersion,
+        author_id: context.userId,
+        extracted_data: { target_id: data.targetId, target_name: target.name, content: text },
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return { documentId: inserted.id, content: text };
+  });
+
+// ============================================================
+// Task 5 — Motor de consulta ("Comparativo")
+// ============================================================
+
+const QueryInputSchema = z.object({
+  missionId: z.string().uuid(),
+  question: z.string().min(1).max(2000),
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(10_000) }))
+    .max(40)
+    .optional(),
+});
+
+export const queryMissionIntelligence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => QueryInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const [{ data: mission }, { data: targets }, { data: rows }] = await Promise.all([
+      supabase.from("missions").select("name, objective, segment").eq("id", data.missionId).single(),
+      supabase.from("targets").select("id, name, brand, category").eq("mission_id", data.missionId),
+      supabase
+        .from("collection_data")
+        .select("target_id, block, field_key, field_value")
+        .eq("mission_id", data.missionId),
+    ]);
+    if (!mission) throw new Error("Missão não encontrada");
+
+    const byTarget: Record<string, Array<{ block: string; field_key: string; field_value: unknown }>> = {};
+    for (const r of rows ?? []) {
+      if (!r.target_id) continue;
+      (byTarget[r.target_id] ??= []).push(r);
+    }
+    const targetSections = (targets ?? []).map((t) => {
+      const ctx = buildCollectedContext(byTarget[t.id] ?? []);
+      return `## ${t.name}${t.brand ? ` (${t.brand})` : ""}\n${ctx}`;
+    }).join("\n\n---\n\n");
+
+    const systemPrompt = `Você é um analista sênior de inteligência competitiva. Responda perguntas comparativas usando APENAS os dados coletados da missão "${mission.name}" abaixo. Seja específico, cite os concorrentes por nome, e admita quando não houver dado suficiente.
+
+CONCORRENTES DA MISSÃO:
+${targetSections || "(nenhum dado coletado ainda)"}
+`;
+
+    const messages: LLMMessage[] = [
+      ...((data.history ?? []).map((m) => ({ role: m.role, content: m.content })) as LLMMessage[]),
+      { role: "user", content: data.question },
+    ];
+
+    const { text } = await callLLM({
+      task: "report",
+      systemPrompt,
+      messages,
+      maxTokens: 2048,
+    });
+    return { answer: text };
   });

@@ -40,6 +40,7 @@ import { Route as AuthenticatedMissionsMissionIdIndexRouteImport } from './route
 import { Route as AuthenticatedMissionsMissionIdTargetsRouteImport } from './routes/_authenticated/missions.$missionId.targets'
 import { Route as AuthenticatedMissionsMissionIdJourneyRouteImport } from './routes/_authenticated/missions.$missionId.journey'
 import { Route as AuthenticatedMissionsMissionIdDocumentRouteImport } from './routes/_authenticated/missions.$missionId.document'
+import { Route as AuthenticatedMissionsMissionIdComparativeRouteImport } from './routes/_authenticated/missions.$missionId.comparative'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -206,6 +207,12 @@ const AuthenticatedMissionsMissionIdDocumentRoute =
     path: '/document',
     getParentRoute: () => AuthenticatedMissionsMissionIdRoute,
   } as any)
+const AuthenticatedMissionsMissionIdComparativeRoute =
+  AuthenticatedMissionsMissionIdComparativeRouteImport.update({
+    id: '/comparative',
+    path: '/comparative',
+    getParentRoute: () => AuthenticatedMissionsMissionIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions/': typeof AuthenticatedMissionsIndexRoute
+  '/missions/$missionId/comparative': typeof AuthenticatedMissionsMissionIdComparativeRoute
   '/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/missions/$missionId/journey': typeof AuthenticatedMissionsMissionIdJourneyRoute
   '/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/missions/new': typeof AuthenticatedMissionsNewRoute
   '/missions': typeof AuthenticatedMissionsIndexRoute
+  '/missions/$missionId/comparative': typeof AuthenticatedMissionsMissionIdComparativeRoute
   '/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/missions/$missionId/journey': typeof AuthenticatedMissionsMissionIdJourneyRoute
   '/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
@@ -299,6 +308,7 @@ export interface FileRoutesById {
   '/_authenticated/missions/$missionId': typeof AuthenticatedMissionsMissionIdRouteWithChildren
   '/_authenticated/missions/new': typeof AuthenticatedMissionsNewRoute
   '/_authenticated/missions/': typeof AuthenticatedMissionsIndexRoute
+  '/_authenticated/missions/$missionId/comparative': typeof AuthenticatedMissionsMissionIdComparativeRoute
   '/_authenticated/missions/$missionId/document': typeof AuthenticatedMissionsMissionIdDocumentRoute
   '/_authenticated/missions/$missionId/journey': typeof AuthenticatedMissionsMissionIdJourneyRoute
   '/_authenticated/missions/$missionId/targets': typeof AuthenticatedMissionsMissionIdTargetsRoute
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/missions/$missionId'
     | '/missions/new'
     | '/missions/'
+    | '/missions/$missionId/comparative'
     | '/missions/$missionId/document'
     | '/missions/$missionId/journey'
     | '/missions/$missionId/targets'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/missions/new'
     | '/missions'
+    | '/missions/$missionId/comparative'
     | '/missions/$missionId/document'
     | '/missions/$missionId/journey'
     | '/missions/$missionId/targets'
@@ -397,6 +409,7 @@ export interface FileRouteTypes {
     | '/_authenticated/missions/$missionId'
     | '/_authenticated/missions/new'
     | '/_authenticated/missions/'
+    | '/_authenticated/missions/$missionId/comparative'
     | '/_authenticated/missions/$missionId/document'
     | '/_authenticated/missions/$missionId/journey'
     | '/_authenticated/missions/$missionId/targets'
@@ -629,10 +642,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMissionsMissionIdDocumentRouteImport
       parentRoute: typeof AuthenticatedMissionsMissionIdRoute
     }
+    '/_authenticated/missions/$missionId/comparative': {
+      id: '/_authenticated/missions/$missionId/comparative'
+      path: '/comparative'
+      fullPath: '/missions/$missionId/comparative'
+      preLoaderRoute: typeof AuthenticatedMissionsMissionIdComparativeRouteImport
+      parentRoute: typeof AuthenticatedMissionsMissionIdRoute
+    }
   }
 }
 
 interface AuthenticatedMissionsMissionIdRouteChildren {
+  AuthenticatedMissionsMissionIdComparativeRoute: typeof AuthenticatedMissionsMissionIdComparativeRoute
   AuthenticatedMissionsMissionIdDocumentRoute: typeof AuthenticatedMissionsMissionIdDocumentRoute
   AuthenticatedMissionsMissionIdJourneyRoute: typeof AuthenticatedMissionsMissionIdJourneyRoute
   AuthenticatedMissionsMissionIdTargetsRoute: typeof AuthenticatedMissionsMissionIdTargetsRoute
@@ -641,6 +662,8 @@ interface AuthenticatedMissionsMissionIdRouteChildren {
 
 const AuthenticatedMissionsMissionIdRouteChildren: AuthenticatedMissionsMissionIdRouteChildren =
   {
+    AuthenticatedMissionsMissionIdComparativeRoute:
+      AuthenticatedMissionsMissionIdComparativeRoute,
     AuthenticatedMissionsMissionIdDocumentRoute:
       AuthenticatedMissionsMissionIdDocumentRoute,
     AuthenticatedMissionsMissionIdJourneyRoute:
@@ -721,13 +744,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

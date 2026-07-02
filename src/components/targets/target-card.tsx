@@ -3,13 +3,16 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Target } from "@/lib/targets.queries";
 import { PriorityBadge } from "./priority-badge";
 import { Instagram, Linkedin, Phone } from "lucide-react";
+import { COLLECTION_BLOCKS, BLOCK_FIELDS } from "@/lib/collection.queries";
 
 export function TargetCard({
   target,
   onClick,
+  completion,
 }: {
   target: Target & { analyst?: { full_name: string | null } | null };
   onClick?: () => void;
+  completion?: { percent: number; filled: number; total: number; completeBlocks: number };
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: target.id,
@@ -20,6 +23,9 @@ export function TargetCard({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const pct = completion?.percent ?? 0;
+  const barColor = pct >= 71 ? "bg-emerald-500" : pct >= 31 ? "bg-amber-500" : "bg-red-500";
 
   return (
     <div
@@ -37,6 +43,16 @@ export function TargetCard({
       {target.brand && (
         <div className="text-xs text-muted-foreground mt-0.5 truncate">{target.brand}</div>
       )}
+      {completion && (
+        <div className="mt-2 space-y-1">
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            {completion.filled}/{completion.total} campos · {completion.completeBlocks} blocos completos
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2 mt-2 text-muted-foreground">
         {target.instagram && <Instagram className="h-3 w-3" />}
         {target.linkedin && <Linkedin className="h-3 w-3" />}
@@ -50,3 +66,8 @@ export function TargetCard({
     </div>
   );
 }
+
+export const TOTAL_EXPECTED_FIELDS = COLLECTION_BLOCKS.reduce(
+  (s, b) => s + (BLOCK_FIELDS[b]?.length ?? 0),
+  0,
+);
