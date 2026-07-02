@@ -47,6 +47,7 @@ import { sendNotifications } from "@/lib/notifications.functions";
 import { assignAnalystToMission } from "@/lib/missions.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
+import { ChannelRotationCard } from "@/components/missions/channel-rotation-card";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -141,6 +142,9 @@ function MissionOverview() {
         </Card>
       </div>
       <div className="space-y-5">
+        {(currentUser?.role === "superadmin" || currentUser?.role === "contractor") && (
+          <ChannelRotationCard missionId={missionId} />
+        )}
         <Card className="p-6 space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h2>
           {canEditDetails ? (
