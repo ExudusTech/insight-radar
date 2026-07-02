@@ -1,10 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
@@ -14,6 +16,7 @@ import {
   createTargetsFromExtraction,
 } from "@/lib/document-versions.queries";
 import { extractMissionDocument } from "@/lib/document-versions.functions";
+import { missionBriefingAssistant, type BriefingScope } from "@/lib/mission-briefing.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/missions/new")({
@@ -21,13 +24,18 @@ export const Route = createFileRoute("/_authenticated/missions/new")({
 });
 
 type UploadStatus = "idle" | "uploading" | "extracting" | "done" | "error";
+type Mode = "ai" | "upload" | "manual";
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+const INITIAL_ASSISTANT_MESSAGE =
+  "Olá! Vou ajudá-lo a criar uma nova missão de inteligência competitiva. Para começar: qual é o **principal objetivo** desta pesquisa?";
 
 function NewMissionPage() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
   const extractFn = useServerFn(extractMissionDocument);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<"upload" | "manual">("upload");
+  const [mode, setMode] = useState<Mode>("ai");
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -105,7 +113,7 @@ function NewMissionPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-6">
+    <div className={`${mode === "ai" ? "max-w-6xl" : "max-w-3xl"} mx-auto w-full space-y-6`}>
       <div>
         <Link
           to="/missions"
@@ -115,11 +123,24 @@ function NewMissionPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nova missão</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Envie o briefing e a IA cria a missão para você — ou preencha manualmente.
+          Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
         </p>
+        <div className="mt-3 flex gap-2 text-xs">
+          <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
+            <Sparkles className="h-3 w-3" /> Chat com IA
+          </ModeButton>
+          <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
+            <FileUp className="h-3 w-3" /> Enviar briefing
+          </ModeButton>
+          <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
+            Formulário manual
+          </ModeButton>
+        </div>
       </div>
 
-      {mode === "upload" ? (
+      {mode === "ai" ? (
+        <AiChatMode onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })} />
+      ) : mode === "upload" ? (
         <UploadMode
           status={status}
           errorMsg={errorMsg}
@@ -133,16 +154,242 @@ function NewMissionPage() {
         />
       ) : (
         <div className="space-y-4">
-          <button
-            type="button"
-            onClick={() => setMode("upload")}
-            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-          >
-            <Sparkles className="h-3 w-3" /> Voltar para envio por IA
-          </button>
           <MissionForm />
         </div>
       )}
+    </div>
+  );
+}
+
+function ModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
+  const briefingFn = useServerFn(missionBriefingAssistant);
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { role: "assistant", content: INITIAL_ASSISTANT_MESSAGE },
+  ]);
+  const [scope, setScope] = useState<BriefingScope | null>(null);
+  const [input, setInput] = useState("");
+  const [pending, setPending] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, pending]);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  async function send() {
+    const text = input.trim();
+    if (!text || pending || createdId) return;
+    const next: ChatMsg[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setInput("");
+    setPending(true);
+    try {
+      const res = await briefingFn({ data: { messages: next } });
+      setMessages((cur) => [...cur, { role: "assistant", content: res.text }]);
+      if (res.scope) setScope(res.scope);
+      if (res.missionCreated) {
+        setCreatedId(res.missionId);
+        toast.success("Missão criada!");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro ao processar mensagem";
+      toast.error(msg);
+      setMessages((cur) => [...cur, { role: "assistant", content: `⚠️ ${msg}` }]);
+    } finally {
+      setPending(false);
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    }
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+      <Card className="flex flex-col h-[70vh] min-h-[520px] overflow-hidden">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((m, i) => (
+            <ChatBubble key={i} role={m.role} content={m.content} />
+          ))}
+          {pending && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Bot className="h-4 w-4" />
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Pensando…</span>
+            </div>
+          )}
+          {createdId && (
+            <Card className="p-4 border-emerald-500/40 bg-emerald-500/5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                <div>
+                  <div className="font-semibold text-sm">Missão criada</div>
+                  <div className="text-xs text-muted-foreground">Pronto para começar a coleta.</div>
+                </div>
+              </div>
+              <Button onClick={() => onCreated(createdId)}>Ver minha missão</Button>
+            </Card>
+          )}
+        </div>
+        <div className="border-t bg-muted/20 p-3">
+          <div className="flex gap-2 items-end">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={createdId ? "Missão criada — abra para editar detalhes." : "Digite sua resposta… (Enter para enviar)"}
+              rows={2}
+              disabled={pending || !!createdId}
+              className="resize-none flex-1"
+            />
+            <Button onClick={send} disabled={pending || !input.trim() || !!createdId} size="icon" className="h-10 w-10">
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <ScopePreview scope={scope} />
+    </div>
+  );
+}
+
+function ChatBubble({ role, content }: { role: "user" | "assistant"; content: string }) {
+  const isUser = role === "user";
+  return (
+    <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
+      {!isUser && (
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Bot className="h-4 w-4 text-primary" />
+        </div>
+      )}
+      <div
+        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+        }`}
+      >
+        {content}
+      </div>
+      {isUser && (
+        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+          <User className="h-4 w-4" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PROFUNDIDADE_LABEL: Record<string, string> = {
+  observacao: "Observação",
+  contato: "Primeiro contato",
+  qualificacao: "Qualificação",
+  reuniao: "Reunião",
+  contratacao: "Contratação real",
+};
+
+function ScopePreview({ scope }: { scope: BriefingScope | null }) {
+  const empty = !scope || (
+    !scope.objetivo &&
+    (!scope.concorrentes || scope.concorrentes.length === 0) &&
+    !scope.cobertura_canais &&
+    (!scope.canais_obrigatorios || scope.canais_obrigatorios.length === 0) &&
+    !scope.profundidade &&
+    !scope.prazo &&
+    !scope.restricoes
+  );
+  return (
+    <Card className="p-4 h-fit sticky top-4 space-y-4">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Escopo em construção
+      </div>
+      {empty && (
+        <p className="text-xs text-muted-foreground">
+          Os campos aparecem aqui conforme você responde as perguntas do assistente.
+        </p>
+      )}
+      {scope?.objetivo && (
+        <Section icon={<TargetIcon className="h-3.5 w-3.5" />} label="Objetivo">
+          <p className="text-sm">{scope.objetivo}</p>
+        </Section>
+      )}
+      {scope?.concorrentes && scope.concorrentes.length > 0 && (
+        <Section icon={<TargetIcon className="h-3.5 w-3.5" />} label={`Concorrentes (${scope.concorrentes.length})`}>
+          <div className="flex flex-wrap gap-1.5">
+            {scope.concorrentes.map((c) => (
+              <Badge key={c} variant="secondary" className="text-[11px]">{c}</Badge>
+            ))}
+          </div>
+        </Section>
+      )}
+      {(scope?.cobertura_canais || (scope?.canais_obrigatorios && scope.canais_obrigatorios.length > 0)) && (
+        <Section icon={<Radio className="h-3.5 w-3.5" />} label="Canais">
+          {scope?.cobertura_canais === "360" && (
+            <Badge className="text-[11px] bg-primary/10 text-primary border-primary/30" variant="outline">Cobertura 360°</Badge>
+          )}
+          {scope?.canais_obrigatorios && scope.canais_obrigatorios.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {scope.canais_obrigatorios.map((c) => (
+                <Badge key={c} variant="outline" className="text-[11px]">{c}</Badge>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+      {scope?.profundidade && (
+        <Section icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Profundidade">
+          <Badge variant="outline" className="text-[11px]">
+            {PROFUNDIDADE_LABEL[scope.profundidade] ?? scope.profundidade}
+          </Badge>
+        </Section>
+      )}
+      {scope?.prazo && (
+        <Section icon={<Calendar className="h-3.5 w-3.5" />} label="Prazo">
+          <p className="text-sm">{scope.prazo}</p>
+        </Section>
+      )}
+      {scope?.restricoes && (
+        <Section icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Restrições">
+          <p className="text-sm text-muted-foreground">{scope.restricoes}</p>
+        </Section>
+      )}
+    </Card>
+  );
+}
+
+function Section({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+        {icon}
+        <span>{label}</span>
+      </div>
+      {children}
     </div>
   );
 }

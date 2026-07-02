@@ -533,6 +533,8 @@ export type Database = {
       missions: {
         Row: {
           approach_type: string | null
+          canais_obrigatorios: string[] | null
+          cobertura_canais: string | null
           completion_criteria: string | null
           contractor_id: string | null
           created_at: string
@@ -548,10 +550,12 @@ export type Database = {
           name: string
           objective: string | null
           product_id: string | null
+          profundidade_autorizada: string | null
           proposal_from: string | null
           proposed_deadline_final: string | null
           proposed_deadline_partial: string | null
           responsible_id: string | null
+          restricoes: string | null
           segment: string | null
           status: Database["public"]["Enums"]["mission_status"]
           target_label: string
@@ -559,6 +563,8 @@ export type Database = {
         }
         Insert: {
           approach_type?: string | null
+          canais_obrigatorios?: string[] | null
+          cobertura_canais?: string | null
           completion_criteria?: string | null
           contractor_id?: string | null
           created_at?: string
@@ -574,10 +580,12 @@ export type Database = {
           name: string
           objective?: string | null
           product_id?: string | null
+          profundidade_autorizada?: string | null
           proposal_from?: string | null
           proposed_deadline_final?: string | null
           proposed_deadline_partial?: string | null
           responsible_id?: string | null
+          restricoes?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
           target_label?: string
@@ -585,6 +593,8 @@ export type Database = {
         }
         Update: {
           approach_type?: string | null
+          canais_obrigatorios?: string[] | null
+          cobertura_canais?: string | null
           completion_criteria?: string | null
           contractor_id?: string | null
           created_at?: string
@@ -600,10 +610,12 @@ export type Database = {
           name?: string
           objective?: string | null
           product_id?: string | null
+          profundidade_autorizada?: string | null
           proposal_from?: string | null
           proposed_deadline_final?: string | null
           proposed_deadline_partial?: string | null
           responsible_id?: string | null
+          restricoes?: string | null
           segment?: string | null
           status?: Database["public"]["Enums"]["mission_status"]
           target_label?: string
