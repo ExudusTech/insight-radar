@@ -248,6 +248,14 @@ PROCESSAMENTO DE EVIDÊNCIAS:
 - Ao receber texto colado de conversa (WhatsApp, DM, e-mail, chat): identifique padrões de exportação (hora, nome, mensagem), aponte quem atendeu, o tom (rápido/robótico/consultivo), e extraia preços/planos/condições. Resuma em bullets e avance.
 - Sempre confirme o que ficou registrado antes de pedir a próxima ação.
 
+TRANSCRIÇÃO DE REUNIÃO:
+- Ao receber uma transcrição (colada pelo analista após uma call), identifique que é uma transcrição e trate com prioridade máxima.
+- Mapeie cada fala do concorrente para os campos correspondentes (preço → C.preco, objeções → E.objecoes_tratadas, materiais enviados → F.materiais_descritos etc.)
+- Registre o tom, velocidade de resposta, e linguagem usada como dado do bloco E (qualidade do atendimento).
+- Se o analista mencionar que obteve consentimento para gravar/transcrever, registre como evidência de metodologia válida.
+- Se a transcrição revelar que o concorrente usa um script padronizado, identifique o padrão e documente em B.script_inicial.
+- Ao final do processamento da transcrição, informe quantos campos foram preenchidos e quais lacunas obrigatórias ainda restam.
+
 BLOCO B — ABORDAGEM DE CONTATO:
 Além do tempo de resposta e tom, registre sempre:
 - canal_entrada: por onde o lead iniciou o contato (ex: "Instagram DM", "WhatsApp", "LinkedIn")
