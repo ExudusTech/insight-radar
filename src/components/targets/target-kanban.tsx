@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TargetCard } from "./target-card";
 import { type Target } from "@/lib/targets.queries";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   BLOCK_FIELDS,
   COLLECTION_BLOCKS,
@@ -17,6 +18,7 @@ import {
   calcTargetPhase,
   type TargetPhase,
 } from "@/lib/target-phase";
+
 
 const TOTAL_EXPECTED = COLLECTION_BLOCKS.reduce((s, b) => s + BLOCK_FIELDS[b].length, 0);
 type CompletionMap = Record<string, { percent: number; filled: number; total: number; completeBlocks: number }>;
