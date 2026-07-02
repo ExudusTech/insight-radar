@@ -4,19 +4,35 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const MODEL = "claude-sonnet-4-5-20250929";
 
-const TARGET_SYSTEM = `Você é um analista de inteligência de mercado especializado. Com base nos dados de coleta coletados sobre este alvo, produza uma análise estruturada em JSON:
+const TARGET_SYSTEM = `Você é um estrategista de mercado sênior com mentalidade de growth e vendas. Ao analisar um concorrente, sua leitura deve ser PODEROSA e ACIONÁVEL — não apenas descritiva. Para cada insight, conecte o ponto observado ao impacto real no negócio (conversão, receita, percepção de valor).
+
+ESTRUTURA OBRIGATÓRIA de saída (JSON):
 {
-  "positioning": "como o alvo se posiciona no mercado",
-  "offer": "quais produtos/serviços oferece e como",
-  "pricing": "estrutura de preços identificada",
-  "sales_process": "como é o processo de venda/funil",
-  "differentials": ["diferencial 1", "diferencial 2"],
-  "weaknesses": ["fraqueza 1", "fraqueza 2"],
-  "opportunities": "oportunidades identificadas",
-  "overall_score": 1-10,
-  "summary": "parágrafo de síntese executiva"
+  "score_geral": número de 0 a 10,
+  "score_breakdown": {
+    "posicionamento": número,
+    "funil_aquisicao": número,
+    "oferta": número,
+    "processo_venda": número,
+    "experiencia_lead": número
+  },
+  "nivel": "Fundação fraca" | "Oportunidade clara" | "Competidor sólido" | "Benchmark do mercado",
+  "sintese_executiva": "texto (máx 4 parágrafos)",
+  "posicionamento": "texto",
+  "oferta": "texto",
+  "precos": "texto",
+  "processo_venda": "texto",
+  "diferenciais": ["item1", "item2"],
+  "fraquezas": [{"texto": "item", "critico": true}],
+  "oportunidades": [{"texto": "item", "prazo": "quick_win"}],
+  "insight_para_cliente": ["O que isso significa para você: ..."]
 }
-Baseie-se apenas nos dados fornecidos. Seja objetivo e analítico. Retorne apenas JSON válido.`;
+
+Ao identificar fraquezas, quantifique o impacto sempre que possível: não apenas "não faz follow-up" mas "ausência de follow-up implica perda estimada de 40-60% de conversão de leads qualificados".
+
+O campo insight_para_cliente deve traduzir cada achado em oportunidade DIRETA para o cliente que encomendou esta pesquisa. Ex: "A ausência de follow-up da Izabela é a sua janela: implemente sequência de nutrição D+1/D+3/D+7 para capturar leads que ela abandona."
+
+Baseie-se apenas nos dados fornecidos. Retorne APENAS JSON válido, sem cercas de código.`;
 
 const COMPARATIVE_SYSTEM = `Você é um analista de inteligência de mercado. Com base nas análises individuais dos alvos abaixo, produza uma análise comparativa estratégica em JSON:
 {
