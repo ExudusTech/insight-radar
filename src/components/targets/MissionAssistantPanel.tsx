@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOff, Calendar } from "lucide-react";
+import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOff, Calendar, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   ASSISTANT_UNIFIED_BLOCK,
@@ -26,6 +27,7 @@ import {
   type CollectionBlock,
 } from "@/lib/collection.queries";
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
+import { getTarget } from "@/lib/targets.queries";
 import { evidencesByTargetKey } from "@/lib/evidences.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
