@@ -5,6 +5,7 @@ import { callLLM, type LLMContentBlock, type LLMMessage } from "@/lib/llm-router
 import {
   BLOCK_FIELDS,
   BLOCK_FIELDS_CONDITIONAL,
+  BLOCK_FIELDS_REQUIRED,
   BLOCK_TITLES,
   COLLECTION_BLOCKS,
   calcRequiredCompletion,
@@ -122,10 +123,16 @@ export const missionAssistant = createServerFn({ method: "POST" })
       : "\nJÁ COLETADO: (nada ainda)";
 
     const completion = calcRequiredCompletion(filledRows ?? []);
-    const requiredGaps = completion.missingRequired.map((g) => {
-      const [blk, field] = g.split(".");
-      return `- ${blk} (${BLOCK_TITLES[blk as keyof typeof BLOCK_TITLES]}): ${field?.replace(/_/g, " ")}`;
-    });
+    const gapsByBlock: string[] = [];
+    for (const [blk, fields] of Object.entries(BLOCK_FIELDS_REQUIRED)) {
+      if (fields.length === 0) continue;
+      const missing = fields.filter((f) => !completion.filledByBlock[blk]?.has(f));
+      if (missing.length > 0) {
+        gapsByBlock.push(
+          `  ${blk} (${BLOCK_TITLES[blk as keyof typeof BLOCK_TITLES]}): faltam → ${missing.map((f) => f.replace(/_/g, " ")).join(", ")}`,
+        );
+      }
+    }
     const hasContact = (filled["B"]?.size ?? 0) > 0;
     const conditionalGaps: string[] = [];
     if (hasContact) {
@@ -141,9 +148,11 @@ export const missionAssistant = createServerFn({ method: "POST" })
       ? `\n✅ CAMPOS OBRIGATÓRIOS COMPLETOS (${completion.filledRequired}/${completion.totalRequired}). Este concorrente está PRONTO PARA SÍNTESE. Ao final desta mensagem, informe a analista que pode digitar "síntese" para gerar o parecer final.`
       : `\nCOMPLETUDE: ${completion.percent}% dos campos obrigatórios preenchidos (${completion.filledRequired}/${completion.totalRequired}).
 
-LACUNAS OBRIGATÓRIAS (${requiredGaps.length} — sempre coletáveis):
-${requiredGaps.join("\n")}
-${hasContact && conditionalGaps.length > 0 ? `\nLACUNAS CONDICIONAIS (${conditionalGaps.length} — só se o concorrente cooperar):\n${conditionalGaps.join("\n")}` : ""}`;
+LACUNAS OBRIGATÓRIAS POR BLOCO:
+${gapsByBlock.join("\n")}
+${hasContact && conditionalGaps.length > 0 ? `\nLACUNAS CONDICIONAIS (${conditionalGaps.length} — só se o concorrente cooperar):\n${conditionalGaps.join("\n")}` : ""}
+
+INSTRUÇÃO: Ao final desta resposta, diga explicitamente ao analista quais campos estão faltando e qual a próxima ação concreta para obtê-los. Use linguagem direta: "Para completar o Bloco B, preciso saber: [campo 1] e [campo 2]. Você tem essa informação ou consegue obtê-la?"`;
 
     const isResuming = data.conversationHistory.length > 0 && !data.userMessage && !data.imageBase64;
 
@@ -208,8 +217,11 @@ Abra a resposta assim:
 4) "Vamos continuar? **Próxima ação:** [instrução operacional para o campo pendente mais crítico]".
 Não repita perguntas cujas respostas já estão em JÁ COLETADO.` : ""}
 
-AO FINAL DE CADA RESPOSTA (antes do ---BLOCK_DATA---):
-- Se campos obrigatórios ainda faltam: "📋 **Completude:** ${completion.percent}% — faltam ${completion.missingRequired.length} campos obrigatórios. Próxima ação: [instrução para o campo mais prioritário pendente]."
+AO FINAL DE CADA RESPOSTA, OBRIGATORIAMENTE (antes do ---BLOCK_DATA---):
+1. Liste o que foi extraído e salvo nesta mensagem (ex: "✅ Salvei: canal_principal, cta, resposta_tempo").
+2. Liste por bloco o que ainda falta dos obrigatórios (ex: "📋 Bloco B ainda precisa de: abordagem").
+3. Dê uma instrução direta e específica para o próximo passo.
+4. Se um campo não pôde ser coletado porque o concorrente não respondeu ou não avançou no funil, registre como "não obtido — [motivo]" e informe o analista que esse dado ficará marcado assim.
 - IMPORTANTE: campos condicionais (preço, materiais, follow-up) só solicite se o concorrente já tiver demonstrado engajamento. Se não houve resposta após 2+ tentativas, registre como "não obtido" e avance para os campos de experiência do lead, que a analista sempre pode preencher.
 - Se todos os obrigatórios preenchidos: "✅ **Coleta suficiente para análise!** Todos os campos essenciais foram preenchidos. Digite 'síntese' para gerar o parecer — campos condicionais ainda em aberto serão registrados como 'dado não obtido' e isso é informação válida."
 - NUNCA sugira uma nova rodada de tentativas de contato se o concorrente já ignorou 3+ interações. Registre como "sem resposta após múltiplas tentativas" e finalize o bloco B.
