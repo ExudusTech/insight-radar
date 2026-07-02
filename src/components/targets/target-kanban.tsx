@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TargetCard } from "./target-card";
 import { type Target } from "@/lib/targets.queries";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   BLOCK_FIELDS,
   COLLECTION_BLOCKS,
@@ -17,6 +18,7 @@ import {
   calcTargetPhase,
   type TargetPhase,
 } from "@/lib/target-phase";
+
 
 const TOTAL_EXPECTED = COLLECTION_BLOCKS.reduce((s, b) => s + BLOCK_FIELDS[b].length, 0);
 type CompletionMap = Record<string, { percent: number; filled: number; total: number; completeBlocks: number }>;
@@ -105,7 +107,7 @@ export function TargetKanban({
   }, [targets, phaseByTarget]);
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-3">
+    <div className="flex flex-row gap-2 overflow-x-auto pb-3">
       {TARGET_PHASE_ORDER.map((phase) => (
         <PhaseColumn
           key={phase}
@@ -134,28 +136,51 @@ function PhaseColumn({
   phaseByTarget: Record<string, TargetPhase>;
 }) {
   const meta = TARGET_PHASE_META[phase];
+  const count = items.length;
+  const isEmpty = count === 0;
+
   return (
-    <div className="flex flex-col w-64 shrink-0 rounded-lg border border-border bg-surface/60">
-      <div className="px-3 py-2 rounded-t-lg border-b border-border flex items-center justify-between bg-muted/40">
-        <span className="text-xs font-semibold leading-tight">
-          {meta.icon} {meta.label}
-        </span>
-        <span className="text-[11px] font-medium opacity-80">{items.length}</span>
-      </div>
-      <div className="flex-1 p-2 space-y-2 min-h-32">
-        {items.map((t) => (
-          <TargetCard
-            key={t.id}
-            target={t}
-            onClick={() => onOpenTarget(t.id)}
-            phase={phaseByTarget[t.id] ?? phase}
-            completion={completion[t.id] ?? { percent: 0, filled: 0, total: TOTAL_EXPECTED, completeBlocks: 0 }}
-          />
-        ))}
-        {items.length === 0 && (
-          <div className="text-[11px] text-muted-foreground text-center py-4 italic">vazio</div>
-        )}
-      </div>
+    <div
+      className={cn(
+        "flex-shrink-0 rounded-lg border border-border transition-all duration-200",
+        isEmpty
+          ? "w-14 bg-muted/20"
+          : "w-[270px] bg-surface/60"
+      )}
+    >
+      {isEmpty ? (
+        <div className="flex flex-col items-center py-4 gap-2">
+          <span className="text-base" aria-hidden="true">
+            {meta.icon}
+          </span>
+          <span
+            className="text-xs text-muted-foreground [writing-mode:vertical-rl] rotate-180"
+            title={`${meta.label} (0)`}
+          >
+            {meta.label}
+          </span>
+        </div>
+      ) : (
+        <>
+          <div className="px-3 py-2 rounded-t-lg border-b border-border flex items-center justify-between bg-muted/40">
+            <span className="text-xs font-semibold leading-tight">
+              {meta.icon} {meta.label}
+            </span>
+            <span className="text-[11px] font-medium opacity-80">{count}</span>
+          </div>
+          <div className="flex-1 p-2 space-y-2 min-h-32">
+            {items.map((t) => (
+              <TargetCard
+                key={t.id}
+                target={t}
+                onClick={() => onOpenTarget(t.id)}
+                phase={phaseByTarget[t.id] ?? phase}
+                completion={completion[t.id] ?? { percent: 0, filled: 0, total: TOTAL_EXPECTED, completeBlocks: 0 }}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
