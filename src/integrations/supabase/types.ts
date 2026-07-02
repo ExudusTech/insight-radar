@@ -837,6 +837,7 @@ export type Database = {
         Row: {
           analyst_id: string | null
           brand: string | null
+          canal_abordagem: string | null
           category: string | null
           created_at: string
           drive_folder_id: string | null
@@ -848,6 +849,7 @@ export type Database = {
           name: string
           notes: string | null
           other_links: string | null
+          persona_lead: Json
           priority: Database["public"]["Enums"]["target_priority"]
           progress: number
           site: string | null
@@ -858,6 +860,7 @@ export type Database = {
         Insert: {
           analyst_id?: string | null
           brand?: string | null
+          canal_abordagem?: string | null
           category?: string | null
           created_at?: string
           drive_folder_id?: string | null
@@ -869,6 +872,7 @@ export type Database = {
           name: string
           notes?: string | null
           other_links?: string | null
+          persona_lead?: Json
           priority?: Database["public"]["Enums"]["target_priority"]
           progress?: number
           site?: string | null
@@ -879,6 +883,7 @@ export type Database = {
         Update: {
           analyst_id?: string | null
           brand?: string | null
+          canal_abordagem?: string | null
           category?: string | null
           created_at?: string
           drive_folder_id?: string | null
@@ -890,6 +895,7 @@ export type Database = {
           name?: string
           notes?: string | null
           other_links?: string | null
+          persona_lead?: Json
           priority?: Database["public"]["Enums"]["target_priority"]
           progress?: number
           site?: string | null
