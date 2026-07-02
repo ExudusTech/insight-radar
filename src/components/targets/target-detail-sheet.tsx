@@ -23,6 +23,7 @@ import { CollectionTab } from "./collection-tab";
 import { TimelineTab } from "./timeline-tab";
 import { EvidencesTab } from "./evidences-tab";
 import { AiAnalysisTab } from "./ai-analysis-tab";
+import { ApproachStrategySection } from "./approach-strategy-section";
 import {
   Loader2,
   ExternalLink,
@@ -252,6 +253,13 @@ export function TargetDetailSheet({
                   <Section title="Observações">
                     <p className="text-sm text-foreground/80 whitespace-pre-wrap">{target.notes}</p>
                   </Section>
+                )}
+                {(currentUser?.role === "superadmin" || currentUser?.role === "contractor") && (
+                  <ApproachStrategySection
+                    targetId={target.id}
+                    canalAbordagem={(target as { canal_abordagem?: string | null }).canal_abordagem ?? null}
+                    personaLead={(target as { persona_lead?: unknown }).persona_lead ?? null}
+                  />
                 )}
                 <Section title="Metadados">
                   <KV k="Progresso" v={`${target.progress}%`} />

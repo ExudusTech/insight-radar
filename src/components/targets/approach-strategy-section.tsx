@@ -1,0 +1,149 @@
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Check, Loader2, ShieldAlert } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
+
+type PersonaObject = { nome?: string; contexto?: string; [k: string]: unknown };
+
+function parsePersona(raw: unknown): PersonaObject {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed as PersonaObject;
+      return { contexto: raw };
+    } catch {
+      return { contexto: raw };
+    }
+  }
+  if (typeof raw === "object") return raw as PersonaObject;
+  return {};
+}
+
+const CHANNEL_OPTIONS = [
+  "Instagram DM",
+  "WhatsApp",
+  "Site — formulário",
+  "LinkedIn",
+  "E-mail",
+  "Ligação",
+];
+
+export function ApproachStrategySection({
+  targetId,
+  canalAbordagem,
+  personaLead,
+}: {
+  targetId: string;
+  canalAbordagem: string | null;
+  personaLead: unknown;
+}) {
+  const qc = useQueryClient();
+  const initialPersona = parsePersona(personaLead);
+  const [canal, setCanal] = useState(canalAbordagem ?? "");
+  const [nome, setNome] = useState(initialPersona.nome ?? "");
+  const [contexto, setContexto] = useState(initialPersona.contexto ?? "");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setCanal(canalAbordagem ?? "");
+    const p = parsePersona(personaLead);
+    setNome(p.nome ?? "");
+    setContexto(p.contexto ?? "");
+  }, [targetId, canalAbordagem, personaLead]);
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const persona = { nome: nome.trim() || null, contexto: contexto.trim() || null };
+      const { error, data } = await supabase
+        .from("targets")
+        .update({
+          canal_abordagem: canal.trim() || null,
+          persona_lead: persona as never,
+        })
+        .eq("id", targetId)
+        .select("mission_id")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
+      if (data?.mission_id) {
+        qc.invalidateQueries({ queryKey: targetsByMissionKey(data.mission_id) });
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+  });
+
+  return (
+    <div className="space-y-3 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 p-4">
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="h-4 w-4 text-amber-600" />
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+          Estratégia de abordagem
+        </h3>
+        {saved && <Check className="h-3.5 w-3.5 text-emerald-600" />}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Rotacione canais e personas por concorrente para evitar exposição do analista em pesquisas paralelas.
+      </p>
+      <div className="space-y-2">
+        <div>
+          <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Canal de abordagem
+          </label>
+          <Input
+            value={canal}
+            onChange={(e) => setCanal(e.target.value)}
+            list={`channels-${targetId}`}
+            placeholder="Ex: Instagram DM, WhatsApp, formulário no site"
+            className="h-8 mt-1"
+          />
+          <datalist id={`channels-${targetId}`}>
+            {CHANNEL_OPTIONS.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Persona — nome fictício
+            </label>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex: Ana Lima"
+              className="h-8 mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Persona — contexto
+            </label>
+            <Textarea
+              value={contexto}
+              onChange={(e) => setContexto(e.target.value)}
+              placeholder="Ex: empresária buscando serviço X para empresa de médio porte"
+              rows={2}
+              className="mt-1 text-sm"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => mut.mutate()} disabled={mut.isPending}>
+          {mut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar estratégia"}
+        </Button>
+      </div>
+    </div>
+  );
+}
