@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOff } from "lucide-react";
+import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOff, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -12,7 +12,7 @@ import {
   listAssistantMessages,
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
-import { missionAssistant, processAssistantHistory, generateCompetitorBrief } from "@/lib/mission-assistant.functions";
+import { missionAssistant, processAssistantHistory, generateCompetitorBrief, generateMeetingScript } from "@/lib/mission-assistant.functions";
 import {
   BLOCK_FIELDS,
   BLOCK_FIELDS_REQUIRED,
@@ -94,6 +94,7 @@ export function MissionAssistantPanel({
   const callAssistant = useServerFn(missionAssistant);
   const callProcessHistory = useServerFn(processAssistantHistory);
   const callGenerateBrief = useServerFn(generateCompetitorBrief);
+  const callGenerateMeetingScript = useServerFn(generateMeetingScript);
   const [input, setInput] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -273,6 +274,16 @@ export function MissionAssistantPanel({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao salvar parecer"),
   });
 
+  const meetingScriptMut = useMutation({
+    mutationFn: () => callGenerateMeetingScript({ data: { missionId, targetId } }),
+    onSuccess: () => {
+      toast.success("Roteiro de reunião gerado e salvo em Documentos.");
+      qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
+      qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao gerar roteiro"),
+  });
+
   const handleSend = () => {
     if (sendMut.isPending) return;
     if (!input.trim() && !imageFile) return;
@@ -350,10 +361,11 @@ export function MissionAssistantPanel({
 
       {messages.length > 0 && (
         <div className="px-3 py-2 border-b">
+          <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="text-xs w-full"
+            className="text-xs flex-1"
             onClick={() => processMut.mutate()}
             disabled={processMut.isPending}
           >
@@ -367,6 +379,20 @@ export function MissionAssistantPanel({
               </>
             )}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs flex-1"
+            onClick={() => meetingScriptMut.mutate()}
+            disabled={meetingScriptMut.isPending}
+          >
+            {meetingScriptMut.isPending ? (
+              <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Preparando reunião...</>
+            ) : (
+              <><Calendar className="h-3 w-3 mr-1" /> Preparar reunião</>
+            )}
+          </Button>
+          </div>
         </div>
       )}
 
