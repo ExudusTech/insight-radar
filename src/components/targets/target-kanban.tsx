@@ -55,16 +55,19 @@ function useBriefsByTarget(missionId: string): Set<string> {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_versions")
-        .select("target_id")
+        .select("extracted_data")
         .eq("mission_id", missionId)
         .eq("doc_type", "competitor_brief");
       if (error) throw error;
-      return (data ?? []) as { target_id: string | null }[];
+      return (data ?? []) as { extracted_data: unknown }[];
     },
   });
   return useMemo(() => {
     const s = new Set<string>();
-    for (const r of data) if (r.target_id) s.add(r.target_id);
+    for (const r of data) {
+      const ed = r.extracted_data as { target_id?: string } | null;
+      if (ed?.target_id) s.add(ed.target_id);
+    }
     return s;
   }, [data]);
 }
