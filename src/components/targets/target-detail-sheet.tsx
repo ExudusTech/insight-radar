@@ -254,14 +254,13 @@ export function TargetDetailSheet({
                     <p className="text-sm text-foreground/80 whitespace-pre-wrap">{target.notes}</p>
                   </Section>
                 )}
-                {currentUser?.role === "superadmin" && (
+                {currentUser?.role === "superadmin" ? (
                   <ApproachStrategySection
                     targetId={target.id}
                     canalAbordagem={(target as { canal_abordagem?: string | null }).canal_abordagem ?? null}
                     personaLead={(target as { persona_lead?: unknown }).persona_lead ?? null}
                   />
-                )}
-                {(currentUser?.role === "contractor" || currentUser?.role === "analyst") && (
+                ) : (
                   <ApproachStrategySection
                     targetId={target.id}
                     canalAbordagem={(target as { canal_abordagem?: string | null }).canal_abordagem ?? null}
