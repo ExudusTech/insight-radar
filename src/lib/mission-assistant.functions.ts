@@ -80,7 +80,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
     const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
-        .select("name, objective, segment")
+        .select("name, objective, segment, canais_obrigatorios")
         .eq("id", data.missionId)
         .single(),
       supabase
@@ -192,9 +192,17 @@ LinkedIn: ${target.linkedin ?? "—"}
 WhatsApp: ${target.whatsapp ?? "—"}
 
 ESTRATÉGIA DE ABORDAGEM DESTE CONCORRENTE:
-${(target as { canal_abordagem?: string | null }).canal_abordagem
-  ? `Canal designado: ${(target as { canal_abordagem?: string | null }).canal_abordagem} — use EXCLUSIVAMENTE este canal para iniciar e, sempre que possível, manter o contato. Se o concorrente tentar migrar para outro canal, documente (canal_continuidade) mas não inicie contatos paralelos no canal original.`
-  : "Canal de abordagem não definido — confirme com o superadmin antes de iniciar."}
+${(() => {
+  const canal = (target as { canal_abordagem?: string | null }).canal_abordagem;
+  const obrig = (mission as { canais_obrigatorios?: string[] | null }).canais_obrigatorios;
+  if (canal) {
+    return `Canal designado: ${canal} — use EXCLUSIVAMENTE este canal para iniciar e, sempre que possível, manter o contato. Se o concorrente tentar migrar para outro canal, documente (canal_continuidade) mas não inicie contatos paralelos no canal original.`;
+  }
+  if (obrig && obrig.length > 0) {
+    return `Canal não definido especificamente para este alvo. Canais obrigatórios da missão: ${obrig.join(", ")}. Use esses como referência ao orientar o analista, e registre por qual canal o concorrente respondeu (canal_entrada).`;
+  }
+  return "Canal não definido. Oriente o analista a identificar e registrar por qual canal o concorrente se expõe antes de iniciar a abordagem.";
+})()}
 ${(() => {
   const p = (target as { persona_lead?: unknown }).persona_lead;
   if (!p || (typeof p === "object" && Object.keys(p as object).length === 0)) return "";
@@ -578,8 +586,8 @@ export const generateCompetitorBrief = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const [{ data: target }, { data: mission }, { data: rows }] = await Promise.all([
-      supabase.from("targets").select("name, brand, category").eq("id", data.targetId).single(),
-      supabase.from("missions").select("name, objective, segment").eq("id", data.missionId).single(),
+      supabase.from("targets").select("name, brand, category, canal_abordagem").eq("id", data.targetId).single(),
+      supabase.from("missions").select("name, objective, segment, canais_obrigatorios").eq("id", data.missionId).single(),
       supabase
         .from("collection_data")
         .select("block, field_key, field_value")
@@ -587,6 +595,14 @@ export const generateCompetitorBrief = createServerFn({ method: "POST" })
     ]);
     if (!target) throw new Error("Alvo não encontrado");
     if (!mission) throw new Error("Missão não encontrada");
+
+    const canalTarget = (target as { canal_abordagem?: string | null }).canal_abordagem;
+    const canaisMissao = (mission as { canais_obrigatorios?: string[] | null }).canais_obrigatorios;
+    if (!canalTarget && !(canaisMissao && canaisMissao.length > 0)) {
+      throw new Error(
+        "Não é possível gerar o parecer: canal de abordagem não definido para este alvo e nenhum canal obrigatório configurado na missão.",
+      );
+    }
 
     const ctx = buildCollectedContext(rows ?? []);
     const systemPrompt = `Você é um analista sênior de inteligência competitiva. Produza um parecer executivo em português brasileiro, direto e acionável, usando APENAS os dados coletados abaixo.
