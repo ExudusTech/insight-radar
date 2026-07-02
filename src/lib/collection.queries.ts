@@ -125,6 +125,13 @@ export function countCompleteBlocks(rows: CollectionRow[]) {
   return COLLECTION_BLOCKS.filter((b) => idx[b].block_status === "done").length;
 }
 
+export function calcTargetCompletionPercent(rows: CollectionRow[]): number {
+  const totalExpected = Object.values(BLOCK_FIELDS).reduce((s, f) => s + f.length, 0);
+  const filled = countFilledFieldsByBlock(rows);
+  const totalFilled = Object.values(filled).reduce((s, n) => s + n, 0);
+  return totalExpected > 0 ? Math.round((totalFilled / totalExpected) * 100) : 0;
+}
+
 /** Formata "chave: valor" para exibir no notes do bloco. */
 function formatFieldLine(key: string, value: string) {
   const label = key.replace(/_/g, " ");
