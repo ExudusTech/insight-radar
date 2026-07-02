@@ -59,7 +59,25 @@ function JourneyPage() {
 
   const done = targets.filter((t) => t.status === "collection_complete").length;
   const total = targets.length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
+  // Progresso real: soma dos blocos concluídos + parciais (in_progress = 0.5)
+  // dividido pelo total de blocos de todos os alvos. Alvos com status
+  // "collection_complete" contam como 100% mesmo que os blocos não estejam
+  // marcados individualmente.
+  const totalBlocks = total * COLLECTION_BLOCKS.length;
+  let weightedDone = 0;
+  for (const t of targets) {
+    if (t.status === "collection_complete") {
+      weightedDone += COLLECTION_BLOCKS.length;
+      continue;
+    }
+    const blocks = blockStatus[t.id] ?? {};
+    for (const b of COLLECTION_BLOCKS) {
+      const s = blocks[b] ?? "not_started";
+      if (s === "done") weightedDone += 1;
+      else if (s === "in_progress") weightedDone += 0.5;
+    }
+  }
+  const pct = totalBlocks ? Math.round((weightedDone / totalBlocks) * 100) : 0;
   const daysLeft = mission?.deadline_final
     ? Math.ceil((new Date(mission.deadline_final).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
@@ -93,7 +111,7 @@ function JourneyPage() {
         <Card className="p-4 mt-4">
           <div className="flex justify-between text-xs mb-2">
             <span className="text-muted-foreground">Progresso geral</span>
-            <span className="font-medium">{done} de {total} alvos concluídos · {pct}%</span>
+            <span className="font-medium">{done} de {total} alvos concluídos · {pct}% de progresso</span>
           </div>
           <Progress value={pct} />
         </Card>
