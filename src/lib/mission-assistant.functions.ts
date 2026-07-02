@@ -70,7 +70,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const [{ data: mission }, { data: docs }, { data: target }] = await Promise.all([
+    const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
         .select("name, objective, segment")
@@ -86,10 +86,45 @@ export const missionAssistant = createServerFn({ method: "POST" })
         .select("name, brand, category, site, instagram, linkedin, whatsapp, email")
         .eq("id", data.targetId)
         .single(),
+      supabase
+        .from("collection_data")
+        .select("block, field_key, field_value")
+        .eq("target_id", data.targetId),
     ]);
 
     if (!mission) throw new Error("Missão não encontrada");
     if (!target) throw new Error("Alvo não encontrado");
+
+    // Compute filled fields and gaps
+    const filled: Record<string, Set<string>> = {};
+    for (const row of filledRows ?? []) {
+      const v = row.field_value;
+      const hasValue = v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
+      if (!hasValue) continue;
+      if (!filled[row.block]) filled[row.block] = new Set();
+      filled[row.block].add(row.field_key);
+    }
+    const gaps: string[] = [];
+    const filledSummary: string[] = [];
+    for (const blk of COLLECTION_BLOCKS) {
+      const fs = BLOCK_FIELDS[blk] ?? [];
+      const done: string[] = [];
+      const pend: string[] = [];
+      for (const f of fs) {
+        if (filled[blk]?.has(f)) done.push(f);
+        else pend.push(f);
+      }
+      if (done.length > 0) filledSummary.push(`${blk} (${BLOCK_TITLES[blk]}): ${done.join(", ")}`);
+      for (const p of pend) gaps.push(`${blk}.${p}`);
+    }
+    const gapsSummary = gaps.length > 0
+      ? `\nLACUNAS AINDA PENDENTES (${gaps.length}):\n${gaps.map((g) => `- ${g}`).join("\n")}`
+      : "\nTODOS OS CAMPOS ESTÃO PREENCHIDOS — pronto para síntese final.";
+    const filledBlock = filledSummary.length > 0
+      ? `\nJÁ COLETADO:\n${filledSummary.map((s) => `- ${s}`).join("\n")}`
+      : "\nJÁ COLETADO: (nada ainda)";
+
+    const isResuming = data.conversationHistory.length > 0 && !data.userMessage && !data.imageBase64;
 
     const frozenDocs = docs ?? [];
 
@@ -128,6 +163,34 @@ WhatsApp: ${target.whatsapp ?? "—"}
 
 BLOCOS E CAMPOS QUE VOCÊ DEVE PREENCHER (uma única conversa cobre TODOS):
 ${buildBlocksSchemaSection()}
+${filledBlock}
+${gapsSummary}
+${isResuming ? `
+MODO RETOMADA (o analista retomou a conversa sem nova mensagem):
+Abra a resposta assim:
+1) "Bem-vindo de volta! Aqui está o resumo do que já coletamos sobre ${target.name}:"
+2) Liste os blocos com dados (ex.: "✅ A — Pesquisa pública: canal_principal, promessa, cta").
+3) Liste os blocos incompletos com o que falta (ex.: "⚠️ C — Funil e oferta: faltam preco, garantia").
+4) "Vamos continuar? **Próxima ação:** [instrução operacional para o campo pendente mais crítico]".
+Não repita perguntas cujas respostas já estão em JÁ COLETADO.` : ""}
+
+AO FINAL DE CADA RESPOSTA (antes do ---BLOCK_DATA---):
+- Se ainda há lacunas: escreva "📋 **Pendências:** ainda faltam ${gaps.length} campos. Próximo passo: [instrução específica para o campo mais crítico pendente]."
+- Se não há lacunas: escreva "✅ **Coleta completa!** Todos os campos foram preenchidos. Digite 'síntese' para gerar o parecer final."
+
+SÍNTESE FINAL:
+Quando a analista pedir "síntese", "parecer", "resumo final", "finalizar" ou "gerar parecer":
+1. Leia todos os dados coletados nos blocos A–G (usando JÁ COLETADO acima e o histórico da conversa).
+2. Produza um parecer estruturado com as seções (use exatamente estes títulos em markdown):
+   ## Perfil do Concorrente
+   ## Estratégia de Captação (entrada do funil)
+   ## Oferta e Precificação
+   ## Qualidade do Atendimento
+   ## Prova Social e Reputação
+   ## Materiais e Sequência de Vendas
+   ## Pontos Fortes
+   ## Pontos Fracos e Oportunidades
+3. Ao final pergunte: "Deseja salvar este parecer como documento da missão?"
 
 COMO SE COMPORTAR:
 - Você conduz UMA única conversa holística que cobre os 7 blocos (A a G). Nunca peça a mesma coisa duas vezes.
