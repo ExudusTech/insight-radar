@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getMission, missionDetailKey } from "@/lib/missions.queries";
 import { MISSION_STATUS_LABEL } from "@/lib/target-status";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId")({
   component: MissionLayout,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_authenticated/missions/$missionId")({
 function MissionLayout() {
   const { missionId } = Route.useParams();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: currentUser } = useCurrentUser();
   const { data: mission, isLoading } = useQuery({
     queryKey: missionDetailKey(missionId),
     queryFn: () => getMission(missionId),
@@ -39,6 +41,9 @@ function MissionLayout() {
   const targetsPath = `/missions/${missionId}/targets`;
   const overviewPath = `/missions/${missionId}`;
   const documentPath = `/missions/${missionId}/document`;
+  const comparativePath = `/missions/${missionId}/comparative`;
+  const canSeeComparative =
+    currentUser?.role === "superadmin" || currentUser?.role === "contractor";
 
   const tabs = [
     { label: "Visão Geral", href: overviewPath, key: "overview", active: pathname === overviewPath },
@@ -46,7 +51,14 @@ function MissionLayout() {
     { label: "Documento-base", href: documentPath, key: "doc", active: pathname.startsWith(documentPath) },
     { label: "Timeline", href: "#", key: "timeline", disabled: true },
     { label: "Jornada", href: "#", key: "journey", disabled: true },
-    { label: "Comparativo", href: "#", key: "comparative", disabled: true },
+    canSeeComparative
+      ? {
+          label: "Comparativo",
+          href: comparativePath,
+          key: "comparative",
+          active: pathname.startsWith(comparativePath),
+        }
+      : { label: "Comparativo", href: "#", key: "comparative", disabled: true },
   ];
 
   return (
