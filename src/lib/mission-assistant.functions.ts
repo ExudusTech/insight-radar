@@ -711,7 +711,7 @@ export const generateMeetingScript = createServerFn({ method: "POST" })
         .single(),
       supabase
         .from("collection_data")
-        .select("block, field_key, field_value, notes")
+        .select("block, field_key, field_value")
         .eq("target_id", data.targetId),
     ]);
     if (!target) throw new Error("Alvo não encontrado");
@@ -721,10 +721,9 @@ export const generateMeetingScript = createServerFn({ method: "POST" })
     const collected = allRows
       .filter((r) => {
         const v = r.field_value;
-        const hasVal = v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
-        return hasVal || (r.notes && String(r.notes).trim());
+        return v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "null";
       })
-      .map((r) => `${r.block}.${r.field_key}: ${r.field_value ?? r.notes}`)
+      .map((r) => `${r.block}.${r.field_key}: ${r.field_value}`)
       .join("\n");
 
     const missingRequiredText = completion.missingRequired.map((g) => `- ${g}`).join("\n") ||
@@ -777,6 +776,7 @@ Gere um roteiro com as seguintes seções:
 
     const { text: scriptContent } = await callLLM({
       task: "assistant",
+      systemPrompt: "Você é um estrategista sênior de inteligência competitiva especializado em mystery shopping B2B.",
       messages: [{ role: "user", content: prompt }],
       maxTokens: 3072,
     });
