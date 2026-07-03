@@ -9,6 +9,7 @@ import {
   Bell,
   Package,
   Clock,
+  Telescope,
   Sun,
   Moon,
   LogOut,
