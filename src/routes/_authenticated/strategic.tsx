@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Telescope } from "lucide-react";
+import { Telescope } from "lucide-react";
+import { OSystemaSection } from "@/components/strategic/OSystemaSection";
 
 export const Route = createFileRoute("/_authenticated/strategic")({
   beforeLoad: async () => {
@@ -29,20 +29,6 @@ const UPCOMING = [
 ];
 
 function StrategicPage() {
-  const { data: doc, isLoading } = useQuery({
-    queryKey: ["strategic-documents", "o-sistema"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("strategic_documents")
-        .select("id, title, content, is_published")
-        .eq("title", "O Sistema")
-        .eq("is_published", true)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="space-y-2">
@@ -58,25 +44,7 @@ function StrategicPage() {
         </Badge>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>O Sistema</CardTitle>
-          <CardDescription>O que é, qual dor resolve e como funciona.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="grid place-items-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : doc?.content ? (
-            <div className="prose prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed">
-              {doc.content}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">Documento sendo preparado.</p>
-          )}
-        </CardContent>
-      </Card>
+      <OSystemaSection />
 
       {UPCOMING.map((s) => (
         <Card key={s.title} className="opacity-80">
