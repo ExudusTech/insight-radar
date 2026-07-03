@@ -52,6 +52,7 @@ type Row = {
   role: AppRole | null;
   created_at?: string | null;
   accepts_missions?: boolean | null;
+  can_view_strategic?: boolean | null;
 };
 
 const ROLE_BADGE: Record<AppRole, string> = {
@@ -70,7 +71,7 @@ function UsersPage() {
     queryKey: ["admin", "users"],
     queryFn: async (): Promise<Row[]> => {
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, organization, status, created_at, accepts_missions"),
+        supabase.from("profiles").select("id, full_name, email, organization, status, created_at, accepts_missions, can_view_strategic"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
       const roleMap = new Map<string, AppRole>();
@@ -95,6 +96,18 @@ function UsersPage() {
     },
     onSuccess: (_, vars) => {
       toast.success(vars.next ? "Analista disponível para demandas" : "Analista bloqueado para novas demandas");
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const toggleStrategic = useMutation({
+    mutationFn: async ({ id, next }: { id: string; next: boolean }) => {
+      const { error } = await supabase.from("profiles").update({ can_view_strategic: next }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      toast.success(vars.next ? "Acesso à Visão Estratégica concedido" : "Acesso à Visão Estratégica removido");
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
@@ -224,6 +237,17 @@ function UsersPage() {
                         />
                         <span className="text-xs text-muted-foreground">
                           {r.accepts_missions ?? true ? "Disponível" : "Bloqueado"}
+                        </span>
+                      </div>
+                    )}
+                    {me?.role === "superadmin" && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Switch
+                          checked={r.can_view_strategic ?? false}
+                          onCheckedChange={(val) => toggleStrategic.mutate({ id: r.id, next: val })}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          Visão Estratégica
                         </span>
                       </div>
                     )}
