@@ -39,3 +39,74 @@ export async function saveAssistantMessage(params: {
   });
   if (error) throw error;
 }
+
+// ============================================================
+// Comparative chat (per mission, target_id IS NULL)
+// ============================================================
+
+export const comparativeMessagesKey = (missionId: string, sessionId: string | null) =>
+  ["assistant-messages", "comparative", missionId, sessionId] as const;
+
+export type ComparativeMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  session_id: string | null;
+  created_at: string;
+};
+
+/**
+ * Retorna a sessão mais recente (session_id) usada pelo usuário atual
+ * no chat comparativo dessa missão. Retorna null se não houver histórico.
+ */
+export async function getLatestComparativeSession(
+  missionId: string,
+  analystId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("assistant_messages")
+    .select("session_id")
+    .eq("mission_id", missionId)
+    .eq("analyst_id", analystId)
+    .is("target_id", null)
+    .not("session_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.session_id ?? null;
+}
+
+export async function listComparativeMessages(
+  missionId: string,
+  sessionId: string,
+): Promise<ComparativeMessage[]> {
+  const { data, error } = await supabase
+    .from("assistant_messages")
+    .select("id, role, content, session_id, created_at")
+    .eq("mission_id", missionId)
+    .eq("session_id", sessionId)
+    .is("target_id", null)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ComparativeMessage[];
+}
+
+export async function saveComparativeMessage(params: {
+  missionId: string;
+  analystId: string;
+  sessionId: string;
+  role: "user" | "assistant";
+  content: string;
+}) {
+  const { error } = await supabase.from("assistant_messages").insert({
+    mission_id: params.missionId,
+    target_id: null,
+    block: ASSISTANT_UNIFIED_BLOCK,
+    analyst_id: params.analystId,
+    session_id: params.sessionId,
+    role: params.role,
+    content: params.content,
+  });
+  if (error) throw error;
+}
