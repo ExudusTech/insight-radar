@@ -119,6 +119,19 @@ export function MissionAssistantPanel({
     queryKey: targetDetailKey(targetId),
     queryFn: () => getTarget(targetId),
   });
+  const { data: missionMeta } = useQuery({
+    queryKey: ["missions", "meta-entregavel", missionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("entregavel_esperado")
+        .eq("id", missionId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const entregavel = missionMeta?.entregavel_esperado?.trim() || null;
   const canalAbordagem = (targetData as { canal_abordagem?: string | null } | null | undefined)?.canal_abordagem;
   const filledByBlock = countFilledFieldsByBlock(collectionRows);
   const requiredCompletion = calcRequiredCompletion(collectionRows);
