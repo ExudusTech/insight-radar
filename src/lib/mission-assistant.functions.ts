@@ -80,7 +80,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
     const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
-        .select("name, objective, segment, canais_obrigatorios")
+        .select("name, objective, segment, canais_obrigatorios, entregavel_esperado")
         .eq("id", data.missionId)
         .single(),
       supabase
