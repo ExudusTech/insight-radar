@@ -154,6 +154,23 @@ function MissionOverview() {
             <p className="text-sm text-muted-foreground italic">Sem objetivo definido.</p>
           )}
         </Card>
+
+        {(mission as { entregavel_esperado?: string | null }).entregavel_esperado && (
+          <Card className="p-6 space-y-2 border-primary/40 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎯</span>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Entregável esperado
+              </h2>
+            </div>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {(mission as { entregavel_esperado: string }).entregavel_esperado}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              A missão só é considerada concluída para cada concorrente quando este entregável for obtido e registrado.
+            </p>
+          </Card>
+        )}
       </div>
       <div className="space-y-5">
         {(currentUser?.role === "superadmin" || currentUser?.role === "contractor") && (
