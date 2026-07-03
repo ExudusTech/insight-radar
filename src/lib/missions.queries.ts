@@ -172,7 +172,6 @@ export async function updateMissionFromExtraction(
   },
 ) {
   const patch: {
-    name?: string;
     objective?: string;
     segment?: string;
     deadline_first?: string;
@@ -180,7 +179,6 @@ export async function updateMissionFromExtraction(
     approach_type?: string;
     ethical_rules?: string;
   } = {};
-  if (extracted.mission_name?.trim()) patch.name = extracted.mission_name.trim();
   if (extracted.objective) patch.objective = extracted.objective;
   if (extracted.segment) patch.segment = extracted.segment;
   if (extracted.deadline_first) patch.deadline_first = extracted.deadline_first;

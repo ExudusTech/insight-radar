@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Check,
   CalendarClock,
+  Lock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { DatePickerField, parseLocalDate } from "@/components/ui/date-picker";
@@ -48,6 +49,8 @@ import { assignAnalystToMission } from "@/lib/missions.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
 import { ChannelRotationCard } from "@/components/missions/channel-rotation-card";
+import { isPreAcceptance } from "@/lib/target-status";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -79,19 +82,30 @@ function MissionOverview() {
   const contractor =
     (mission as { contractor?: { full_name: string | null; email: string | null } | null }).contractor;
 
-  const isDraft = mission.status === "draft";
+  const preAcceptance = isPreAcceptance(mission.status);
   const canEditBriefing =
-    isDraft && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
+    preAcceptance && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
   const canStartMission =
     currentUser?.role === "contractor" || currentUser?.role === "superadmin";
   const canEditDetails =
-    isDraft && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
+    preAcceptance && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
   const isAnalystOfMission =
     !!currentUser && analysts.some((a) => a.analyst_id === currentUser.id);
+  const showLockedBanner =
+    !preAcceptance && currentUser?.role === "contractor";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2 space-y-5">
+        {showLockedBanner && (
+          <Alert>
+            <Lock className="h-4 w-4" />
+            <AlertDescription>
+              Missão em execução — os campos não podem mais ser alterados. Para
+              ajustes, abra uma solicitação de mudança.
+            </AlertDescription>
+          </Alert>
+        )}
         {canEditBriefing ? (
           <BriefingEnrichPanel
             missionId={missionId}

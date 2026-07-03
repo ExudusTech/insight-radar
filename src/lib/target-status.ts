@@ -91,3 +91,15 @@ export const MISSION_STATUS_LABEL: Record<MissionStatus, string> = {
   paused: "Pausada",
   cancelled: "Cancelada",
 };
+
+export const PRE_ACCEPTANCE_STATUSES: MissionStatus[] = [
+  "draft",
+  "in_review",
+  "awaiting_approval",
+  "pending_acceptance",
+  "date_negotiation",
+];
+
+export function isPreAcceptance(status: MissionStatus) {
+  return (PRE_ACCEPTANCE_STATUSES as string[]).includes(status);
+}

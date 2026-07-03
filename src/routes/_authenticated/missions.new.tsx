@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
@@ -39,6 +40,8 @@ function NewMissionPage() {
   const [mode, setMode] = useState<Mode>("ai");
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [missionName, setMissionName] = useState<string>("");
+  const [nameConfirmed, setNameConfirmed] = useState(false);
 
   async function handleFile(file: File) {
     if (!/\.(pdf|docx)$/i.test(file.name)) {
@@ -54,7 +57,7 @@ function NewMissionPage() {
 
     try {
       mission = await createMission({
-        name: "Nova missão",
+        name: missionName.trim() || "Nova missão",
         target_label: "Concorrente",
         analyst_ids: [],
         contractor_ids: [],
@@ -123,24 +126,54 @@ function NewMissionPage() {
           <ArrowLeft className="h-3 w-3" /> Voltar para missões
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nova missão</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
-        </p>
-        <div className="mt-3 flex gap-2 text-xs">
-          <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
-            <Sparkles className="h-3 w-3" /> Chat com IA
-          </ModeButton>
-          <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
-            <FileUp className="h-3 w-3" /> Enviar briefing
-          </ModeButton>
-          <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
-            Formulário manual
-          </ModeButton>
-        </div>
+        {nameConfirmed ? (
+          <>
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Missão:</span>
+              <span className="font-medium">{missionName}</span>
+              <button
+                type="button"
+                onClick={() => setNameConfirmed(false)}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                <Pencil className="h-3 w-3" /> Alterar nome
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
+            </p>
+            <div className="mt-3 flex gap-2 text-xs">
+              <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
+                <Sparkles className="h-3 w-3" /> Chat com IA
+              </ModeButton>
+              <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
+                <FileUp className="h-3 w-3" /> Enviar briefing
+              </ModeButton>
+              <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
+                Formulário manual
+              </ModeButton>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-1">
+            Comece dando um nome para a missão. Você poderá alterá-lo depois.
+          </p>
+        )}
       </div>
 
-      {mode === "ai" ? (
-        <AiChatMode onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })} />
+      {!nameConfirmed ? (
+        <NameGate
+          initial={missionName}
+          onConfirm={(name) => {
+            setMissionName(name);
+            setNameConfirmed(true);
+          }}
+        />
+      ) : mode === "ai" ? (
+        <AiChatMode
+          missionName={missionName}
+          onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })}
+        />
       ) : mode === "upload" ? (
         <UploadMode
           status={status}
@@ -155,7 +188,7 @@ function NewMissionPage() {
         />
       ) : (
         <div className="space-y-4">
-          <MissionForm />
+          <MissionForm initialName={missionName} />
         </div>
       )}
     </div>
@@ -178,10 +211,69 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
+function NameGate({
+  initial,
+  onConfirm,
+}: {
+  initial: string;
+  onConfirm: (name: string) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      toast.error("Dê um nome para a missão para continuar");
+      return;
+    }
+    onConfirm(trimmed);
+  };
+  return (
+    <Card className="p-8 max-w-xl mx-auto space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">Nome da missão</h2>
+        <p className="text-sm text-muted-foreground">
+          Escolha um nome claro. Ex: &quot;Concorrentes de plano odontológico — SP&quot;.
+        </p>
+      </div>
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder="Nome da missão"
+        className="h-10"
+      />
+      <div className="flex justify-end">
+        <Button onClick={submit} disabled={!value.trim()}>
+          Continuar
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function AiChatMode({
+  missionName,
+  onCreated,
+}: {
+  missionName: string;
+  onCreated: (missionId: string) => void;
+}) {
   const briefingFn = useServerFn(missionBriefingAssistant);
+  const initialAssistantMessage = missionName
+    ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
+    : INITIAL_ASSISTANT_MESSAGE;
   const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "assistant", content: INITIAL_ASSISTANT_MESSAGE },
+    { role: "assistant", content: initialAssistantMessage },
   ]);
   const [scope, setScope] = useState<BriefingScope | null>(null);
   const [input, setInput] = useState("");
@@ -210,7 +302,9 @@ function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
     setInput("");
     setPending(true);
     try {
-      const res = await briefingFn({ data: { messages: next } });
+      const res = await briefingFn({
+        data: { messages: next, missionName: missionName || undefined },
+      });
       setMessages((cur) => [...cur, { role: "assistant", content: res.text }]);
       if (res.scope) setScope(res.scope);
       if (res.missionCreated) {
