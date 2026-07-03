@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Target as TargetIcon, Loader2, Calendar, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, Search, Target as TargetIcon, Loader2, Calendar, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -236,36 +236,32 @@ function MissionCard({
       : "text-muted-foreground";
 
   return (
-    <Card className="p-5 flex flex-col gap-4 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 transition-all duration-200 border-border/60 group">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold leading-tight font-display group-hover:text-primary transition-colors">{name}</h3>
-          <Badge variant="outline" className="shrink-0 text-[10px]">{MISSION_STATUS_LABEL[status]}</Badge>
+    <Link
+      to={role === "analyst" ? "/missions/$missionId/journey" : "/missions/$missionId"}
+      params={{ missionId }}
+      className="block group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+    >
+      <Card className="p-5 flex flex-col gap-4 hover:shadow-[var(--shadow-elevated)] hover:-translate-y-0.5 hover:border-primary/40 transition-all duration-200 border-border/60 cursor-pointer h-full">
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold leading-tight font-display group-hover:text-primary transition-colors">{name}</h3>
+            <Badge variant="outline" className="shrink-0 text-[10px]">{MISSION_STATUS_LABEL[status]}</Badge>
+          </div>
+          {segment && <p className="text-xs text-muted-foreground mt-1">{segment}</p>}
         </div>
-        {segment && <p className="text-xs text-muted-foreground mt-1">{segment}</p>}
-      </div>
-      <div>
-        <div className="flex justify-between text-xs mb-1.5">
-          <span className="text-muted-foreground">Alvos concluídos</span>
-          <span className="font-semibold">{done}/{total}</span>
+        <div>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-muted-foreground">Alvos concluídos</span>
+            <span className="font-semibold">{done}/{total}</span>
+          </div>
+          <Progress value={pct} className="h-1.5" />
         </div>
-        <Progress value={pct} className="h-1.5" />
-      </div>
-      <div className="flex items-center justify-between gap-2">
         <div className={`text-xs flex items-center gap-1.5 ${urgencyClass}`}>
           <Calendar className="h-3.5 w-3.5" />
           {deadline ? (daysLeft! >= 0 ? `${daysLeft} dia${daysLeft === 1 ? "" : "s"}` : "Prazo expirado") : "Sem prazo"}
         </div>
-        <Button asChild size="sm" className="group-hover:shadow-[var(--shadow-glow)] transition-shadow">
-          <Link
-            to={role === "analyst" ? "/missions/$missionId/journey" : "/missions/$missionId"}
-            params={{ missionId }}
-          >
-            Continuar <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 

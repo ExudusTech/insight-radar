@@ -31,7 +31,7 @@ export function TargetCard({
       {target.brand && (
         <div className="text-xs text-muted-foreground mt-0.5 truncate">{target.brand}</div>
       )}
-      {phase && <TargetPhasePipeline phase={phase} />}
+      {phase && <TargetPhasePipeline phase={phase} compact showLabel={false} />}
       {completion && (
         <div className="mt-2 space-y-1">
           <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
