@@ -362,7 +362,90 @@ PREENCHIMENTO AUTOMÁTICO DOS CAMPOS — REGRA OBRIGATÓRIA (SEM EXCEÇÃO):
       console.warn("[assistant] persist error", e);
     }
 
-    return { message: cleanMessage, blockUpdates };
+    // Detecção leve de evento de timeline a partir da mensagem do analista.
+    let timelineEventDetected = false;
+    const userMsgText = (data.userMessage ?? "").trim();
+    if (userMsgText.length > 0) {
+      try {
+        const eventPrompt = `Analise esta mensagem de um analista de mystery shopping e identifique se ela descreve um evento concreto que aconteceu na jornada com o concorrente.
+
+Mensagem: "${userMsgText.slice(0, 4000)}"
+
+Eventos possíveis:
+- contato_inicial: analista enviou o primeiro contato (DM, email, WhatsApp, ligação inicial)
+- resposta_recebida: o concorrente respondeu ao contato
+- reuniao_agendada: uma call ou reunião foi agendada
+- reuniao_realizada: a call ou reunião aconteceu de fato
+- proposta_recebida: o concorrente enviou proposta comercial, preço ou apresentação
+- follow_up_recebido: o concorrente fez follow-up espontâneo
+- negociacao: houve negociação de preço ou condições
+- encerramento: interação foi concluída (comprou, recusou, foi ignorada)
+- outro: outro evento relevante da jornada
+
+Responda APENAS com JSON válido, sem markdown:
+- Se houver evento: {"detected": true, "event_type": "<tipo>", "description": "<resumo em 1 frase do que aconteceu>", "event_date": "<YYYY-MM-DD se mencionado, senão null>"}
+- Se não houver evento concreto: {"detected": false}`;
+
+        const { text: evtRaw } = await callLLM({
+          task: "classify",
+          systemPrompt: "Você é um classificador rigoroso. Responde somente JSON.",
+          messages: [{ role: "user", content: eventPrompt }],
+          maxTokens: 200,
+          tracking: {
+            userId: context.userId,
+            missionId: data.missionId,
+            targetId: data.targetId,
+            taskLabel: "timeline_event_detection",
+          },
+        });
+        const jsonMatch = evtRaw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]) as {
+            detected?: boolean;
+            event_type?: string;
+            description?: string;
+            event_date?: string | null;
+          };
+          const ALLOWED = new Set([
+            "contato_inicial","resposta_recebida","reuniao_agendada","reuniao_realizada",
+            "proposta_recebida","follow_up_recebido","negociacao","encerramento","outro",
+          ]);
+          if (
+            parsed.detected &&
+            parsed.event_type &&
+            ALLOWED.has(parsed.event_type) &&
+            parsed.description &&
+            parsed.description.trim().length > 0
+          ) {
+            const eventDate =
+              parsed.event_date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.event_date)
+                ? parsed.event_date
+                : new Date().toISOString().slice(0, 10);
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const { error: evtErr } = await supabaseAdmin
+              .from("target_timeline_events")
+              .insert({
+                target_id: data.targetId,
+                mission_id: data.missionId,
+                event_type: parsed.event_type,
+                description: parsed.description.slice(0, 1000),
+                event_date: eventDate,
+                source: "ai",
+                created_by: context.userId,
+              });
+            if (evtErr) {
+              console.warn("[assistant] timeline insert failed", evtErr);
+            } else {
+              timelineEventDetected = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[assistant] timeline event detection failed", e);
+      }
+    }
+
+    return { message: cleanMessage, blockUpdates, timelineEventDetected };
   });
 
 const ProcessInputSchema = z.object({
