@@ -211,10 +211,69 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-function AiChatMode({ onCreated }: { onCreated: (missionId: string) => void }) {
+function NameGate({
+  initial,
+  onConfirm,
+}: {
+  initial: string;
+  onConfirm: (name: string) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      toast.error("Dê um nome para a missão para continuar");
+      return;
+    }
+    onConfirm(trimmed);
+  };
+  return (
+    <Card className="p-8 max-w-xl mx-auto space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold">Nome da missão</h2>
+        <p className="text-sm text-muted-foreground">
+          Escolha um nome claro. Ex: &quot;Concorrentes de plano odontológico — SP&quot;.
+        </p>
+      </div>
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder="Nome da missão"
+        className="h-10"
+      />
+      <div className="flex justify-end">
+        <Button onClick={submit} disabled={!value.trim()}>
+          Continuar
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function AiChatMode({
+  missionName,
+  onCreated,
+}: {
+  missionName: string;
+  onCreated: (missionId: string) => void;
+}) {
   const briefingFn = useServerFn(missionBriefingAssistant);
+  const initialAssistantMessage = missionName
+    ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
+    : INITIAL_ASSISTANT_MESSAGE;
   const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "assistant", content: INITIAL_ASSISTANT_MESSAGE },
+    { role: "assistant", content: initialAssistantMessage },
   ]);
   const [scope, setScope] = useState<BriefingScope | null>(null);
   const [input, setInput] = useState("");
