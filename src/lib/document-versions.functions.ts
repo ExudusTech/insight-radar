@@ -10,7 +10,9 @@ Extraia do documento e retorne JSON com:
 { "mission_name": string, "objective": string, "segment": string,
   "targets": [{"name": string, "instagram": string, "whatsapp": string, "linkedin": string, "category": string}],
   "collection_blocks": { "A": string, "B": string, "C": string, "D": string, "E": string, "F": string, "G": string },
-  "ethical_rules": string, "approach_type": string, "deadline_first": string, "deadline_final": string }
+  "ethical_rules": string, "approach_type": string, "deadline_first": string, "deadline_final": string,
+  "entregavel_esperado": string }
+O campo entregavel_esperado descreve o resultado final tangível que o cliente espera obter (ex: "proposta comercial recebida do concorrente", "tabela de preços", "deck de vendas"). Se o documento não descrever isso, retorne string vazia.
 Retorne apenas o JSON válido, sem markdown, sem texto adicional.`;
 
 async function extractTextFromBuffer(buf: ArrayBuffer, fileName: string): Promise<string> {
