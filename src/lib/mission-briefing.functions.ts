@@ -114,6 +114,7 @@ export type BriefingScope = {
   profundidade?: string;
   prazo?: string;
   restricoes?: string;
+  entregavel_esperado?: string;
 };
 
 function extractScopeBlock(text: string): { cleanText: string; scope: BriefingScope | null } {
@@ -177,6 +178,7 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
         cobertura_canais: payload.cobertura_canais ?? null,
         canais_obrigatorios: canais.length > 0 ? canais : null,
         restricoes: payload.restricoes ?? null,
+        entregavel_esperado: payload.entregavel_esperado?.trim() || null,
       })
       .select("id")
       .single();
