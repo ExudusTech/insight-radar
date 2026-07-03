@@ -302,7 +302,9 @@ function AiChatMode({
     setInput("");
     setPending(true);
     try {
-      const res = await briefingFn({ data: { messages: next } });
+      const res = await briefingFn({
+        data: { messages: next, missionName: missionName || undefined },
+      });
       setMessages((cur) => [...cur, { role: "assistant", content: res.text }]);
       if (res.scope) setScope(res.scope);
       if (res.missionCreated) {
