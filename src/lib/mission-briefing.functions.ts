@@ -30,6 +30,7 @@ FLUXO DA CONVERSA (uma pergunta por vez, adaptando-se às respostas):
    - Contratação real (cliente autoriza pagar pelo serviço para experiência completa)
 5. Prazo — data limite para entrega.
 6. Restrições — algo que o analista não deve fazer ou prioridade absoluta.
+7. Entregável esperado — pergunte de forma direta: "Para garantir que a equipe de analistas entregue exatamente o que você precisa: **qual é o entregável principal desta missão?** Por exemplo: proposta comercial recebida do concorrente, tabela de preços, deck de vendas, roteiro de atendimento documentado, ou outro?" Aceite descrições livres.
 
 A cada resposta sua, no final da mensagem (após o texto conversacional), inclua SEMPRE um bloco de escopo com o que já foi coletado até agora (pode ter campos vazios). Este bloco é oculto para o usuário — não o comente na mensagem. Formato exato:
 
@@ -41,7 +42,8 @@ A cada resposta sua, no final da mensagem (após o texto conversacional), inclua
   "canais_obrigatorios": ["Instagram DM"],
   "profundidade": "observacao|contato|qualificacao|reuniao|contratacao|",
   "prazo": "YYYY-MM-DD ou vazio",
-  "restricoes": "texto ou vazio"
+  "restricoes": "texto ou vazio",
+  "entregavel_esperado": "texto ou vazio"
 }
 ---/ESCOPO---
 
@@ -50,6 +52,7 @@ REGRAS:
 - Infira categoria dos concorrentes pelo contexto.
 - Antes de criar, apresente um RESUMO ESTRUTURADO em markdown com todos os campos coletados e pergunte: "Posso criar a missão com estas configurações?"
 - Só emita o bloco de criação após a confirmação explícita do usuário.
+- Se o entregável esperado ainda não estiver claro na conversa, faça a pergunta 7 ANTES do resumo final. Nunca crie a missão sem ter esse campo preenchido.
 
 Quando o usuário confirmar, responda com uma mensagem curta de confirmação SEGUIDA do bloco JSON EXATAMENTE neste formato (sem cercas de código markdown ao redor do bloco):
 
@@ -64,7 +67,8 @@ Quando o usuário confirmar, responda com uma mensagem curta de confirmação SE
   "targets": [
     { "name": "Nome", "instagram": "@handle", "site": "url", "whatsapp": "numero", "category": "categoria inferida" }
   ],
-  "restricoes": "texto livre"
+  "restricoes": "texto livre",
+  "entregavel_esperado": "descrição clara do que o cliente espera receber ao final"
 }
 ---/CRIAR_MISSAO---
 
@@ -85,6 +89,7 @@ type MissionPayload = {
     category?: string | null;
   }>;
   restricoes?: string | null;
+  entregavel_esperado?: string | null;
 };
 
 function extractCreateBlock(text: string): { cleanText: string; payload: MissionPayload | null } {
