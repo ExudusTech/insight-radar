@@ -1,27 +1,104 @@
-# Diagnóstico do fallback Gemini
+## Objetivo
+1. Cliente escolhe o nome da missão como primeiro passo — o briefing não sobrescreve mais o nome depois.
+2. Cliente (contractor) e superadmin podem editar qualquer campo da missão **até o analista aceitar** (transição para `approved`/`execution_started`).
+3. Depois do aceite, sinal visual claro para o cliente de que os campos travaram.
 
-## O que o teste 1 revelou
+---
 
-O cenário 1 (`assistant — sem falha`) **não força falha em ninguém**, então deveria ter respondido com `gemini/gemini-2.0-flash`. O toast mostrou `openai/gpt-4o-mini (esperado: gemini)` — ou seja, o Gemini falhou sozinho e o roteador caiu pro próximo da cadeia. **Não adianta rodar os outros 3 antes de entender isso**, porque os cenários B/C/D também dependem do Gemini estar funcional.
+## 1. Pedir o nome antes de qualquer upload/preenchimento
 
-## Hipóteses prováveis
+Em `src/routes/_authenticated/missions.new.tsx`, adicionar uma etapa inicial (gate) antes das três abas (`Chat com IA`, `Enviar briefing`, `Formulário manual`):
 
-1. `GEMINI_API_KEY` não está disponível no runtime do preview (foi salva mas o servidor ainda não pegou — exige restart/republish).
-2. O endpoint OpenAI-compat do Google rejeita o nome `gemini-2.0-flash` (o formato canônico pelo endpoint compat costuma ser `models/gemini-2.0-flash` ou `gemini-2.0-flash-exp`).
-3. A key foi gerada num projeto Google sem a Generative Language API habilitada (retorna 403).
+- Tela única com input "Nome da missão" (obrigatório, `trim` não vazio) + botão "Continuar".
+- Só depois de confirmar o nome, mostrar as três abas.
+- Enquanto no gate, esconder o seletor de modo.
+- Botão "Alterar nome" discreto ao lado do título quando as abas estão visíveis, para o usuário voltar ao gate se quiser.
 
-## Passos do plano
+Propagação do nome para os três modos:
+- **Enviar briefing** (`handleFile`): substituir `name: "Nova missão"` pelo nome do gate.
+- **Chat com IA** (`AiChatMode` → `createFromBriefing`): passar o nome do gate como override e ignorar `scope.mission_name`.
+- **Formulário manual** (`MissionForm`): passar o nome como valor inicial do campo (mantém editável).
 
-1. Adicionar **logging detalhado** temporário em `src/lib/llm-router.ts` (status + primeiros 300 chars do body) já no caminho de `shouldFallback`, para qualquer provider — hoje só logamos `provider/model: status`.
-2. Expor no resultado do `runLlmFallbackTest` um array `attempts[]` com `{provider, model, status, bodySnippet}` para cada tentativa, e mostrar isso na UI de `/settings` (não só no toast).
-3. Rodar de novo o cenário 1 com a UI já mostrando o erro real do Gemini.
-4. Corrigir conforme o diagnóstico:
-   - Se 401/403 → revisar a `GEMINI_API_KEY` (regerar / habilitar API).
-   - Se 404 "model not found" → ajustar o nome do modelo na tabela `ROUTING` (`models/gemini-2.0-flash` ou `gemini-2.0-flash-exp`).
-   - Se "key não configurada" → forçar restart do dev server.
-5. Só depois rodar os 3 cenários restantes para validar a cadeia completa.
+## 2. Não sobrescrever o nome via extração de briefing
 
-## Resposta direta às suas perguntas
+Em `src/lib/missions.queries.ts`, dentro de `updateMissionFromExtraction`, remover a linha:
+```ts
+if (extracted.mission_name?.trim()) patch.name = extracted.mission_name.trim();
+```
+Objetivo, segmento, prazos, canais etc. continuam sendo extraídos e preenchidos automaticamente. Apenas o nome deixa de ser tocado.
 
-- **Devo executar os outros?** Não agora. O cenário 1 já mostrou que o Gemini está caindo — rodar B/C/D vai só repetir a mesma falha disfarçada.
-- **Você pediu pra rodar o último?** Sim, o cenário D (`extraction — falha Anthropic+OpenAI → espera Gemini`) é o que valida diretamente o Gemini como fallback. Mas como o Gemini já está quebrado no cenário 1, ele também vai falhar — precisamos consertar primeiro.
+O ícone de lápis do superadmin no header segue permitindo renomear depois.
+
+## 3. Editabilidade pelo cliente até o aceite do analista
+
+Enum real de `mission_status`:
+```
+draft, in_review, awaiting_approval, approved, execution_started,
+in_collection, in_analysis, report_review, delivered, closed,
+paused, cancelled, pending_acceptance, date_negotiation
+```
+Não existe `in_progress`. A "linha do aceite" é a transição para `approved` (ou direto `execution_started`, dependendo do fluxo). Antes disso, o cliente ainda pode ajustar.
+
+Criar helper em `src/lib/target-status.ts` (ou no próprio route file, se preferir manter local):
+```ts
+export const PRE_ACCEPTANCE_STATUSES = [
+  "draft",
+  "in_review",
+  "awaiting_approval",
+  "pending_acceptance",
+  "date_negotiation",
+] as const;
+
+export function isPreAcceptance(status: MissionStatus) {
+  return (PRE_ACCEPTANCE_STATUSES as readonly string[]).includes(status);
+}
+```
+
+Em `src/routes/_authenticated/missions.$missionId.index.tsx`, trocar:
+```ts
+const isDraft = mission.status === "draft";
+const canEditBriefing = isDraft && (role === "contractor" || "superadmin");
+const canEditDetails  = isDraft && (role === "contractor" || "superadmin");
+```
+por:
+```ts
+const preAcceptance = isPreAcceptance(mission.status);
+const canEditBriefing = preAcceptance && (role === "contractor" || role === "superadmin");
+const canEditDetails  = preAcceptance && (role === "contractor" || role === "superadmin");
+```
+
+RLS: nenhuma mudança. `missions_contractor_update` já permite ao contractor editar sua própria missão; `missions_superadmin_all` cobre o superadmin em qualquer status.
+
+## 4. Sinal visual pós-aceite (cliente)
+
+Quando `!preAcceptance` e o usuário for `contractor`, mostrar um aviso discreto acima do card "Detalhes" e do bloco de briefing:
+- Alert `variant="default"` com ícone `Lock` + texto: "Missão em execução — os campos não podem mais ser alterados. Para ajustes, abra uma solicitação de mudança."
+- Superadmin não vê esse aviso (segue tendo edição via ícone de lápis do nome e podendo agir no banco).
+
+Isso evita a confusão de "por que não consigo editar?" sem esperar um PR futuro.
+
+---
+
+## Detalhes técnicos
+
+**Arquivos alterados**
+- `src/routes/_authenticated/missions.new.tsx` — gate de nome + propagação.
+- `src/lib/missions.queries.ts` — retirar sobrescrita de `name` em `updateMissionFromExtraction`.
+- `src/lib/target-status.ts` — export `PRE_ACCEPTANCE_STATUSES` + helper `isPreAcceptance`.
+- `src/routes/_authenticated/missions.$missionId.index.tsx` — trocar `isDraft` por `isPreAcceptance` + banner de bloqueio para contractor.
+
+**Fora de escopo**
+- Não mexer no ícone de renomear do superadmin.
+- Não mexer nas RLS.
+- Não mexer nas policies de analista.
+- Fluxo de "solicitação de mudança" (change request) já existe em outra tela; o banner só menciona.
+
+## Diagrama de status vs. edição do cliente
+
+```text
+draft ─ in_review ─ awaiting_approval ─ pending_acceptance ─ date_negotiation
+                          │  cliente EDITA                             │
+                          ▼                                            ▼
+                     approved / execution_started ─▶ in_collection ─▶ ... 
+                          │  cliente READONLY + banner "Em execução"  │
+```
