@@ -126,24 +126,54 @@ function NewMissionPage() {
           <ArrowLeft className="h-3 w-3" /> Voltar para missões
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nova missão</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
-        </p>
-        <div className="mt-3 flex gap-2 text-xs">
-          <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
-            <Sparkles className="h-3 w-3" /> Chat com IA
-          </ModeButton>
-          <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
-            <FileUp className="h-3 w-3" /> Enviar briefing
-          </ModeButton>
-          <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
-            Formulário manual
-          </ModeButton>
-        </div>
+        {nameConfirmed ? (
+          <>
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Missão:</span>
+              <span className="font-medium">{missionName}</span>
+              <button
+                type="button"
+                onClick={() => setNameConfirmed(false)}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                <Pencil className="h-3 w-3" /> Alterar nome
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
+            </p>
+            <div className="mt-3 flex gap-2 text-xs">
+              <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
+                <Sparkles className="h-3 w-3" /> Chat com IA
+              </ModeButton>
+              <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
+                <FileUp className="h-3 w-3" /> Enviar briefing
+              </ModeButton>
+              <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
+                Formulário manual
+              </ModeButton>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-1">
+            Comece dando um nome para a missão. Você poderá alterá-lo depois.
+          </p>
+        )}
       </div>
 
-      {mode === "ai" ? (
-        <AiChatMode onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })} />
+      {!nameConfirmed ? (
+        <NameGate
+          initial={missionName}
+          onConfirm={(name) => {
+            setMissionName(name);
+            setNameConfirmed(true);
+          }}
+        />
+      ) : mode === "ai" ? (
+        <AiChatMode
+          missionName={missionName}
+          onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })}
+        />
       ) : mode === "upload" ? (
         <UploadMode
           status={status}
@@ -158,7 +188,7 @@ function NewMissionPage() {
         />
       ) : (
         <div className="space-y-4">
-          <MissionForm />
+          <MissionForm initialName={missionName} />
         </div>
       )}
     </div>
