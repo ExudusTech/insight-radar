@@ -10,6 +10,7 @@ const MessageSchema = z.object({
 
 const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1),
+  missionName: z.string().trim().min(1).optional(),
 });
 
 const SYSTEM_PROMPT = `Você é um assistente especializado em criação de missões de inteligência competitiva para o Radar de Mercado IA.
@@ -155,7 +156,7 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
     const { data: mission, error: mErr } = await supabaseAdmin
       .from("missions")
       .insert({
-        name: payload.title?.trim() || "Nova missão",
+        name: data.missionName?.trim() || payload.title?.trim() || "Nova missão",
         description: payload.description ?? null,
         objective: payload.description ?? null,
         deadline_final: isValidDate(payload.deadline) ? payload.deadline : null,
