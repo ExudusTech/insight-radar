@@ -79,6 +79,11 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
       task: "extraction",
       systemPrompt: SYSTEM_PROMPT,
       messages: [{ role: "user", content: truncated }],
+      tracking: {
+        userId: context.userId,
+        missionId: version.mission_id,
+        taskLabel: "document_extraction",
+      },
     });
     console.log(`[extraction] used ${provider}/${model}`);
     const extracted = tryParseJson(textBlock);
