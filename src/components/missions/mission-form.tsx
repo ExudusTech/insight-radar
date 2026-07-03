@@ -18,7 +18,7 @@ import { listProductsByClient, productsByClientKey } from "@/lib/products.querie
 import { logActivity } from "@/lib/activity-log";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
-export function MissionForm() {
+export function MissionForm({ initialName = "" }: { initialName?: string } = {}) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
@@ -36,7 +36,7 @@ export function MissionForm() {
   });
 
   const [form, setForm] = useState({
-    name: "",
+    name: initialName,
     description: "",
     objective: "",
     segment: "",
