@@ -48,6 +48,17 @@ export interface LLMCallParams {
   messages: LLMMessage[];
   systemPrompt: string;
   maxTokens?: number;
+  /**
+   * Contexto opcional para rastreio de consumo em `llm_usage_logs`.
+   * Se omitido, a chamada não é registrada.
+   */
+  tracking?: {
+    userId?: string | null;
+    missionId?: string | null;
+    targetId?: string | null;
+    /** Override do task para logging (ex.: "comparative", "meeting_script"). */
+    taskLabel?: string;
+  };
 }
 
 export interface LLMCallResult {
@@ -200,6 +211,49 @@ const OPENAI_COMPAT_BASES: Partial<Record<Provider, string>> = {
   gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
 };
 
+// Custo estimado por 1M tokens (USD).
+const MODEL_COSTS: Record<string, { input: number; output: number }> = {
+  "claude-sonnet-4-6": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-5-20251001": { input: 0.25, output: 1.25 },
+  "claude-opus-4-8": { input: 15.0, output: 75.0 },
+  "gpt-4o": { input: 2.5, output: 10.0 },
+  "gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "gemini-2.0-flash": { input: 0.075, output: 0.3 },
+};
+
+function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const c = MODEL_COSTS[model];
+  if (!c) return 0;
+  return (inputTokens * c.input + outputTokens * c.output) / 1_000_000;
+}
+
+async function recordUsage(args: {
+  tracking: NonNullable<LLMCallParams["tracking"]>;
+  task: TaskType;
+  provider: Provider;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cost = estimateCostUsd(args.model, args.inputTokens, args.outputTokens);
+    await supabaseAdmin.from("llm_usage_logs").insert({
+      user_id: args.tracking.userId ?? null,
+      mission_id: args.tracking.missionId ?? null,
+      target_id: args.tracking.targetId ?? null,
+      provider: args.provider,
+      model: args.model,
+      task: args.tracking.taskLabel ?? args.task,
+      input_tokens: args.inputTokens,
+      output_tokens: args.outputTokens,
+      estimated_cost_usd: cost,
+    });
+  } catch (e) {
+    console.warn("[llm-router] failed to record usage log", e);
+  }
+}
+
 async function invokeProvider(
   cfg: ProviderConfig,
   systemPrompt: string,
@@ -252,6 +306,16 @@ export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
     if (result.status >= 200 && result.status < 300) {
       if (errors.length > 0) {
         console.info(`[llm-router] Succeeded with ${cfg.provider}/${cfg.model} after ${errors.length} failure(s)`);
+      }
+      if (params.tracking) {
+        await recordUsage({
+          tracking: params.tracking,
+          task,
+          provider: cfg.provider,
+          model: cfg.model,
+          inputTokens: result.inputTokens ?? 0,
+          outputTokens: result.outputTokens ?? 0,
+        });
       }
       return {
         text: result.text,

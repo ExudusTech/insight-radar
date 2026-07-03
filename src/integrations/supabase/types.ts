@@ -72,7 +72,8 @@ export type Database = {
           metadata: Json | null
           mission_id: string
           role: string
-          target_id: string
+          session_id: string | null
+          target_id: string | null
         }
         Insert: {
           analyst_id: string
@@ -83,7 +84,8 @@ export type Database = {
           metadata?: Json | null
           mission_id: string
           role: string
-          target_id: string
+          session_id?: string | null
+          target_id?: string | null
         }
         Update: {
           analyst_id?: string
@@ -94,7 +96,8 @@ export type Database = {
           metadata?: Json | null
           mission_id?: string
           role?: string
-          target_id?: string
+          session_id?: string | null
+          target_id?: string | null
         }
         Relationships: [
           {
@@ -460,6 +463,70 @@ export type Database = {
             columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      llm_usage_logs: {
+        Row: {
+          created_at: string
+          estimated_cost_usd: number
+          id: string
+          input_tokens: number
+          mission_id: string | null
+          model: string
+          output_tokens: number
+          provider: string
+          target_id: string | null
+          task: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost_usd?: number
+          id?: string
+          input_tokens?: number
+          mission_id?: string | null
+          model: string
+          output_tokens?: number
+          provider: string
+          target_id?: string | null
+          task: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          estimated_cost_usd?: number
+          id?: string
+          input_tokens?: number
+          mission_id?: string | null
+          model?: string
+          output_tokens?: number
+          provider?: string
+          target_id?: string | null
+          task?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_usage_logs_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llm_usage_logs_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llm_usage_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

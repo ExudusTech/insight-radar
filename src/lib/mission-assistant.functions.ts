@@ -332,6 +332,12 @@ PREENCHIMENTO AUTOMÁTICO DOS CAMPOS — REGRA OBRIGATÓRIA (SEM EXCEÇÃO):
       systemPrompt: system,
       messages,
       maxTokens: 2048,
+      tracking: {
+        userId: context.userId,
+        missionId: data.missionId,
+        targetId: data.targetId,
+        taskLabel: "assistant",
+      },
     });
     console.log(`[assistant] used ${provider}/${usedModel}`);
     const { cleanMessage, blockUpdates } = parseBlockData(rawMessage);
@@ -523,6 +529,11 @@ Exemplo do formato esperado:
       systemPrompt: extractionPrompt,
       messages: [{ role: "user", content: extractionContent }],
       maxTokens: 2048,
+      tracking: {
+        userId: context.userId,
+        targetId: data.targetId,
+        taskLabel: "extraction",
+      },
     });
     console.log("[processHistory] LLM raw response (first 500):", text.slice(0, 500));
 
@@ -628,6 +639,12 @@ Formato de saída (markdown, use exatamente estes títulos):
       systemPrompt,
       messages: [{ role: "user", content: `Gere o parecer final sobre ${target.name}.` }],
       maxTokens: 4096,
+      tracking: {
+        userId: context.userId,
+        missionId: data.missionId,
+        targetId: data.targetId,
+        taskLabel: "competitor_brief",
+      },
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -712,6 +729,11 @@ ${targetSections || "(nenhum dado coletado ainda)"}
       systemPrompt,
       messages,
       maxTokens: 2048,
+      tracking: {
+        userId: context.userId,
+        missionId: data.missionId,
+        taskLabel: "comparative",
+      },
     });
     return { answer: text };
   });
@@ -807,6 +829,12 @@ Gere um roteiro com as seguintes seções:
       systemPrompt: "Você é um estrategista sênior de inteligência competitiva especializado em mystery shopping B2B.",
       messages: [{ role: "user", content: prompt }],
       maxTokens: 3072,
+      tracking: {
+        userId: context.userId,
+        missionId: data.missionId,
+        targetId: data.targetId,
+        taskLabel: "meeting_script",
+      },
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

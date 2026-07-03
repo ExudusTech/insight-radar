@@ -138,6 +138,10 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       systemPrompt: SYSTEM_PROMPT,
       messages: data.messages,
       maxTokens: 1800,
+      tracking: {
+        userId: context.userId,
+        taskLabel: "briefing_assistant",
+      },
     });
 
     const { cleanText: t1, payload } = extractCreateBlock(text);
