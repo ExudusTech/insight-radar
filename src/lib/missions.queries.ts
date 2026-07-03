@@ -169,6 +169,7 @@ export async function updateMissionFromExtraction(
     deadline_final?: string;
     approach_type?: string;
     ethical_rules?: string;
+    entregavel_esperado?: string;
   },
 ) {
   const patch: {
@@ -178,6 +179,7 @@ export async function updateMissionFromExtraction(
     deadline_final?: string;
     approach_type?: string;
     ethical_rules?: string;
+    entregavel_esperado?: string;
   } = {};
   if (extracted.objective) patch.objective = extracted.objective;
   if (extracted.segment) patch.segment = extracted.segment;
@@ -185,6 +187,7 @@ export async function updateMissionFromExtraction(
   if (extracted.deadline_final) patch.deadline_final = extracted.deadline_final;
   if (extracted.approach_type) patch.approach_type = extracted.approach_type;
   if (extracted.ethical_rules) patch.ethical_rules = extracted.ethical_rules;
+  if (extracted.entregavel_esperado) patch.entregavel_esperado = extracted.entregavel_esperado;
   if (Object.keys(patch).length === 0) return;
   const { error } = await supabase.from("missions").update(patch).eq("id", missionId);
   if (error) throw error;

@@ -74,6 +74,7 @@ export type Database = {
           role: string
           session_id: string | null
           target_id: string | null
+          time_spent_seconds: number | null
         }
         Insert: {
           analyst_id: string
@@ -86,6 +87,7 @@ export type Database = {
           role: string
           session_id?: string | null
           target_id?: string | null
+          time_spent_seconds?: number | null
         }
         Update: {
           analyst_id?: string
@@ -98,6 +100,7 @@ export type Database = {
           role?: string
           session_id?: string | null
           target_id?: string | null
+          time_spent_seconds?: number | null
         }
         Relationships: [
           {
@@ -610,6 +613,7 @@ export type Database = {
           deadline_first: string | null
           description: string | null
           drive_folder_id: string | null
+          entregavel_esperado: string | null
           ethical_rules: string | null
           expected_deliverables: string | null
           forbidden_items: string | null
@@ -640,6 +644,7 @@ export type Database = {
           deadline_first?: string | null
           description?: string | null
           drive_folder_id?: string | null
+          entregavel_esperado?: string | null
           ethical_rules?: string | null
           expected_deliverables?: string | null
           forbidden_items?: string | null
@@ -670,6 +675,7 @@ export type Database = {
           deadline_first?: string | null
           description?: string | null
           drive_folder_id?: string | null
+          entregavel_esperado?: string | null
           ethical_rules?: string | null
           expected_deliverables?: string | null
           forbidden_items?: string | null
@@ -1090,7 +1096,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      analyst_time_metrics: {
+        Row: {
+          analyst_id: string | null
+          analyst_name: string | null
+          first_interaction: string | null
+          last_interaction: string | null
+          mission_id: string | null
+          mission_name: string | null
+          target_id: string | null
+          target_name: string | null
+          total_hours_active: number | null
+          total_messages: number | null
+          total_seconds_active: number | null
+          total_user_messages: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_access_mission: { Args: { _mission_id: string }; Returns: boolean }

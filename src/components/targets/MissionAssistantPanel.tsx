@@ -119,6 +119,19 @@ export function MissionAssistantPanel({
     queryKey: targetDetailKey(targetId),
     queryFn: () => getTarget(targetId),
   });
+  const { data: missionMeta } = useQuery({
+    queryKey: ["missions", "meta-entregavel", missionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("entregavel_esperado")
+        .eq("id", missionId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const entregavel = missionMeta?.entregavel_esperado?.trim() || null;
   const canalAbordagem = (targetData as { canal_abordagem?: string | null } | null | undefined)?.canal_abordagem;
   const filledByBlock = countFilledFieldsByBlock(collectionRows);
   const requiredCompletion = calcRequiredCompletion(collectionRows);
@@ -350,6 +363,20 @@ export function MissionAssistantPanel({
           </span>
         )}
       </div>
+
+      {entregavel && (
+        <div className="px-3 py-2 border-b bg-primary/5 text-xs">
+          <div className="flex items-start gap-1.5">
+            <span>🎯</span>
+            <div className="flex-1 leading-relaxed">
+              <span className="font-semibold text-primary uppercase tracking-wide text-[10px] block mb-0.5">
+                Entregável esperado
+              </span>
+              <span className="text-foreground/90">{entregavel}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BlockProgress filled={filledByBlock} required={requiredCompletion.filledByBlock} />
       <div className="px-3 py-2 border-b">

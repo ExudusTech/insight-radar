@@ -28,6 +28,28 @@ export async function saveAssistantMessage(params: {
   content: string;
   metadata?: Record<string, unknown>;
 }) {
+  let timeSpent: number | null = null;
+  if (params.role === "user") {
+    // Find the previous user message from this analyst for this target.
+    const { data: prev } = await supabase
+      .from("assistant_messages")
+      .select("created_at")
+      .eq("target_id", params.targetId)
+      .eq("analyst_id", params.analystId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (prev?.created_at) {
+      const diffSec = Math.floor(
+        (Date.now() - new Date(prev.created_at).getTime()) / 1000,
+      );
+      // Cap at 30 min; above that = new session.
+      timeSpent = diffSec > 30 * 60 ? 0 : Math.max(0, diffSec);
+    } else {
+      timeSpent = 0;
+    }
+  }
   const { error } = await supabase.from("assistant_messages").insert({
     mission_id: params.missionId,
     target_id: params.targetId,
@@ -36,6 +58,7 @@ export async function saveAssistantMessage(params: {
     role: params.role,
     content: params.content,
     metadata: (params.metadata ?? {}) as never,
+    time_spent_seconds: timeSpent,
   });
   if (error) throw error;
 }

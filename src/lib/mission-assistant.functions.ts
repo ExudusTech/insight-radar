@@ -80,7 +80,7 @@ export const missionAssistant = createServerFn({ method: "POST" })
     const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
       supabase
         .from("missions")
-        .select("name, objective, segment, canais_obrigatorios")
+        .select("name, objective, segment, canais_obrigatorios, entregavel_esperado")
         .eq("id", data.missionId)
         .single(),
       supabase
@@ -180,6 +180,12 @@ ${perBlock}`;
 MISSÃO: ${mission.name}
 OBJETIVO: ${mission.objective ?? "—"}
 SEGMENTO: ${mission.segment ?? "—"}
+${(() => {
+  const ent = (mission as { entregavel_esperado?: string | null }).entregavel_esperado;
+  return ent && ent.trim()
+    ? `\nENTREGÁVEL ESPERADO DESTA MISSÃO: ${ent.trim()}\n\nConduza a conversa orientando a analista para que, ao final do trabalho com este concorrente, o entregável acima tenha sido obtido e documentado. Priorize as perguntas e orientações que levam ao entregável. Considere este concorrente como concluído somente quando o entregável tiver sido obtido e registrado (via evidência ou evento no Timeline).`
+    : "";
+})()}
 
 BASE DE CONHECIMENTO (${frozenDocs.length} documentos):
 ${docsSection || "Nenhum documento congelado ainda."}
