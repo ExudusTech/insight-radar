@@ -33,6 +33,7 @@ import { Route as AuthenticatedCollectionRouteImport } from './routes/_authentic
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedChangeRequestsRouteImport } from './routes/_authenticated/change-requests'
 import { Route as AuthenticatedAskAiRouteImport } from './routes/_authenticated/ask-ai'
+import { Route as AuthenticatedAnalystMetricsRouteImport } from './routes/_authenticated/analyst-metrics'
 import { Route as AuthenticatedMissionsIndexRouteImport } from './routes/_authenticated/missions.index'
 import { Route as AuthenticatedMissionsNewRouteImport } from './routes/_authenticated/missions.new'
 import { Route as AuthenticatedMissionsMissionIdRouteImport } from './routes/_authenticated/missions.$missionId'
@@ -165,6 +166,12 @@ const AuthenticatedAskAiRoute = AuthenticatedAskAiRouteImport.update({
   path: '/ask-ai',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnalystMetricsRoute =
+  AuthenticatedAnalystMetricsRouteImport.update({
+    id: '/analyst-metrics',
+    path: '/analyst-metrics',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMissionsIndexRoute =
   AuthenticatedMissionsIndexRouteImport.update({
     id: '/missions/',
@@ -218,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/analyst-metrics': typeof AuthenticatedAnalystMetricsRoute
   '/ask-ai': typeof AuthenticatedAskAiRoute
   '/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/clients': typeof AuthenticatedClientsRoute
@@ -251,6 +259,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/analyst-metrics': typeof AuthenticatedAnalystMetricsRoute
   '/ask-ai': typeof AuthenticatedAskAiRoute
   '/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/clients': typeof AuthenticatedClientsRoute
@@ -285,6 +294,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/analyst-metrics': typeof AuthenticatedAnalystMetricsRoute
   '/_authenticated/ask-ai': typeof AuthenticatedAskAiRoute
   '/_authenticated/change-requests': typeof AuthenticatedChangeRequestsRoute
   '/_authenticated/clients': typeof AuthenticatedClientsRoute
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/analyst-metrics'
     | '/ask-ai'
     | '/change-requests'
     | '/clients'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/analyst-metrics'
     | '/ask-ai'
     | '/change-requests'
     | '/clients'
@@ -386,6 +398,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/analyst-metrics'
     | '/_authenticated/ask-ai'
     | '/_authenticated/change-requests'
     | '/_authenticated/clients'
@@ -593,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAskAiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analyst-metrics': {
+      id: '/_authenticated/analyst-metrics'
+      path: '/analyst-metrics'
+      fullPath: '/analyst-metrics'
+      preLoaderRoute: typeof AuthenticatedAnalystMetricsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/missions/': {
       id: '/_authenticated/missions/'
       path: '/missions'
@@ -680,6 +700,7 @@ const AuthenticatedMissionsMissionIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAnalystMetricsRoute: typeof AuthenticatedAnalystMetricsRoute
   AuthenticatedAskAiRoute: typeof AuthenticatedAskAiRoute
   AuthenticatedChangeRequestsRoute: typeof AuthenticatedChangeRequestsRoute
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
@@ -706,6 +727,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAnalystMetricsRoute: AuthenticatedAnalystMetricsRoute,
   AuthenticatedAskAiRoute: AuthenticatedAskAiRoute,
   AuthenticatedChangeRequestsRoute: AuthenticatedChangeRequestsRoute,
   AuthenticatedClientsRoute: AuthenticatedClientsRoute,
