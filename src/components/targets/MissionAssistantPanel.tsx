@@ -364,6 +364,20 @@ export function MissionAssistantPanel({
         )}
       </div>
 
+      {entregavel && (
+        <div className="px-3 py-2 border-b bg-primary/5 text-xs">
+          <div className="flex items-start gap-1.5">
+            <span>🎯</span>
+            <div className="flex-1 leading-relaxed">
+              <span className="font-semibold text-primary uppercase tracking-wide text-[10px] block mb-0.5">
+                Entregável esperado
+              </span>
+              <span className="text-foreground/90">{entregavel}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BlockProgress filled={filledByBlock} required={requiredCompletion.filledByBlock} />
       <div className="px-3 py-2 border-b">
         <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
