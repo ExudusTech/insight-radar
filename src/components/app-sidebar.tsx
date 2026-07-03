@@ -9,6 +9,7 @@ import {
   Bell,
   Package,
   Clock,
+  Telescope,
   Sun,
   Moon,
   LogOut,
@@ -66,9 +67,23 @@ const NAV: Record<AppRole, NavItem[]> = {
 };
 
 export function AppSidebar({ role }: { role: AppRole | null }) {
-  const items = role ? NAV[role] : [];
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: user } = useCurrentUser();
+  const canViewStrategic =
+    role === "superadmin" ||
+    (user?.profile as { can_view_strategic?: boolean } | null)?.can_view_strategic === true;
+  const baseItems = role ? NAV[role] : [];
+  const items: NavItem[] = canViewStrategic
+    ? [
+        ...baseItems,
+        {
+          title: "Visão Estratégica",
+          url: "/strategic",
+          icon: Telescope,
+          group: baseItems.some((i) => i.group) ? "Estratégico" : undefined,
+        },
+      ]
+    : baseItems;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { theme, toggleTheme } = useTheme();

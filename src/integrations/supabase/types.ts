@@ -835,6 +835,7 @@ export type Database = {
         Row: {
           accepts_missions: boolean
           avatar_url: string | null
+          can_view_strategic: boolean
           created_at: string
           email: string
           full_name: string
@@ -847,6 +848,7 @@ export type Database = {
         Insert: {
           accepts_missions?: boolean
           avatar_url?: string | null
+          can_view_strategic?: boolean
           created_at?: string
           email: string
           full_name: string
@@ -859,6 +861,7 @@ export type Database = {
         Update: {
           accepts_missions?: boolean
           avatar_url?: string | null
+          can_view_strategic?: boolean
           created_at?: string
           email?: string
           full_name?: string
@@ -917,6 +920,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      strategic_documents: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          is_published: boolean
+          order_index: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          order_index?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          order_index?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       target_timeline_events: {
         Row: {
