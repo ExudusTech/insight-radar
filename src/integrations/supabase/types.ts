@@ -912,6 +912,74 @@ export type Database = {
           },
         ]
       }
+      target_timeline_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          event_date: string
+          event_type: string
+          evidence_id: string | null
+          id: string
+          mission_id: string
+          source: string
+          target_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          event_date?: string
+          event_type: string
+          evidence_id?: string | null
+          id?: string
+          mission_id: string
+          source?: string
+          target_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          event_date?: string
+          event_type?: string
+          evidence_id?: string | null
+          id?: string
+          mission_id?: string
+          source?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_timeline_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_timeline_events_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_timeline_events_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_timeline_events_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       targets: {
         Row: {
           analyst_id: string | null

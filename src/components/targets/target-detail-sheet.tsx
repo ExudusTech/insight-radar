@@ -20,7 +20,7 @@ import {
 import { StatusBadge } from "./status-badge";
 import { PriorityBadge } from "./priority-badge";
 import { CollectionTab } from "./collection-tab";
-import { TimelineTab } from "./timeline-tab";
+import { TargetTimeline } from "./TargetTimeline";
 import { EvidencesTab } from "./evidences-tab";
 import { AiAnalysisTab } from "./ai-analysis-tab";
 import { ApproachStrategySection } from "./approach-strategy-section";
@@ -285,7 +285,7 @@ export function TargetDetailSheet({
                 />
               </TabsContent>
               <TabsContent value="timeline" className="pt-5">
-                <TimelineTab missionId={target.mission_id} targetId={target.id} />
+                <TargetTimeline missionId={target.mission_id} targetId={target.id} />
               </TabsContent>
               <TabsContent value="evidences" className="pt-5">
                 <EvidencesTab missionId={target.mission_id} targetId={target.id} />

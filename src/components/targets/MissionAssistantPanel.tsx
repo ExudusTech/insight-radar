@@ -29,6 +29,7 @@ import {
 import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { getTarget } from "@/lib/targets.queries";
 import { evidencesByTargetKey } from "@/lib/evidences.queries";
+import { timelineEventsByTargetKey } from "@/lib/target-timeline.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -202,14 +203,21 @@ export function MissionAssistantPanel({
         }
       }
 
-      return { message: res.message, blockUpdates: res.blockUpdates };
+      return {
+        message: res.message,
+        blockUpdates: res.blockUpdates,
+        timelineEventDetected: res.timelineEventDetected,
+      };
     },
-    onSuccess: ({ message, blockUpdates }) => {
+    onSuccess: ({ message, blockUpdates, timelineEventDetected }) => {
       setInput("");
       setImageFile(null);
       setImagePreview(null);
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
       qc.invalidateQueries({ queryKey: evidencesByTargetKey(targetId) });
+      if (timelineEventDetected) {
+        qc.invalidateQueries({ queryKey: timelineEventsByTargetKey(targetId) });
+      }
       if (blockUpdates) {
         qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
         qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
