@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
@@ -39,6 +40,8 @@ function NewMissionPage() {
   const [mode, setMode] = useState<Mode>("ai");
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [missionName, setMissionName] = useState<string>("");
+  const [nameConfirmed, setNameConfirmed] = useState(false);
 
   async function handleFile(file: File) {
     if (!/\.(pdf|docx)$/i.test(file.name)) {
@@ -54,7 +57,7 @@ function NewMissionPage() {
 
     try {
       mission = await createMission({
-        name: "Nova missão",
+        name: missionName.trim() || "Nova missão",
         target_label: "Concorrente",
         analyst_ids: [],
         contractor_ids: [],
