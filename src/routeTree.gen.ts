@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedTargetsRouteImport } from './routes/_authenticated/targets'
+import { Route as AuthenticatedStrategicRouteImport } from './routes/_authenticated/strategic'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticated/products'
@@ -75,6 +76,11 @@ const AuthenticatedTimelineRoute = AuthenticatedTimelineRouteImport.update({
 const AuthenticatedTargetsRoute = AuthenticatedTargetsRouteImport.update({
   id: '/targets',
   path: '/targets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStrategicRoute = AuthenticatedStrategicRouteImport.update({
+  id: '/strategic',
+  path: '/strategic',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/products': typeof AuthenticatedProductsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/strategic': typeof AuthenticatedStrategicRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/users': typeof AuthenticatedUsersRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/products': typeof AuthenticatedProductsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/strategic': typeof AuthenticatedStrategicRoute
   '/targets': typeof AuthenticatedTargetsRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/users': typeof AuthenticatedUsersRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/_authenticated/products': typeof AuthenticatedProductsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/strategic': typeof AuthenticatedStrategicRoute
   '/_authenticated/targets': typeof AuthenticatedTargetsRoute
   '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/products'
     | '/reports'
     | '/settings'
+    | '/strategic'
     | '/targets'
     | '/timeline'
     | '/users'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/products'
     | '/reports'
     | '/settings'
+    | '/strategic'
     | '/targets'
     | '/timeline'
     | '/users'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/_authenticated/products'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/strategic'
     | '/_authenticated/targets'
     | '/_authenticated/timeline'
     | '/_authenticated/users'
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       path: '/targets'
       fullPath: '/targets'
       preLoaderRoute: typeof AuthenticatedTargetsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/strategic': {
+      id: '/_authenticated/strategic'
+      path: '/strategic'
+      fullPath: '/strategic'
+      preLoaderRoute: typeof AuthenticatedStrategicRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -718,6 +737,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProductsRoute: typeof AuthenticatedProductsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStrategicRoute: typeof AuthenticatedStrategicRoute
   AuthenticatedTargetsRoute: typeof AuthenticatedTargetsRoute
   AuthenticatedTimelineRoute: typeof AuthenticatedTimelineRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
@@ -745,6 +765,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProductsRoute: AuthenticatedProductsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStrategicRoute: AuthenticatedStrategicRoute,
   AuthenticatedTargetsRoute: AuthenticatedTargetsRoute,
   AuthenticatedTimelineRoute: AuthenticatedTimelineRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
