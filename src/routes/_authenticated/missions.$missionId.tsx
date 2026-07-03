@@ -1,8 +1,12 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Pencil, Check, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { getMission, missionDetailKey } from "@/lib/missions.queries";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { getMission, missionDetailKey, missionsListKey, updateMission } from "@/lib/missions.queries";
 import { MISSION_STATUS_LABEL } from "@/lib/target-status";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
@@ -44,6 +48,7 @@ function MissionLayout() {
   const comparativePath = `/missions/${missionId}/comparative`;
   const canSeeComparative =
     currentUser?.role === "superadmin" || currentUser?.role === "contractor";
+  const canRename = currentUser?.role === "superadmin";
 
   const tabs = [
     { label: "Visão Geral", href: overviewPath, key: "overview", active: pathname === overviewPath },
@@ -67,7 +72,11 @@ function MissionLayout() {
         </Link>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{mission.name}</h1>
+            {canRename ? (
+              <EditableMissionName missionId={missionId} name={mission.name} />
+            ) : (
+              <h1 className="text-2xl font-bold tracking-tight">{mission.name}</h1>
+            )}
             {mission.objective && (
               <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{mission.objective}</p>
             )}
@@ -105,6 +114,81 @@ function MissionLayout() {
       </div>
 
       <Outlet />
+    </div>
+  );
+}
+
+function EditableMissionName({ missionId, name }: { missionId: string; name: string }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+
+  const mut = useMutation({
+    mutationFn: (newName: string) => updateMission(missionId, { name: newName }),
+    onSuccess: () => {
+      toast.success("Missão renomeada");
+      qc.invalidateQueries({ queryKey: missionDetailKey(missionId) });
+      qc.invalidateQueries({ queryKey: missionsListKey });
+      setEditing(false);
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao renomear"),
+  });
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2 group">
+        <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => {
+            setValue(name);
+            setEditing(true);
+          }}
+          aria-label="Renomear missão"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === name) {
+      setEditing(false);
+      return;
+    }
+    mut.mutate(trimmed);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="h-9 text-xl font-bold"
+        disabled={mut.isPending}
+      />
+      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={submit} disabled={mut.isPending} aria-label="Salvar">
+        {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-8 w-8"
+        onClick={() => setEditing(false)}
+        disabled={mut.isPending}
+        aria-label="Cancelar"
+      >
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
