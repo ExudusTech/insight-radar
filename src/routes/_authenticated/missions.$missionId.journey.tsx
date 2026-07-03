@@ -135,8 +135,8 @@ function JourneyPage() {
                 {COLLECTION_BLOCKS.map((b) => {
                   const s = blocks[b] ?? "not_started";
                   const Icon = s === "done" ? CheckCircle2 : s === "in_progress" ? Play : Circle;
-                  const color = s === "done" ? "text-green-500" : s === "in_progress" ? "text-primary" : "text-muted-foreground/30";
-                  const bg = s === "done" ? "bg-green-500/10" : s === "in_progress" ? "bg-primary/10" : "bg-muted/30";
+                  const color = s === "done" ? "text-green-500" : s === "in_progress" ? "text-cyan-500" : "text-muted-foreground/30";
+                  const bg = s === "done" ? "bg-green-500/10" : s === "in_progress" ? "bg-cyan-500/10" : "bg-muted/30";
                   return (
                     <div key={b} className={`flex flex-col items-center gap-0.5 rounded px-1 py-0.5 ${bg}`} title={`Bloco ${b}: ${s}`}>
                       <Icon className={`h-3.5 w-3.5 ${color}`} />
