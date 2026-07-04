@@ -213,7 +213,7 @@ export function calcTargetCompletionPercent(rows: CollectionRow[]): number {
 
 /** Constrói { block -> Set<field_key> } com apenas valores significativos, ignorando metadados. */
 export function buildFilledByBlock(
-  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+  rows: Array<{ block: string; field_key: string; field_value: unknown }>,
 ): Record<string, Set<string>> {
   const out: Record<string, Set<string>> = {};
   for (const b of COLLECTION_BLOCKS) out[b] = new Set();
@@ -241,7 +241,7 @@ export function calcBlockRequiredProgress(
 
 /** True quando todos obrigatórios do bloco estão preenchidos. */
 export function isBlockRequirementsMet(
-  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+  rows: Array<{ block: string; field_key: string; field_value: unknown }>,
   block: string,
 ): boolean {
   return calcBlockRequiredProgress(buildFilledByBlock(rows), block) >= 1;
@@ -266,7 +266,7 @@ export function derivedBlockStatus(
 
 /** Progresso do alvo = média do progresso dos 7 blocos (peso igual). */
 export function calcTargetProgressPercent(
-  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+  rows: Array<{ block: string; field_key: string; field_value: unknown }>,
 ): number {
   const filled = buildFilledByBlock(rows);
   const per = COLLECTION_BLOCKS.map((b) => calcBlockRequiredProgress(filled, b));
