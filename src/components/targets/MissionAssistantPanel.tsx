@@ -315,6 +315,21 @@ export function MissionAssistantPanel({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao gerar roteiro"),
   });
 
+  const requestBriefMut = useMutation({
+    mutationFn: () =>
+      callRequestBrief({
+        data: { missionId, targetId, targetName: targetName || "concorrente" },
+      }),
+    onSuccess: (res) => {
+      if (res.notified > 0) {
+        toast.success("Solicitação enviada ao coordenador.");
+      } else {
+        toast.warning("Nenhum coordenador cadastrado para receber a solicitação.");
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao enviar solicitação"),
+  });
+
   const handleSend = () => {
     if (sendMut.isPending) return;
     if (!input.trim() && !imageFile) return;
