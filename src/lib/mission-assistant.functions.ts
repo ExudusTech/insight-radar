@@ -1221,5 +1221,19 @@ Gere um roteiro com as seguintes seções:
     });
     if (msgErr) console.warn("[meetingScript] failed to persist chat message", msgErr);
 
+    void logAdminActivity({
+      userId: context.userId,
+      missionId: data.missionId,
+      action: "report_generated",
+      entityType: "document_version",
+      entityId: inserted.id,
+      details: {
+        report_kind: "meeting_script",
+        target_id: data.targetId,
+        target_name: target.name,
+        version: nextVersion,
+      },
+    });
+
     return { script: scriptContent, documentId: inserted.id };
   });
