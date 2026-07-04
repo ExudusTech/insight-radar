@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { logActivity } from "@/lib/activity-log";
 
 export type TimelineEvent = Tables<"target_timeline_events">;
 
@@ -58,4 +59,16 @@ export async function createManualTimelineEvent(params: {
     created_by: params.createdBy,
   });
   if (error) throw error;
+  await logActivity({
+    userId: params.createdBy,
+    missionId: params.missionId,
+    action: "timeline_event_created",
+    entityType: "target",
+    entityId: params.targetId,
+    details: {
+      event_type: params.eventType,
+      event_date: params.eventDate,
+      source: "manual",
+    },
+  });
 }
