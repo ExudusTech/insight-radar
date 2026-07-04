@@ -558,6 +558,92 @@ Responda APENAS com JSON válido, sem markdown:
       }
     }
 
+    // -------------------------------------------------------------
+    // Gap tracking — compute missing REQUIRED fields per block and
+    // upsert into target_gaps with an AI-generated suggestion.
+    // -------------------------------------------------------------
+    try {
+      // Refresh filled map with any blockUpdates just parsed from the reply.
+      const filledLocal: Record<string, Set<string>> = {};
+      for (const [blk, set] of Object.entries(filled)) filledLocal[blk] = new Set(set);
+      if (blockUpdates) {
+        for (const [blk, fields] of Object.entries(blockUpdates)) {
+          if (!filledLocal[blk]) filledLocal[blk] = new Set();
+          for (const k of Object.keys(fields)) filledLocal[blk].add(k);
+        }
+      }
+
+      const gapList: Array<{ block: string; missing: string[] }> = [];
+      for (const b of COLLECTION_BLOCKS) {
+        const req = BLOCK_FIELDS_REQUIRED[b] ?? [];
+        const filledSet = filledLocal[b] ?? new Set<string>();
+        const missing = req.filter((f) => !filledSet.has(f));
+        if (missing.length > 0) gapList.push({ block: b, missing });
+      }
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+      // Blocks now complete (no missing required fields) — remove any stale gap rows.
+      const completedBlocks = COLLECTION_BLOCKS.filter(
+        (b) => !gapList.some((g) => g.block === b),
+      );
+      if (completedBlocks.length > 0) {
+        await supabaseAdmin
+          .from("target_gaps")
+          .delete()
+          .eq("target_id", data.targetId)
+          .in("block_key", completedBlocks);
+      }
+
+      if (gapList.length > 0) {
+        // Single LLM call to produce a short suggestion per pending block.
+        let suggestionByBlock: Record<string, string> = {};
+        try {
+          const gapsPrompt = `Você é analista sênior de mystery shopping. Para cada bloco abaixo, existem campos obrigatórios ainda vazios sobre o concorrente "${target.name}". Sugira, em uma frase curta e acionável em pt-BR, como o analista pode obter esses dados (canal, pergunta natural, observação). Responda APENAS JSON:
+{"suggestions":{"A":"...","B":"...", ... }}
+
+Blocos pendentes:
+${gapList.map((g) => `- ${g.block} (${BLOCK_TITLES[g.block as (typeof COLLECTION_BLOCKS)[number]]}): ${g.missing.join(", ")}`).join("\n")}`;
+          const { text: sugRaw } = await callLLM({
+            task: "classify",
+            systemPrompt: "Você é um classificador que responde somente JSON válido.",
+            messages: [{ role: "user", content: gapsPrompt }],
+            maxTokens: 400,
+            tracking: {
+              userId: context.userId,
+              missionId: data.missionId,
+              targetId: data.targetId,
+              taskLabel: "gap_suggestions",
+            },
+          });
+          const jm = sugRaw.match(/\{[\s\S]*\}/);
+          if (jm) {
+            const parsedSug = JSON.parse(jm[0]) as { suggestions?: Record<string, string> };
+            if (parsedSug.suggestions && typeof parsedSug.suggestions === "object") {
+              suggestionByBlock = parsedSug.suggestions;
+            }
+          }
+        } catch (e) {
+          console.warn("[assistant] gap suggestion LLM failed", e);
+        }
+
+        const upsertRows = gapList.map((g) => ({
+          target_id: data.targetId,
+          mission_id: data.missionId,
+          block_key: g.block,
+          missing_fields: g.missing,
+          suggestion: (suggestionByBlock[g.block] ?? "").toString().slice(0, 600) || null,
+          updated_at: new Date().toISOString(),
+        }));
+        const { error: gapErr } = await supabaseAdmin
+          .from("target_gaps")
+          .upsert(upsertRows, { onConflict: "target_id,block_key" });
+        if (gapErr) console.warn("[assistant] target_gaps upsert failed", gapErr);
+      }
+    } catch (e) {
+      console.warn("[assistant] gap tracking failed", e);
+    }
+
     return { message: cleanMessage, blockUpdates, timelineEventDetected };
   });
 
