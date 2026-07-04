@@ -40,6 +40,7 @@ import {
   Brain,
 } from "lucide-react";
 import { MissionAssistantPanel } from "./MissionAssistantPanel";
+import { ConsolidatedStatusPanel } from "./consolidated-status-panel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   collectionByTargetKey,
@@ -194,6 +195,7 @@ export function TargetDetailSheet({
                 ))}
               </div>
               <TabsContent value="overview" className="space-y-5 pt-5">
+                <ConsolidatedStatusPanel targetId={target.id} collectionRows={collectionRows} />
                 <Section title="Status rápido">
                   <div className="col-span-2 space-y-3">
                     <Select
