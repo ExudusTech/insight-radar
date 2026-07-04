@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { logActivity } from "@/lib/activity-log";
 
 export type Evidence = Tables<"evidences">;
 
@@ -62,6 +63,18 @@ export async function uploadEvidence(params: {
     .select("*")
     .single();
   if (error) throw error;
+  await logActivity({
+    userId,
+    missionId,
+    action: "evidence_uploaded",
+    entityType: "evidence",
+    entityId: data.id,
+    details: {
+      target_id: targetId,
+      evidence_type: evidenceType,
+      file_name: file.name,
+    },
+  });
   return data;
 }
 

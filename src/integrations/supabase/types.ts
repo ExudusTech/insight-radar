@@ -951,6 +951,51 @@ export type Database = {
         }
         Relationships: []
       }
+      target_gaps: {
+        Row: {
+          block_key: string
+          id: string
+          missing_fields: string[]
+          mission_id: string
+          suggestion: string | null
+          target_id: string
+          updated_at: string
+        }
+        Insert: {
+          block_key: string
+          id?: string
+          missing_fields?: string[]
+          mission_id: string
+          suggestion?: string | null
+          target_id: string
+          updated_at?: string
+        }
+        Update: {
+          block_key?: string
+          id?: string
+          missing_fields?: string[]
+          mission_id?: string
+          suggestion?: string | null
+          target_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_gaps_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_gaps_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       target_timeline_events: {
         Row: {
           created_at: string
