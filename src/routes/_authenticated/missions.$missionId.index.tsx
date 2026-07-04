@@ -737,6 +737,16 @@ function AnalystActionPanel({
         })
         .eq("id", mission.id);
       if (error) throw error;
+      if (currentUser?.id) {
+        await logActivity({
+          userId: currentUser.id,
+          missionId: mission.id,
+          action: "mission_status_changed",
+          entityType: "mission",
+          entityId: mission.id,
+          details: { from: mission.status, to: "date_negotiation", proposal_from: "analyst" },
+        });
+      }
       if (mission.contractor_id) {
         await sendNotificationsFn({
           data: {
