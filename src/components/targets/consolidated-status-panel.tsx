@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, Play, Circle, Clock3, Trophy, XCircle, Calendar } from "lucide-react";
+import { CheckCircle2, Play, Circle, Clock3, Trophy, XCircle, Calendar, Lightbulb } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   BLOCK_TITLES,
@@ -62,6 +62,26 @@ export function ConsolidatedStatusPanel({
     },
     enabled: !!targetId,
   });
+
+  const { data: gaps = [] } = useQuery({
+    queryKey: ["consolidated-status", "gaps", targetId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("target_gaps")
+        .select("block_key, missing_fields, suggestion, updated_at")
+        .eq("target_id", targetId);
+      return data ?? [];
+    },
+    enabled: !!targetId,
+    refetchInterval: 30_000,
+  });
+  const gapByBlock = new Map<string, { missing: string[]; suggestion: string | null }>();
+  for (const g of gaps) {
+    gapByBlock.set(g.block_key, {
+      missing: (g.missing_fields as string[]) ?? [],
+      suggestion: g.suggestion ?? null,
+    });
+  }
 
   const filled = buildFilledByBlock(collectionRows);
   const done: string[] = [];
@@ -180,6 +200,34 @@ export function ConsolidatedStatusPanel({
           <div className="font-medium text-foreground/90">{formatSeconds(timeSeconds)}</div>
         </div>
       </div>
+
+      {gapByBlock.size > 0 && (
+        <div className="pt-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            <Lightbulb className="h-3.5 w-3.5" /> Lacunas identificadas pela IA
+          </div>
+          <ul className="space-y-1.5">
+            {COLLECTION_BLOCKS.filter((b) => gapByBlock.has(b)).map((b) => {
+              const g = gapByBlock.get(b)!;
+              return (
+                <li key={b} className="rounded-md border border-amber-500/20 bg-amber-500/5 p-2 text-xs">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium text-amber-600 dark:text-amber-400">
+                      {b} · {BLOCK_TITLES[b as keyof typeof BLOCK_TITLES]}
+                    </span>
+                    <span className="text-muted-foreground">
+                      falta: {g.missing.join(", ")}
+                    </span>
+                  </div>
+                  {g.suggestion ? (
+                    <div className="mt-1 text-foreground/80">{g.suggestion}</div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }
