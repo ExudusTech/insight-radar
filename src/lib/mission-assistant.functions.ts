@@ -954,6 +954,19 @@ Formato de saída (markdown, use exatamente estes títulos):
       .select("id")
       .single();
     if (error) throw error;
+    void logAdminActivity({
+      userId: context.userId,
+      missionId: data.missionId,
+      action: "report_generated",
+      entityType: "document_version",
+      entityId: inserted.id,
+      details: {
+        report_kind: "competitor_brief",
+        target_id: data.targetId,
+        target_name: target.name,
+        version: nextVersion,
+      },
+    });
     return { documentId: inserted.id, content: text };
   });
 
