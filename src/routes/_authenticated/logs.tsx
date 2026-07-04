@@ -36,6 +36,12 @@ const ACTION_COLOR: Record<string, string> = {
   target_status_changed: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
   target_status_changed_manual: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
   assistant_interaction: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
+  assistant_message_sent: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
+  evidence_uploaded: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+  timeline_event_created: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30",
+  report_generated: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
+  mission_status_changed: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+  mission_delivered: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
   user_logout: "bg-muted text-muted-foreground border-border",
 };
 
