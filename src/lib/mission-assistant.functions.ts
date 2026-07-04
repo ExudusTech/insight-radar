@@ -841,13 +841,30 @@ export const queryMissionIntelligence = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => QueryInputSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [{ data: mission }, { data: targets }, { data: rows }] = await Promise.all([
-      supabase.from("missions").select("name, objective, segment").eq("id", data.missionId).single(),
+    const [
+      { data: mission },
+      { data: targets },
+      { data: rows },
+      { data: timelineRows },
+      { data: briefDocs },
+    ] = await Promise.all([
+      supabase.from("missions").select("name, objective, segment, status").eq("id", data.missionId).single(),
       supabase.from("targets").select("id, name, brand, category").eq("mission_id", data.missionId),
       supabase
         .from("collection_data")
         .select("target_id, block, field_key, field_value")
         .eq("mission_id", data.missionId),
+      supabase
+        .from("target_timeline_events")
+        .select("target_id, event_type, event_date, description")
+        .eq("mission_id", data.missionId)
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("document_versions")
+        .select("doc_type, doc_label, extracted_data, version_number")
+        .eq("mission_id", data.missionId)
+        .eq("doc_type", "competitor_brief")
+        .order("version_number", { ascending: false }),
     ]);
     if (!mission) throw new Error("Missão não encontrada");
 
@@ -856,14 +873,47 @@ export const queryMissionIntelligence = createServerFn({ method: "POST" })
       if (!r.target_id) continue;
       (byTarget[r.target_id] ??= []).push(r);
     }
+    const timelineByTarget: Record<string, Array<{ event_type: string; event_date: string; description: string | null }>> = {};
+    for (const ev of timelineRows ?? []) {
+      if (!ev.target_id) continue;
+      (timelineByTarget[ev.target_id] ??= []).push({
+        event_type: ev.event_type,
+        event_date: ev.event_date,
+        description: ev.description,
+      });
+    }
+    // Only the most recent brief per target (docs already sorted desc).
+    const briefByTarget: Record<string, string> = {};
+    for (const d of briefDocs ?? []) {
+      const ext = (d.extracted_data ?? {}) as { target_id?: string; content?: string };
+      if (ext.target_id && ext.content && !briefByTarget[ext.target_id]) {
+        briefByTarget[ext.target_id] = ext.content;
+      }
+    }
     const targetSections = (targets ?? []).map((t) => {
       const ctx = buildCollectedContext(byTarget[t.id] ?? []);
-      return `## ${t.name}${t.brand ? ` (${t.brand})` : ""}\n${ctx}`;
+      const events = timelineByTarget[t.id] ?? [];
+      const timelineText = events.length
+        ? events
+            .map(
+              (e) =>
+                `- ${new Date(e.event_date).toLocaleDateString("pt-BR")} — ${e.event_type}${e.description ? `: ${String(e.description).slice(0, 200)}` : ""}`,
+            )
+            .join("\n")
+        : "(sem eventos registrados)";
+      const brief = briefByTarget[t.id];
+      const briefText = brief ? `\n### Parecer individual\n${brief}` : "";
+      return `## ${t.name}${t.brand ? ` (${t.brand})` : ""}\n${ctx}\n\n### Timeline\n${timelineText}${briefText}`;
     }).join("\n\n---\n\n");
 
-    const systemPrompt = `Você é um analista sênior de inteligência competitiva. Responda perguntas comparativas usando APENAS os dados coletados da missão "${mission.name}" abaixo. Seja específico, cite os concorrentes por nome, e admita quando não houver dado suficiente.
+    const missionStatus = (mission as { status?: string }).status ?? "";
+    const deliveredNote = missionStatus === "delivered"
+      ? "\nA missão foi ENTREGUE. Responda como consultor do cliente, usando linguagem executiva."
+      : "";
 
-CONCORRENTES DA MISSÃO:
+    const systemPrompt = `Você é um analista sênior de inteligência competitiva. Responda perguntas comparativas usando APENAS os dados coletados da missão "${mission.name}" abaixo. Seja específico, cite os concorrentes por nome e a fonte do dado (bloco ou evento do timeline), e admita quando não houver dado suficiente.${deliveredNote}
+
+DADOS DA MISSÃO (blocos coletados, timeline e pareceres individuais):
 ${targetSections || "(nenhum dado coletado ainda)"}
 `;
 
