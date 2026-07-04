@@ -55,6 +55,12 @@ const NAV: Record<AppRole, NavItem[]> = {
     { title: "Configurações", url: "/settings", icon: Settings, group: "Gestão" },
     { title: "Notificações", url: "/notificacoes", icon: Bell, group: "Gestão" },
   ],
+  coordinator: [
+    { title: "Coordenação", url: "/coordinator", icon: LayoutDashboard, group: "Operacional" },
+    { title: "Missões", url: "/missions", icon: Target, group: "Operacional" },
+    { title: "Tempo por analista", url: "/analyst-metrics", icon: Clock, group: "Gestão" },
+    { title: "Notificações", url: "/notificacoes", icon: Bell, group: "Gestão" },
+  ],
   contractor: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Minhas Missões", url: "/missions", icon: Target },
