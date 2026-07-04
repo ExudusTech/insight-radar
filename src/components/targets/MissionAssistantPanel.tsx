@@ -447,6 +447,34 @@ export function MissionAssistantPanel({
               <><Calendar className="h-3 w-3 mr-1" /> Preparar reunião</>
             )}
           </Button>
+          {(user?.role === "analyst" || user?.role === "superadmin") && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs w-full"
+                      onClick={() => briefMut.mutate()}
+                      disabled={briefMut.isPending || !requiredCompletion.readyForSynthesis}
+                    >
+                      {briefMut.isPending ? (
+                        <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Gerando parecer...</>
+                      ) : (
+                        <><CheckCircle2 className="h-3 w-3 mr-1" /> Gerar parecer</>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!requiredCompletion.readyForSynthesis && (
+                  <TooltipContent>
+                    Complete os blocos obrigatórios para gerar o parecer.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          )}
           </div>
         </div>
       )}
