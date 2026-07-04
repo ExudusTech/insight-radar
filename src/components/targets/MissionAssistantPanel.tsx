@@ -6,6 +6,7 @@ import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOf
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   ASSISTANT_UNIFIED_BLOCK,
