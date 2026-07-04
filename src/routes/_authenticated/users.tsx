@@ -57,6 +57,7 @@ type Row = {
 
 const ROLE_BADGE: Record<AppRole, string> = {
   superadmin: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  coordinator: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   contractor: "bg-blue-500/15 text-blue-300 border-blue-500/30",
   analyst: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
 };
@@ -75,7 +76,7 @@ function UsersPage() {
         supabase.from("user_roles").select("user_id, role"),
       ]);
       const roleMap = new Map<string, AppRole>();
-      const priority: AppRole[] = ["superadmin", "contractor", "analyst"];
+      const priority: AppRole[] = ["superadmin", "coordinator", "contractor", "analyst"];
       for (const r of roles ?? []) {
         const cur = roleMap.get(r.user_id);
         if (!cur || priority.indexOf(r.role as AppRole) < priority.indexOf(cur)) {
@@ -292,6 +293,7 @@ function UsersPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="superadmin">Superadmin</SelectItem>
+          <SelectItem value="coordinator">Coordenador</SelectItem>
                           <SelectItem value="contractor">Cliente</SelectItem>
                           <SelectItem value="analyst">Analista</SelectItem>
                         </SelectContent>
@@ -426,6 +428,7 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="analyst">Analista</SelectItem>
+            <SelectItem value="coordinator">Coordenador</SelectItem>
               <SelectItem value="contractor">Cliente</SelectItem>
               <SelectItem value="superadmin">Superadmin</SelectItem>
             </SelectContent>

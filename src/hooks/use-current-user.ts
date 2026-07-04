@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
-export type AppRole = "superadmin" | "contractor" | "analyst";
+export type AppRole = "superadmin" | "coordinator" | "contractor" | "analyst";
 
 export interface CurrentUser {
   id: string;
@@ -23,7 +23,7 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
     supabase.from("user_roles").select("role").eq("user_id", user.id),
   ]);
 
-  const priority: AppRole[] = ["superadmin", "contractor", "analyst"];
+  const priority: AppRole[] = ["superadmin", "coordinator", "contractor", "analyst"];
   const role = priority.find((r) => roles?.some((row) => row.role === r)) ?? null;
 
   return {
@@ -44,6 +44,7 @@ export function useCurrentUser() {
 
 export const ROLE_LABEL: Record<AppRole, string> = {
   superadmin: "Superadmin",
+  coordinator: "Coordenador",
   contractor: "Cliente",
   analyst: "Analista",
 };

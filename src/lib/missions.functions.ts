@@ -12,11 +12,11 @@ export const assignAnalystToMission = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Authorize: caller must be superadmin OR the mission's primary contractor
-    const { data: isSuperadmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "superadmin",
-    });
+    // Authorize: caller must be superadmin, coordinator, OR the mission's primary contractor
+    const [{ data: isSuperadmin }, { data: isCoordinator }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: userId, _role: "superadmin" }),
+      supabase.rpc("has_role", { _user_id: userId, _role: "coordinator" }),
+    ]);
     const { data: mission, error: missionErr } = await supabase
       .from("missions")
       .select("id, contractor_id")
@@ -24,7 +24,7 @@ export const assignAnalystToMission = createServerFn({ method: "POST" })
       .maybeSingle();
     if (missionErr) throw new Error(missionErr.message);
     if (!mission) throw new Error("Missão não encontrada.");
-    if (!isSuperadmin && mission.contractor_id !== userId) {
+    if (!isSuperadmin && !isCoordinator && mission.contractor_id !== userId) {
       throw new Error("Sem permissão para atribuir analista a esta missão.");
     }
 

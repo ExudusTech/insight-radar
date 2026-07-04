@@ -15,7 +15,7 @@ const inputSchema = z.object({
   email: z.string().email(),
   full_name: z.string().min(1),
   organization: z.string().optional(),
-  role: z.enum(["contractor", "analyst", "superadmin"]),
+  role: z.enum(["contractor", "analyst", "superadmin", "coordinator"]),
 });
 
 export const inviteUser = createServerFn({ method: "POST" })
@@ -92,7 +92,13 @@ export const inviteUser = createServerFn({ method: "POST" })
       if (!resendKey) throw new Error("RESEND_API_KEY não configurada");
 
       const roleLabel =
-        data.role === "superadmin" ? "Superadmin" : data.role === "contractor" ? "Cliente" : "Analista";
+        data.role === "superadmin"
+          ? "Superadmin"
+          : data.role === "coordinator"
+          ? "Coordenador"
+          : data.role === "contractor"
+          ? "Cliente"
+          : "Analista";
       const safeName = escapeHtml(data.full_name);
       const safeRole = escapeHtml(roleLabel);
       const safeLink = escapeHtml(actionLink);

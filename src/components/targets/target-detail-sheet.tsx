@@ -99,6 +99,13 @@ export function TargetDetailSheet({
       { value: "evidences", label: "Evidências", icon: Paperclip },
       { value: "ai", label: "Análise IA", icon: Brain },
     ],
+    coordinator: [
+      { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
+      { value: "collection", label: "Coleta", icon: ClipboardList },
+      { value: "timeline", label: "Timeline", icon: Clock },
+      { value: "evidences", label: "Evidências", icon: Paperclip },
+      { value: "ai", label: "Análise IA", icon: Brain },
+    ],
   } as const;
 
   const tabs = tabsByRole[currentUser?.role ?? "contractor"] ?? tabsByRole.contractor;

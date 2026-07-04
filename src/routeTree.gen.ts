@@ -29,6 +29,7 @@ import { Route as AuthenticatedEvidencesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCoordinatorRouteImport } from './routes/_authenticated/coordinator'
 import { Route as AuthenticatedComparativeRouteImport } from './routes/_authenticated/comparative'
 import { Route as AuthenticatedCollectionRouteImport } from './routes/_authenticated/collection'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
@@ -145,6 +146,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCoordinatorRoute =
+  AuthenticatedCoordinatorRouteImport.update({
+    id: '/coordinator',
+    path: '/coordinator',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComparativeRoute =
   AuthenticatedComparativeRouteImport.update({
     id: '/comparative',
@@ -237,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/clients': typeof AuthenticatedClientsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
+  '/coordinator': typeof AuthenticatedCoordinatorRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/clients': typeof AuthenticatedClientsRoute
   '/collection': typeof AuthenticatedCollectionRoute
   '/comparative': typeof AuthenticatedComparativeRoute
+  '/coordinator': typeof AuthenticatedCoordinatorRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/downloads': typeof AuthenticatedDownloadsRoute
@@ -308,6 +317,7 @@ export interface FileRoutesById {
   '/_authenticated/clients': typeof AuthenticatedClientsRoute
   '/_authenticated/collection': typeof AuthenticatedCollectionRoute
   '/_authenticated/comparative': typeof AuthenticatedComparativeRoute
+  '/_authenticated/coordinator': typeof AuthenticatedCoordinatorRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/collection'
     | '/comparative'
+    | '/coordinator'
     | '/dashboard'
     | '/documents'
     | '/downloads'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/collection'
     | '/comparative'
+    | '/coordinator'
     | '/dashboard'
     | '/documents'
     | '/downloads'
@@ -415,6 +427,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clients'
     | '/_authenticated/collection'
     | '/_authenticated/comparative'
+    | '/_authenticated/coordinator'
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/downloads'
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/coordinator': {
+      id: '/_authenticated/coordinator'
+      path: '/coordinator'
+      fullPath: '/coordinator'
+      preLoaderRoute: typeof AuthenticatedCoordinatorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comparative': {
       id: '/_authenticated/comparative'
       path: '/comparative'
@@ -725,6 +745,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
   AuthenticatedCollectionRoute: typeof AuthenticatedCollectionRoute
   AuthenticatedComparativeRoute: typeof AuthenticatedComparativeRoute
+  AuthenticatedCoordinatorRoute: typeof AuthenticatedCoordinatorRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
@@ -753,6 +774,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientsRoute: AuthenticatedClientsRoute,
   AuthenticatedCollectionRoute: AuthenticatedCollectionRoute,
   AuthenticatedComparativeRoute: AuthenticatedComparativeRoute,
+  AuthenticatedCoordinatorRoute: AuthenticatedCoordinatorRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,

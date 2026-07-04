@@ -15,6 +15,7 @@ import {
   saveAssistantMessage,
 } from "@/lib/assistant-messages.queries";
 import { missionAssistant, processAssistantHistory, generateCompetitorBrief, generateMeetingScript } from "@/lib/mission-assistant.functions";
+import { requestCompetitorBrief } from "@/lib/report-request.functions";
 import {
   BLOCK_FIELDS,
   BLOCK_FIELDS_REQUIRED,
@@ -99,6 +100,7 @@ export function MissionAssistantPanel({
   const callProcessHistory = useServerFn(processAssistantHistory);
   const callGenerateBrief = useServerFn(generateCompetitorBrief);
   const callGenerateMeetingScript = useServerFn(generateMeetingScript);
+  const callRequestBrief = useServerFn(requestCompetitorBrief);
   const [input, setInput] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -313,6 +315,21 @@ export function MissionAssistantPanel({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao gerar roteiro"),
   });
 
+  const requestBriefMut = useMutation({
+    mutationFn: () =>
+      callRequestBrief({
+        data: { missionId, targetId, targetName: targetName || "concorrente" },
+      }),
+    onSuccess: (res) => {
+      if (res.notified > 0) {
+        toast.success("Solicitação enviada ao coordenador.");
+      } else {
+        toast.warning("Nenhum coordenador cadastrado para receber a solicitação.");
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao enviar solicitação"),
+  });
+
   const handleSend = () => {
     if (sendMut.isPending) return;
     if (!input.trim() && !imageFile) return;
@@ -447,7 +464,7 @@ export function MissionAssistantPanel({
               <><Calendar className="h-3 w-3 mr-1" /> Preparar reunião</>
             )}
           </Button>
-          {(user?.role === "analyst" || user?.role === "superadmin") && (
+          {(user?.role === "coordinator" || user?.role === "superadmin") && (
             <TooltipProvider delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -474,6 +491,21 @@ export function MissionAssistantPanel({
                 )}
               </Tooltip>
             </TooltipProvider>
+          )}
+          {user?.role === "analyst" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs flex-1"
+              onClick={() => requestBriefMut.mutate()}
+              disabled={requestBriefMut.isPending}
+            >
+              {requestBriefMut.isPending ? (
+                <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Enviando...</>
+              ) : (
+                <><CheckCircle2 className="h-3 w-3 mr-1" /> Solicitar Parecer ao Coordenador</>
+              )}
+            </Button>
           )}
           </div>
         </div>
