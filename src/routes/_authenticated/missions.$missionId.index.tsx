@@ -49,6 +49,7 @@ import { assignAnalystToMission } from "@/lib/missions.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { logActivity } from "@/lib/activity-log";
 import { ChannelRotationCard } from "@/components/missions/channel-rotation-card";
+import { ContractorOverview } from "@/components/missions/contractor-overview";
 import { isPreAcceptance } from "@/lib/target-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -94,6 +95,26 @@ function MissionOverview() {
   const showLockedBanner =
     !preAcceptance && currentUser?.role === "contractor";
 
+  const isContractorExecutionView =
+    currentUser?.role === "contractor" && !preAcceptance;
+
+  if (isContractorExecutionView) {
+    return (
+      <div className="space-y-5">
+        {showLockedBanner && (
+          <Alert>
+            <Lock className="h-4 w-4" />
+            <AlertDescription>
+              Missão em execução — os campos não podem mais ser alterados. Para
+              ajustes, abra uma solicitação de mudança.
+            </AlertDescription>
+          </Alert>
+        )}
+        <ContractorOverview mission={mission as Mission} />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-2 space-y-5">
@@ -121,7 +142,13 @@ function MissionOverview() {
             {mission.description ? (
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{mission.description}</p>
             ) : (
-              <p className="text-sm text-muted-foreground italic">Sem descrição cadastrada.</p>
+              <div className="flex items-start gap-2 rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-3">
+                <Lock className="h-4 w-4 text-muted-foreground/60 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  O briefing desta missão foi definido internamente. Em caso de dúvidas, entre em
+                  contato com o coordenador.
+                </p>
+              </div>
             )}
             <ComplementsList missionId={missionId} readOnly />
           </Card>
@@ -173,7 +200,7 @@ function MissionOverview() {
         )}
       </div>
       <div className="space-y-5">
-        {(currentUser?.role === "superadmin" || currentUser?.role === "contractor") && (
+        {currentUser?.role === "superadmin" && (
           <ChannelRotationCard missionId={missionId} />
         )}
         <Card className="p-6 space-y-3">
