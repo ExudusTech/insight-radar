@@ -20,7 +20,12 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/targets/status-badge";
 import { TargetDetailSheet } from "@/components/targets/target-detail-sheet";
-import { COLLECTION_BLOCKS } from "@/lib/collection.queries";
+import {
+  COLLECTION_BLOCKS,
+  buildFilledByBlock,
+  calcBlockRequiredProgress,
+  derivedBlockStatus,
+} from "@/lib/collection.queries";
 import {
   listTargetsByMission,
   targetsByMissionKey,
@@ -70,35 +75,44 @@ export function ContractorOverview({ mission }: { mission: MissionWithRelations 
     },
   });
 
-  const blockStatus: Record<string, Record<string, string>> = {};
+  const rowsByTarget: Record<string, CollectionRowMin[]> = {};
+  const storedStatus: Record<string, Record<string, string>> = {};
   const blocking: Record<string, boolean> = {};
   for (const r of collection) {
+    (rowsByTarget[r.target_id] ??= []).push(r);
     if (r.field_key === "block_status") {
-      blockStatus[r.target_id] = blockStatus[r.target_id] ?? {};
-      blockStatus[r.target_id][r.block] = String(r.field_value ?? "not_started").replace(/"/g, "");
+      storedStatus[r.target_id] = storedStatus[r.target_id] ?? {};
+      storedStatus[r.target_id][r.block] = String(r.field_value ?? "not_started").replace(/"/g, "");
     }
     if (r.field_key === "doubt_blocking" && r.field_value === true) {
       blocking[r.target_id] = true;
     }
   }
+  const filledByTarget: Record<string, Record<string, Set<string>>> = {};
+  const blockStatus: Record<string, Record<string, "done" | "in_progress" | "not_started">> = {};
+  for (const t of targets) {
+    const f = buildFilledByBlock(rowsByTarget[t.id] ?? []);
+    filledByTarget[t.id] = f;
+    const s: Record<string, "done" | "in_progress" | "not_started"> = {};
+    for (const b of COLLECTION_BLOCKS) {
+      s[b] = derivedBlockStatus(f, b, storedStatus[t.id]?.[b]);
+    }
+    blockStatus[t.id] = s;
+  }
 
   const done = targets.filter((t) => t.status === "collection_complete").length;
   const total = targets.length;
-  const totalBlocks = total * COLLECTION_BLOCKS.length;
-  let weightedDone = 0;
+  let sumTargetProgress = 0;
   for (const t of targets) {
     if (t.status === "collection_complete") {
-      weightedDone += COLLECTION_BLOCKS.length;
+      sumTargetProgress += 1;
       continue;
     }
-    const blocks = blockStatus[t.id] ?? {};
-    for (const b of COLLECTION_BLOCKS) {
-      const s = blocks[b] ?? "not_started";
-      if (s === "done") weightedDone += 1;
-      else if (s === "in_progress") weightedDone += 0.5;
-    }
+    const f = filledByTarget[t.id] ?? buildFilledByBlock([]);
+    const per = COLLECTION_BLOCKS.map((b) => calcBlockRequiredProgress(f, b));
+    sumTargetProgress += per.reduce((s, n) => s + n, 0) / per.length;
   }
-  const pct = totalBlocks ? Math.round((weightedDone / totalBlocks) * 100) : 0;
+  const pct = total ? Math.round((sumTargetProgress / total) * 100) : 0;
 
   const deadlineDate = mission.deadline_final ? parseLocalDate(mission.deadline_final) : null;
   const daysLeft = deadlineDate

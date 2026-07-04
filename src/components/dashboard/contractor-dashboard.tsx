@@ -33,7 +33,12 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { listMissions, missionsListKey } from "@/lib/missions.queries";
-import { COLLECTION_BLOCKS } from "@/lib/collection.queries";
+import {
+  COLLECTION_BLOCKS,
+  buildFilledByBlock,
+  calcBlockRequiredProgress,
+  derivedBlockStatus,
+} from "@/lib/collection.queries";
 import { generateComparative } from "@/lib/ai-analysis.functions";
 
 type Comparative = {
@@ -113,17 +118,28 @@ export function ContractorDashboard() {
   const comparative = reports[0];
   const comp = (comparative?.content ?? {}) as Comparative;
 
-  // index block status + blocking per target
-  const blockStatus: Record<string, Record<string, string>> = {};
+  // index block status + blocking per target (status derivado dos campos preenchidos)
+  const rowsByTarget: Record<string, typeof collection> = {};
+  const storedStatus: Record<string, Record<string, string>> = {};
   const blocking: Record<string, boolean> = {};
   for (const r of collection) {
-    const k = r.field_key;
-    const v = r.field_value;
-    if (k === "block_status") {
-      blockStatus[r.target_id] = blockStatus[r.target_id] ?? {};
-      blockStatus[r.target_id][r.block as string] = String(v ?? "not_started").replace(/"/g, "");
+    (rowsByTarget[r.target_id] ??= []).push(r);
+    if (r.field_key === "block_status") {
+      storedStatus[r.target_id] = storedStatus[r.target_id] ?? {};
+      storedStatus[r.target_id][r.block as string] = String(r.field_value ?? "not_started").replace(/"/g, "");
     }
-    if (k === "doubt_blocking" && v === true) blocking[r.target_id] = true;
+    if (r.field_key === "doubt_blocking" && r.field_value === true) blocking[r.target_id] = true;
+  }
+  const filledByTarget: Record<string, Record<string, Set<string>>> = {};
+  const blockStatus: Record<string, Record<string, "done" | "in_progress" | "not_started">> = {};
+  for (const t of targets) {
+    const f = buildFilledByBlock(rowsByTarget[t.id] ?? []);
+    filledByTarget[t.id] = f;
+    const s: Record<string, "done" | "in_progress" | "not_started"> = {};
+    for (const b of COLLECTION_BLOCKS) {
+      s[b] = derivedBlockStatus(f, b, storedStatus[t.id]?.[b]);
+    }
+    blockStatus[t.id] = s;
   }
 
   const kpis = {
@@ -209,7 +225,11 @@ export function ContractorDashboard() {
                 {targets.map((t) => {
                   const bs = blockStatus[t.id] ?? {};
                   const blockedT = blocking[t.id];
-                  const completed = COLLECTION_BLOCKS.filter((b) => bs[b] === "done").length;
+                  const f = filledByTarget[t.id] ?? buildFilledByBlock([]);
+                  const per = COLLECTION_BLOCKS.map((b) => calcBlockRequiredProgress(f, b));
+                  const pctT = t.status === "collection_complete"
+                    ? 100
+                    : Math.round((per.reduce((s, n) => s + n, 0) / per.length) * 100);
                   return (
                     <TableRow key={t.id}>
                       <TableCell className="font-medium">{t.name}</TableCell>
@@ -229,8 +249,8 @@ export function ContractorDashboard() {
                       })}
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Progress value={(completed / 7) * 100} className="w-16 h-2" />
-                          <span className="text-xs text-muted-foreground w-8">{Math.round((completed / 7) * 100)}%</span>
+                          <Progress value={pctT} className="w-16 h-2" />
+                          <span className="text-xs text-muted-foreground w-8">{pctT}%</span>
                         </div>
                       </TableCell>
                     </TableRow>

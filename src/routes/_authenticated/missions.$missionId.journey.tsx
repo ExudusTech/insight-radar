@@ -11,7 +11,12 @@ import { listTargetsByMission, targetsByMissionKey } from "@/lib/targets.queries
 import { supabase } from "@/integrations/supabase/client";
 import { TargetDetailSheet } from "@/components/targets/target-detail-sheet";
 import { StatusBadge } from "@/components/targets/status-badge";
-import { COLLECTION_BLOCKS } from "@/lib/collection.queries";
+import {
+  COLLECTION_BLOCKS,
+  buildFilledByBlock,
+  calcBlockRequiredProgress,
+  derivedBlockStatus,
+} from "@/lib/collection.queries";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/journey")({
   component: JourneyPage,
@@ -45,16 +50,31 @@ function JourneyPage() {
   });
 
   // index per target
-  const blockStatus: Record<string, Record<string, string>> = {};
+  const rowsByTarget: Record<string, CollectionRowMin[]> = {};
+  const storedStatus: Record<string, Record<string, string>> = {};
   const blocking: Record<string, boolean> = {};
   for (const r of collection) {
+    (rowsByTarget[r.target_id] ??= []).push(r);
     if (r.field_key === "block_status") {
-      blockStatus[r.target_id] = blockStatus[r.target_id] ?? {};
-      blockStatus[r.target_id][r.block] = String(r.field_value ?? "not_started").replace(/"/g, "");
+      storedStatus[r.target_id] = storedStatus[r.target_id] ?? {};
+      storedStatus[r.target_id][r.block] = String(r.field_value ?? "not_started").replace(/"/g, "");
     }
     if (r.field_key === "doubt_blocking" && r.field_value === true) {
       blocking[r.target_id] = true;
     }
+  }
+  const filledByTarget: Record<string, Record<string, Set<string>>> = {};
+  for (const [tid, rows] of Object.entries(rowsByTarget)) {
+    filledByTarget[tid] = buildFilledByBlock(rows);
+  }
+  const blockStatus: Record<string, Record<string, "done" | "in_progress" | "not_started">> = {};
+  for (const t of targets) {
+    const f = filledByTarget[t.id] ?? buildFilledByBlock([]);
+    const s: Record<string, "done" | "in_progress" | "not_started"> = {};
+    for (const b of COLLECTION_BLOCKS) {
+      s[b] = derivedBlockStatus(f, b, storedStatus[t.id]?.[b]);
+    }
+    blockStatus[t.id] = s;
   }
 
   const done = targets.filter((t) => t.status === "collection_complete").length;
@@ -63,21 +83,18 @@ function JourneyPage() {
   // dividido pelo total de blocos de todos os alvos. Alvos com status
   // "collection_complete" contam como 100% mesmo que os blocos não estejam
   // marcados individualmente.
-  const totalBlocks = total * COLLECTION_BLOCKS.length;
-  let weightedDone = 0;
+  // Progresso: média por bloco de campos obrigatórios preenchidos, agregada por alvo.
+  let sumTargetProgress = 0;
   for (const t of targets) {
     if (t.status === "collection_complete") {
-      weightedDone += COLLECTION_BLOCKS.length;
+      sumTargetProgress += 1;
       continue;
     }
-    const blocks = blockStatus[t.id] ?? {};
-    for (const b of COLLECTION_BLOCKS) {
-      const s = blocks[b] ?? "not_started";
-      if (s === "done") weightedDone += 1;
-      else if (s === "in_progress") weightedDone += 0.5;
-    }
+    const f = filledByTarget[t.id] ?? buildFilledByBlock([]);
+    const per = COLLECTION_BLOCKS.map((b) => calcBlockRequiredProgress(f, b));
+    sumTargetProgress += per.reduce((s, n) => s + n, 0) / per.length;
   }
-  const pct = totalBlocks ? Math.round((weightedDone / totalBlocks) * 100) : 0;
+  const pct = total ? Math.round((sumTargetProgress / total) * 100) : 0;
   const daysLeft = mission?.deadline_final
     ? Math.ceil((new Date(mission.deadline_final).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
