@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  MessageCircle,
   User as UserIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -34,6 +35,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { countUnread, notificationsUnreadKey } from "@/lib/notifications.queries";
+import {
+  countUnreadCoordination,
+  coordinationUnreadKey,
+} from "@/lib/coordination-messages.queries";
 import type { AppRole } from "@/hooks/use-current-user";
 import { ROLE_LABEL } from "@/hooks/use-current-user";
 import { useTheme } from "@/hooks/use-theme";
@@ -58,6 +63,7 @@ const NAV: Record<AppRole, NavItem[]> = {
   coordinator: [
     { title: "Coordenação", url: "/coordinator", icon: LayoutDashboard, group: "Operacional" },
     { title: "Missões", url: "/missions", icon: Target, group: "Operacional" },
+    { title: "Mensagens", url: "/messages", icon: MessageCircle, group: "Operacional" },
     { title: "Tempo por analista", url: "/analyst-metrics", icon: Clock, group: "Gestão" },
     { title: "Notificações", url: "/notificacoes", icon: Bell, group: "Gestão" },
   ],
@@ -68,6 +74,7 @@ const NAV: Record<AppRole, NavItem[]> = {
   ],
   analyst: [
     { title: "Minhas Missões", url: "/missions", icon: Target },
+    { title: "Mensagens", url: "/messages", icon: MessageCircle },
     { title: "Notificações", url: "/notificacoes", icon: Bell },
   ],
 };
@@ -99,6 +106,12 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
     enabled: !!user?.id,
     refetchInterval: 30_000,
   });
+  const { data: unreadMsgs = 0 } = useQuery({
+    queryKey: coordinationUnreadKey(user?.id ?? ""),
+    queryFn: () => countUnreadCoordination(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
 
   async function handleSignOut() {
     if (user?.id) {
@@ -126,6 +139,7 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
       {menuItems.map((item) => {
         const active = pathname === item.url || pathname.startsWith(item.url + "/");
         const isNotif = item.url === "/notificacoes";
+        const isMessages = item.url === "/messages";
         return (
           <SidebarMenuItem key={item.url}>
             <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
@@ -135,6 +149,11 @@ export function AppSidebar({ role }: { role: AppRole | null }) {
                 {isNotif && unread > 0 && (
                   <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
                     {unread}
+                  </Badge>
+                )}
+                {isMessages && unreadMsgs > 0 && (
+                  <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                    {unreadMsgs}
                   </Badge>
                 )}
               </Link>
