@@ -1216,6 +1216,7 @@ export type Database = {
     }
     Functions: {
       can_access_mission: { Args: { _mission_id: string }; Returns: boolean }
+      can_read_mission: { Args: { _mission_id: string }; Returns: boolean }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
