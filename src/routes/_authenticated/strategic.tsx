@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Telescope } from "lucide-react";
 import { OSystemaSection } from "@/components/strategic/OSystemaSection";
+import { ModeloNegocioSection } from "@/components/strategic/ModeloNegocioSection";
 
 export const Route = createFileRoute("/_authenticated/strategic")({
   beforeLoad: async () => {
@@ -23,7 +24,6 @@ export const Route = createFileRoute("/_authenticated/strategic")({
 
 const UPCOMING = [
   { title: "Tração e Piloto", desc: "Resultados iniciais, métricas de adoção e aprendizados do piloto." },
-  { title: "Modelo de Negócio", desc: "Estrutura de receita, precificação e unit economics." },
   { title: "Roadmap", desc: "Prioridades, marcos e visão de produto para os próximos ciclos." },
   { title: "Oportunidade de Parceria", desc: "Formatos de colaboração, investimento e co-construção." },
 ];
@@ -45,6 +45,8 @@ function StrategicPage() {
       </div>
 
       <OSystemaSection />
+
+      <ModeloNegocioSection />
 
       {UPCOMING.map((s) => (
         <Card key={s.title} className="opacity-80">
