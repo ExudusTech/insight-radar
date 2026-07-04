@@ -37,7 +37,6 @@ import {
   COLLECTION_BLOCKS,
   buildFilledByBlock,
   calcBlockRequiredProgress,
-  calcTargetProgressPercent,
   derivedBlockStatus,
 } from "@/lib/collection.queries";
 import { generateComparative } from "@/lib/ai-analysis.functions";
