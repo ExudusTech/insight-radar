@@ -1,13 +1,33 @@
 # Relatório de custos — Insight Radar
 
 **Projeto:** Insight Radar (`1be70740-5579-410f-99f6-225065683e35`)
-**Período coberto:** 23/jun/2026 (início do projeto) → 03/jul/2026 (hoje)
+**Período coberto (baseline):** 23/jun/2026 (início do projeto) → 04/jul/2026 (marco de corte)
+**Próximo período de medição:** a partir de 05/jul/2026 (novos testes — ver seção 9)
 **Ciclo de faturamento consultado:** 05/jun/2026 → 05/jul/2026
 **Taxa aplicada:** 1 crédito Lovable = **US$ 0,40** (plano em que 50 créditos custam US$ 20)
 
 ---
 
-## 1. Resumo executivo
+## 1. Marco de corte
+
+Os números das seções 2–6 são um **snapshot congelado até 04/jul/2026** e não devem ser recalculados retroativamente. Toda missão, alvo, evidência, mensagem e chamada de LLM criada a partir de **05/jul/2026** entra exclusivamente na **seção 9** (medição pós-corte), para que o custo dos novos testes seja isolável do histórico exploratório de construção do app.
+
+Consultas de referência para separar o pós-corte:
+
+```sql
+SELECT count(*) FROM missions              WHERE created_at >= '2026-07-05';
+SELECT count(*) FROM targets               WHERE created_at >= '2026-07-05';
+SELECT count(*) FROM collection_data       WHERE created_at >= '2026-07-05';
+SELECT count(*) FROM evidences             WHERE created_at >= '2026-07-05';
+SELECT count(*) FROM assistant_messages    WHERE created_at >= '2026-07-05';
+SELECT count(*) FROM llm_usage_logs        WHERE created_at >= '2026-07-05';
+```
+
+No lado Lovable, usar `credits--get_credit_balance` com `from=2026-07-05` (e `project_id` deste projeto) para o gasto de créditos do novo período.
+
+---
+
+## 2. Resumo executivo (baseline — até 04/jul/2026)
 
 - Gasto total do projeto até hoje: **341,02 créditos ≈ US$ 136,41**.
 - ~95% desse valor é **construção do app** (mensagens em build/plan mode com a Lovable). Só ~2% é infraestrutura Cloud rodando o produto.
@@ -16,7 +36,7 @@
 
 ---
 
-## 2. Gasto por categoria (créditos Lovable → USD)
+## 3. Gasto por categoria — baseline (créditos Lovable → USD)
 
 Fonte: `credits--get_credit_balance` filtrado por `project_id`.
 
@@ -33,7 +53,7 @@ Fonte: `credits--get_credit_balance` filtrado por `project_id`.
 
 ---
 
-## 3. Volumes operacionais registrados no banco
+## 4. Volumes operacionais registrados no banco — baseline
 
 | Entidade | Volume |
 |---|---:|
@@ -51,7 +71,7 @@ Distribuição dos 206 blocos: A=41, B=57, C=33, D=18, E=21, F=12, G=24.
 
 ---
 
-## 4. Custo de infraestrutura Cloud atribuível à operação
+## 5. Custo de infraestrutura Cloud atribuível à operação — baseline
 
 Do total do projeto, **1,89 créditos = US$ 0,76** foram Cloud (compute + egress + storage). Isso cobre **toda** a operação registrada na seção 3.
 
@@ -66,7 +86,7 @@ Baseline útil para pricing:
 
 ---
 
-## 5. Custo de IA in-app (estimativa retroativa)
+## 6. Custo de IA in-app — baseline (estimativa retroativa)
 
 A tabela `llm_usage_logs` foi criada e instrumentada nesta sessão, mas o histórico anterior de chamadas ao Claude/OpenAI/Gemini **não foi capturado** (0 linhas). A tabela abaixo é uma **estimativa** feita a partir do volume observado (assistant_messages, evidências extraídas, relatório gerado) e do mapa `MODEL_COSTS` de `src/lib/llm-router.ts`, com conversão de ~4 caracteres por token.
 
@@ -82,7 +102,7 @@ A tabela `llm_usage_logs` foi criada e instrumentada nesta sessão, mas o histó
 
 ---
 
-## 6. Custo por unidade operacional (base para precificar planos)
+## 7. Custo por unidade operacional — baseline (base para precificar planos)
 
 Derivado das seções 4 e 5. Estes números são a base para desenhar os planos de contratação.
 
@@ -109,7 +129,7 @@ Assumindo uso médio por assinante **por mês**:
 
 ---
 
-## 7. Metodologia e limitações
+## 8. Metodologia e limitações
 
 **Fontes de dados**
 - Créditos por categoria: `credits--get_credit_balance` com filtro `project_id` e `group_by=billable_item`.
@@ -127,13 +147,67 @@ Assumindo uso médio por assinante **por mês**:
 
 ---
 
-## 8. Próximos passos recomendados
+## 9. Medição pós-corte (a partir de 05/jul/2026)
 
-1. Aguardar ~30 dias de operação com `llm_usage_logs` populado.
-2. Reexecutar as seções **5** e **6** com números reais por `provider/model/task` — vira dashboard interno em vez de arquivo estático.
-3. Recalcular a tabela **6** com base em 10+ missões reais para reduzir viés amostral.
+Seção reservada para os próximos testes. Preencher conforme a nova missão for criada e operada. Como `llm_usage_logs` já está instrumentado, o custo de IA in-app será **medido de forma exata** — não mais estimado.
+
+### 9.1 Gasto Lovable por categoria (a preencher)
+
+| Categoria | Créditos | USD |
+|---|---:|---:|
+| Build mode |  |  |
+| Plan mode |  |  |
+| Cloud compute |  |  |
+| Cloud egress |  |  |
+| Cloud file storage |  |  |
+| **Total pós-corte** |  |  |
+
+Fonte: `credits--get_credit_balance` com `project_id=1be70740-5579-410f-99f6-225065683e35`, `from=2026-07-05`, `group_by=billable_item`.
+
+### 9.2 Volumes operacionais pós-corte (a preencher)
+
+| Entidade | Volume |
+|---|---:|
+| Missões |  |
+| Alvos |  |
+| Blocos A–G preenchidos |  |
+| Evidências |  |
+| Mensagens do assistente |  |
+| Versões de documento |  |
+| Relatórios |  |
+| Interações |  |
+| Change requests |  |
+
+Usar as consultas SQL da seção 1 (com `created_at >= '2026-07-05'`).
+
+### 9.3 Custo de IA in-app — medido (a preencher)
+
+Snippet para consolidar por provedor/modelo/task:
+
+```sql
+SELECT provider, model, task,
+       sum(input_tokens)        AS in_tok,
+       sum(output_tokens)       AS out_tok,
+       sum(estimated_cost_usd)  AS usd
+FROM llm_usage_logs
+WHERE created_at >= '2026-07-05'
+GROUP BY 1, 2, 3
+ORDER BY usd DESC;
+```
+
+### 9.4 Custo por unidade operacional pós-corte (a recalcular)
+
+Reaplicar a metodologia da seção 7 sobre 9.1–9.3 assim que houver ≥1 missão completa no novo período. Comparar lado a lado com o baseline para validar (ou corrigir) as premissas de pricing.
+
+---
+
+## 10. Próximos passos recomendados
+
+1. Registrar toda a operação da(s) nova(s) missão(ões) na **seção 9** — não misturar com o baseline.
+2. Após ~30 dias com `llm_usage_logs` populado, transformar 9.3 no dashboard interno de custo real por `provider/model/task`.
+3. Recalcular 9.4 com base em 10+ missões reais para reduzir viés amostral e revisar os planos hipotéticos da seção 7.
 4. Exportar mensalmente o `credits--get_credit_balance` para arquivar o histórico do projeto, já que a API não guarda ciclos passados.
 
 ---
 
-*Relatório gerado em 03/jul/2026.*
+*Relatório gerado em 03/jul/2026. Marco de corte aplicado em 04/jul/2026.*
