@@ -1232,7 +1232,7 @@ export type Database = {
       shares_mission_with: { Args: { _other: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "superadmin" | "contractor" | "analyst"
+      app_role: "superadmin" | "contractor" | "analyst" | "coordinator"
       change_request_status:
         | "requested"
         | "analyzing"
@@ -1412,7 +1412,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["superadmin", "contractor", "analyst"],
+      app_role: ["superadmin", "contractor", "analyst", "coordinator"],
       change_request_status: [
         "requested",
         "analyzing",
