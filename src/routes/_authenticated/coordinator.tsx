@@ -292,6 +292,64 @@ function BlockDot({ progress }: { progress: number }) {
   return <span className="inline-block text-muted-foreground/50">⚪</span>;
 }
 
+function AnalystChatChip({
+  missionId,
+  analystId,
+  analystName,
+}: {
+  missionId: string;
+  analystId: string;
+  analystName: string;
+}) {
+  const { data: me } = _useCurrentUser();
+  const { data: unread = 0 } = useQuery({
+    queryKey: [
+      ...coordinationUnreadKey(me?.id ?? ""),
+      "thread",
+      missionId,
+      analystId,
+    ],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("coordination_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("mission_id", missionId)
+        .eq("sender_id", analystId)
+        .eq("receiver_id", me!.id)
+        .is("read_at", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!me?.id,
+    refetchInterval: 30_000,
+  });
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/50 hover:bg-secondary px-2 py-0.5 text-[10px] font-medium transition"
+        >
+          <MessageCircle className="h-3 w-3" />
+          <span className="truncate max-w-[140px]">{analystName}</span>
+          {unread > 0 && (
+            <Badge variant="destructive" className="h-3.5 min-w-3.5 px-1 text-[9px]">
+              {unread}
+            </Badge>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[380px] p-0" align="start">
+        <CoordinationThread
+          missionId={missionId}
+          otherUserId={analystId}
+          otherUserName={analystName}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* -------------------- Banco de Horas -------------------- */
 
 type TimeRow = {
