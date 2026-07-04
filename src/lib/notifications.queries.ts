@@ -97,4 +97,5 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   mission_declined: "Missão recusada",
   mission_pending_acceptance: "Aguardando aceite",
   status_update: "Atualização",
+  coordination_message: "Mensagem interna",
 };
