@@ -77,7 +77,14 @@ export const missionAssistant = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const [{ data: mission }, { data: docs }, { data: target }, { data: filledRows }] = await Promise.all([
+    const [
+      { data: mission },
+      { data: docs },
+      { data: target },
+      { data: filledRows },
+      { data: lastTimeline },
+      { data: priorMessages },
+    ] = await Promise.all([
       supabase
         .from("missions")
         .select("name, objective, segment, canais_obrigatorios, entregavel_esperado")
@@ -97,6 +104,20 @@ export const missionAssistant = createServerFn({ method: "POST" })
         .from("collection_data")
         .select("block, field_key, field_value")
         .eq("target_id", data.targetId),
+      supabase
+        .from("target_timeline_events")
+        .select("event_type, event_date, description")
+        .eq("target_id", data.targetId)
+        .order("event_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("assistant_messages")
+        .select("role, content, created_at")
+        .eq("target_id", data.targetId)
+        .order("created_at", { ascending: false })
+        .limit(6),
     ]);
 
     if (!mission) throw new Error("Missão não encontrada");
@@ -155,6 +176,43 @@ ${hasContact && conditionalGaps.length > 0 ? `\nLACUNAS CONDICIONAIS (${conditio
 INSTRUÇÃO: Ao final desta resposta, diga explicitamente ao analista quais campos estão faltando e qual a próxima ação concreta para obtê-los. Use linguagem direta: "Para completar o Bloco B, preciso saber: [campo 1] e [campo 2]. Você tem essa informação ou consegue obtê-la?"`;
 
     const isResuming = data.conversationHistory.length > 0 && !data.userMessage && !data.imageBase64;
+
+    // ---- CONTINUIDADE INTELIGENTE ----
+    // Monta um bloco de contexto quando já houve trabalho anterior neste concorrente.
+    const priorCount = (priorMessages ?? []).length;
+    const hasPriorWork =
+      priorCount > 0 || (filledRows ?? []).length > 0 || !!lastTimeline;
+    const blocksWithData = COLLECTION_BLOCKS.filter((b) => (filled[b]?.size ?? 0) > 0);
+    const missingRequiredFlat: string[] = [];
+    for (const [blk, fields] of Object.entries(BLOCK_FIELDS_REQUIRED)) {
+      for (const f of fields) {
+        if (!completion.filledByBlock[blk]?.has(f)) {
+          missingRequiredFlat.push(`${blk}.${f}`);
+        }
+      }
+    }
+    const last3 = (priorMessages ?? [])
+      .slice(0, 3)
+      .reverse()
+      .map((m) => `  - [${m.role}] ${String(m.content ?? "").replace(/\s+/g, " ").slice(0, 180)}`)
+      .join("\n");
+    const entregavel = (mission as { entregavel_esperado?: string | null }).entregavel_esperado ?? "";
+    const priorContextBlock = hasPriorWork
+      ? `
+CONTEXTO DO TRABALHO ANTERIOR NESTE CONCORRENTE:
+- Blocos com dados: ${blocksWithData.length > 0 ? blocksWithData.join(", ") : "(nenhum)"}
+- Último evento no timeline: ${
+          lastTimeline
+            ? `${lastTimeline.event_type} em ${new Date(lastTimeline.event_date).toLocaleDateString("pt-BR")}${lastTimeline.description ? ` — ${String(lastTimeline.description).slice(0, 160)}` : ""}`
+            : "(nenhum)"
+        }
+- Últimas interações do chat (${priorCount} salvas):
+${last3 || "  (sem histórico salvo)"}
+- Campos obrigatórios ainda vazios: ${missingRequiredFlat.length > 0 ? missingRequiredFlat.join(", ") : "(nenhum)"}
+
+Retome a conversa de forma natural. Não repita perguntas já respondidas. Priorize o que ainda falta para atingir o entregável esperado${entregavel ? `: ${entregavel}` : "."}
+`
+      : "";
 
     const frozenDocs = docs ?? [];
 
@@ -222,6 +280,7 @@ BLOCOS E CAMPOS QUE VOCÊ DEVE PREENCHER (uma única conversa cobre TODOS):
 ${buildBlocksSchemaSection()}
 ${filledBlock}
 ${gapsSummary}
+${priorContextBlock}
 ${isResuming ? `
 MODO RETOMADA (o analista retomou a conversa sem nova mensagem):
 Abra a resposta assim:
