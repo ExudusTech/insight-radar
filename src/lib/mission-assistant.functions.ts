@@ -449,6 +449,16 @@ PREENCHIMENTO AUTOMÁTICO DOS CAMPOS — REGRA OBRIGATÓRIA (SEM EXCEÇÃO):
         content: cleanMessage,
       });
       if (insErr) console.warn("[assistant] failed to persist assistant message", insErr);
+      else {
+        void logAdminActivity({
+          userId: context.userId,
+          missionId: data.missionId,
+          action: "assistant_message_sent",
+          entityType: "target",
+          entityId: data.targetId,
+          details: { chars: cleanMessage.length, provider, model: usedModel },
+        });
+      }
     } catch (e) {
       console.warn("[assistant] persist error", e);
     }
@@ -528,6 +538,18 @@ Responda APENAS com JSON válido, sem markdown:
               console.warn("[assistant] timeline insert failed", evtErr);
             } else {
               timelineEventDetected = true;
+              void logAdminActivity({
+                userId: context.userId,
+                missionId: data.missionId,
+                action: "timeline_event_created",
+                entityType: "target",
+                entityId: data.targetId,
+                details: {
+                  event_type: parsed.event_type,
+                  event_date: eventDate,
+                  source: "ai",
+                },
+              });
             }
           }
         }
