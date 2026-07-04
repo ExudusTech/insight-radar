@@ -208,7 +208,70 @@ export function countCompleteBlocks(rows: CollectionRow[]) {
 }
 
 export function calcTargetCompletionPercent(rows: CollectionRow[]): number {
-  return calcRequiredCompletion(rows).percent;
+  return calcTargetProgressPercent(rows);
+}
+
+/** Constrói { block -> Set<field_key> } com apenas valores significativos, ignorando metadados. */
+export function buildFilledByBlock(
+  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+): Record<string, Set<string>> {
+  const out: Record<string, Set<string>> = {};
+  for (const b of COLLECTION_BLOCKS) out[b] = new Set();
+  for (const r of rows) {
+    if (r.field_key === "notes" || r.field_key === "block_status") continue;
+    const v = r.field_value;
+    const s = String(v ?? "").trim().toLowerCase();
+    if (!s || s === "null" || s === "—" || s === "não obtido") continue;
+    (out[r.block] ??= new Set()).add(r.field_key);
+  }
+  return out;
+}
+
+/** Progresso do bloco em [0,1] baseado APENAS em campos obrigatórios. Bloco sem obrigatórios = 1. */
+export function calcBlockRequiredProgress(
+  filledByBlock: Record<string, Set<string>>,
+  block: string,
+): number {
+  const required = BLOCK_FIELDS_REQUIRED[block] ?? [];
+  if (required.length === 0) return 1;
+  const filled = filledByBlock[block] ?? new Set<string>();
+  const n = required.filter((f) => filled.has(f)).length;
+  return n / required.length;
+}
+
+/** True quando todos obrigatórios do bloco estão preenchidos. */
+export function isBlockRequirementsMet(
+  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+  block: string,
+): boolean {
+  return calcBlockRequiredProgress(buildFilledByBlock(rows), block) >= 1;
+}
+
+/**
+ * Status derivado do bloco:
+ * - done: todos obrigatórios preenchidos
+ * - in_progress: algum campo (obrig. ou condicional) preenchido, ou block_status armazenado = in_progress
+ * - not_started: caso contrário
+ */
+export function derivedBlockStatus(
+  filledByBlock: Record<string, Set<string>>,
+  block: string,
+  storedStatus?: string,
+): "done" | "in_progress" | "not_started" {
+  if (calcBlockRequiredProgress(filledByBlock, block) >= 1) return "done";
+  const anyFilled = (filledByBlock[block]?.size ?? 0) > 0;
+  if (anyFilled || storedStatus === "in_progress") return "in_progress";
+  return "not_started";
+}
+
+/** Progresso do alvo = média do progresso dos 7 blocos (peso igual). */
+export function calcTargetProgressPercent(
+  rows: Array<Pick<CollectionRow, "block" | "field_key" | "field_value">>,
+): number {
+  const filled = buildFilledByBlock(rows);
+  const per = COLLECTION_BLOCKS.map((b) => calcBlockRequiredProgress(filled, b));
+  const avg = per.reduce((s, n) => s + n, 0) / per.length;
+  return Math.round(avg * 100);
 }
 
 /** Formata "chave: valor" para exibir no notes do bloco. */
