@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 const styles = `
   .mn-page { max-width: 860px; margin: 0 auto; padding: 40px 0 80px; font-family: 'Inter', sans-serif; line-height: 1.7; }
 
@@ -239,12 +241,12 @@ export function ModeloNegocioSection() {
               <div className="h" style={{ textAlign: "right" }}>Receita / mês</div>
               <div className="h" style={{ textAlign: "right" }}>Acumulado</div>
               {PROJECTION.map((p) => (
-                <>
-                  <div key={`${p.period}-p`}>{p.period}</div>
-                  <div className="v" key={`${p.period}-m`}>{p.missions}</div>
-                  <div className="v" key={`${p.period}-r`}>R$ {p.revenue.toLocaleString("pt-BR")}</div>
-                  <div className="v" key={`${p.period}-a`}>{p.acc}</div>
-                </>
+                <Fragment key={p.period}>
+                  <div>{p.period}</div>
+                  <div className="v">{p.missions}</div>
+                  <div className="v">R$ {p.revenue.toLocaleString("pt-BR")}</div>
+                  <div className="v">{p.acc}</div>
+                </Fragment>
               ))}
             </div>
           </div>
