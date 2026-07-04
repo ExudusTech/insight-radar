@@ -6,6 +6,7 @@ import { Sparkles, Send, Loader2, Camera, Paperclip, X, CheckCircle2, Mic, MicOf
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   ASSISTANT_UNIFIED_BLOCK,
@@ -446,6 +447,34 @@ export function MissionAssistantPanel({
               <><Calendar className="h-3 w-3 mr-1" /> Preparar reunião</>
             )}
           </Button>
+          {(user?.role === "analyst" || user?.role === "superadmin") && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs w-full"
+                      onClick={() => briefMut.mutate()}
+                      disabled={briefMut.isPending || !requiredCompletion.readyForSynthesis}
+                    >
+                      {briefMut.isPending ? (
+                        <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Gerando parecer...</>
+                      ) : (
+                        <><CheckCircle2 className="h-3 w-3 mr-1" /> Gerar parecer</>
+                      )}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!requiredCompletion.readyForSynthesis && (
+                  <TooltipContent>
+                    Complete os blocos obrigatórios para gerar o parecer.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          )}
           </div>
         </div>
       )}
