@@ -203,8 +203,8 @@ export function indexCollectionRows(rows: CollectionRow[]) {
 }
 
 export function countCompleteBlocks(rows: CollectionRow[]) {
-  const idx = indexCollectionRows(rows);
-  return COLLECTION_BLOCKS.filter((b) => idx[b].block_status === "done").length;
+  const filled = buildFilledByBlock(rows);
+  return COLLECTION_BLOCKS.filter((b) => calcBlockRequiredProgress(filled, b) >= 1).length;
 }
 
 export function calcTargetCompletionPercent(rows: CollectionRow[]): number {
