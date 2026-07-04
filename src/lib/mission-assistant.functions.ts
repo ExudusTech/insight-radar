@@ -11,6 +11,32 @@ import {
   calcRequiredCompletion,
 } from "@/lib/collection.queries";
 
+// Best-effort server-side activity log. Uses admin client (RLS bypass) so we
+// can attribute records to the authenticated user without needing a policy
+// carve-out. Never throws — logging must not break the primary operation.
+async function logAdminActivity(params: {
+  userId: string;
+  missionId?: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: Record<string, unknown>;
+}) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("activity_logs").insert({
+      user_id: params.userId,
+      mission_id: params.missionId ?? null,
+      action: params.action,
+      entity_type: params.entityType,
+      entity_id: params.entityId ?? null,
+      details: (params.details ?? {}) as never,
+    });
+  } catch (e) {
+    console.warn("[activity_logs] insert failed", params.action, e);
+  }
+}
+
 const InputSchema = z.object({
   missionId: z.string().uuid(),
   targetId: z.string().uuid(),
