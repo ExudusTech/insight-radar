@@ -1,11 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowRight, ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { Loader2, ArrowRight, ChevronDown, ChevronRight, Clock, MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CoordinationThread } from "@/components/coordination/coordination-thread";
+import { useCurrentUser as _useCurrentUser } from "@/hooks/use-current-user";
+import { coordinationUnreadKey } from "@/lib/coordination-messages.queries";
 import {
   Table,
   TableBody,
@@ -217,9 +225,12 @@ function MissionCard({ mission }: { mission: MissionRow }) {
           <span className="text-[11px] text-muted-foreground">Sem analistas atribuídos</span>
         ) : (
           mission.analysts.map((a) => (
-            <Badge key={a.id} variant="secondary" className="text-[10px]">
-              {a.full_name ?? a.email ?? "—"}
-            </Badge>
+            <AnalystChatChip
+              key={a.id}
+              missionId={mission.id}
+              analystId={a.id}
+              analystName={a.full_name ?? a.email ?? "—"}
+            />
           ))
         )}
       </div>
