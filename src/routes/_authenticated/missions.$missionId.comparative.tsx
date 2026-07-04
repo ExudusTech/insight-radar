@@ -22,10 +22,12 @@ export const Route = createFileRoute("/_authenticated/missions/$missionId/compar
 });
 
 const EXAMPLES = [
-  "Quem tem o melhor atendimento?",
-  "Compare a precificação de todos os concorrentes.",
+  "Comparar preços",
+  "Quem respondeu mais rápido?",
+  "Resumo executivo",
+  "Pontos fracos identificados",
+  "Me mostra as propostas que chegaram",
   "Qual é o principal diferencial de cada um?",
-  "Que pontos fracos são comuns a todos?",
 ];
 
 function ComparativeTab() {
