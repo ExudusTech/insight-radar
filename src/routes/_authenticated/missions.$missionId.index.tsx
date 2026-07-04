@@ -675,6 +675,7 @@ function AnalystActionPanel({
   );
   const qc = useQueryClient();
   const sendNotificationsFn = useServerFn(sendNotifications);
+  const { data: currentUser } = useCurrentUser();
 
   const acceptMut = useMutation({
     mutationFn: async () => {
@@ -691,6 +692,16 @@ function AnalystActionPanel({
         : { status: "execution_started" as const };
       const { error } = await supabase.from("missions").update(patch).eq("id", mission.id);
       if (error) throw error;
+      if (currentUser?.id) {
+        await logActivity({
+          userId: currentUser.id,
+          missionId: mission.id,
+          action: "mission_status_changed",
+          entityType: "mission",
+          entityId: mission.id,
+          details: { from: mission.status, to: "execution_started" },
+        });
+      }
       if (mission.contractor_id) {
         await sendNotificationsFn({
           data: {
