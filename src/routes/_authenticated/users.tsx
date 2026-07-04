@@ -428,6 +428,7 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="analyst">Analista</SelectItem>
+            <SelectItem value="coordinator">Coordenador</SelectItem>
               <SelectItem value="contractor">Cliente</SelectItem>
               <SelectItem value="superadmin">Superadmin</SelectItem>
             </SelectContent>
