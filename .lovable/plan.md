@@ -1,104 +1,85 @@
-## Diagnóstico
+## Objetivo
 
-Só 4 tipos de eventos estão registrados no banco (`assistant_interaction`, `user_logout`, `mission_sent_for_acceptance`, `mission_created`). Existem ~30 mutações críticas no app que hoje não geram log — inclusive todas as ações administrativas e todas as chamadas de server function. "Rastreável" hoje é aspiracional; este plano fecha a lacuna.
+Contornar o problema do link de convite consumido por scanners de email dando ao superadmin a opção de **definir uma senha inicial** no ato da criação (ou depois, via "Resetar senha"). O usuário faz o primeiro login com essa senha e é **obrigado a trocá-la** antes de acessar qualquer rota do app.
 
-## O que fazer
+Isso convive com o fluxo atual de link por email — é uma alternativa, não uma substituição.
 
-### 1. Helper de log no servidor
+## Mudanças
 
-Criar `src/lib/activity-log.server.ts` com `logActivityServer(supabaseClient, params)` — mesma assinatura do helper de browser, mas escreve via cliente Supabase autenticado passado como parâmetro (usa o `context.supabase` do `requireSupabaseAuth`, mantém RLS/atribuição correta ao `auth.uid()`).
+### 1. Migration
 
-Motivo: server functions hoje mutam sem loggar. Um helper client-side não roda no worker.
+Adicionar em `profiles`:
+- `must_change_password boolean not null default false`
 
-### 2. Instrumentar server functions (`src/lib/*.functions.ts`)
+Sem novas policies (o próprio usuário já pode ler/atualizar seu profile).
 
-Adicionar `logActivityServer` no fim de cada handler bem-sucedido:
+### 2. `inviteUser` (server fn)
 
-| Arquivo | Ação | Detalhes principais |
-|---|---|---|
-| `invite-user.functions.ts` | `user_invited` | invited_user_id, email, role, email_sent |
-| `access-link.functions.ts` (generate) | `password_reset_link_generated` | target_user_id, target_email, expires_at |
-| `access-link.functions.ts` (sendAccessEmail) | `access_email_sent` | target_user_id, target_email |
-| `mission-briefing.functions.ts` | `mission_briefing_generated` | mission_id, model, tokens |
-| `mission-assistant.functions.ts` | `mission_assistant_call` | mission_id, target_id, model, tokens |
-| `ai-analysis.functions.ts` | `ai_analysis_generated` | target_id, model, tokens, analysis_type |
-| `report-request.functions.ts` | `report_requested` / `report_generated` | mission_id, report_id, model |
-| `document-versions.functions.ts` | `document_version_created` / `document_frozen` | mission_id, version_id |
-| `coordination-messages.functions.ts` | `coordination_message_sent` | mission_id, recipient_id |
-| `missions.functions.ts` (todas as mutações) | `mission_created`, `mission_updated`, `mission_status_changed`, `mission_deleted`, `mission_analyst_assigned`, `mission_contractor_assigned` | mission_id + diff resumido |
-| `notifications.functions.ts` | `notification_dispatched` | recipient_id, type |
-| `llm-router-test.functions.ts` | (não logar — é debug) | — |
+- Novo campo opcional no input: `initial_password?: string` (validar min 8, max 72 no server).
+- Quando presente:
+  - Criar o usuário no Auth com `password: initial_password` e `email_confirm: true` (já é hoje).
+  - **Não** gerar link nem enviar email de acesso.
+  - Marcar `profiles.must_change_password = true`.
+  - Retornar `{ mode: 'initial_password', email }` para a UI mostrar confirmação.
+- Quando ausente: comportamento atual (link por email).
+- Log: `user_created_with_initial_password` (sem gravar a senha, óbvio).
 
-### 3. Instrumentar mutações admin no cliente (`src/routes/_authenticated/users.tsx`)
+### 3. Nova server fn `setInitialPassword({ userId, password })`
 
-Adicionar `logActivity` nas mutações que hoje não são rastreadas:
+Para usar o mesmo mecanismo em usuários já existentes, no diálogo "Resetar senha":
+- Middleware `requireSupabaseAuth` + checagem `has_role(superadmin)`.
+- `supabaseAdmin.auth.admin.updateUserById(userId, { password })`.
+- `profiles.must_change_password = true`.
+- Log: `password_reset_by_admin`.
 
-- `toggleAccepts` → `analyst_availability_changed` (target_user_id, next)
-- `toggleStrategic` → `strategic_access_changed` (target_user_id, next)
-- `setRole` → `user_role_changed` (target_user_id, new_role)
-- `toggleStatus` → `user_status_changed` (target_user_id, from, to)
+### 4. UI — `CreateUserCard` (users.tsx)
 
-Idem em `src/routes/_authenticated/clients.tsx` (se houver mutações — verificar durante execução).
+Adicionar um **toggle** "Definir senha inicial (usuário troca no 1º acesso)":
+- Off (padrão): igual hoje, dispara email de convite.
+- On: revela campo `password` + botão "gerar" (Web Crypto, 12 chars) + "copiar". Submit chama `inviteUser` com `initial_password`.
+- Após sucesso do modo "senha inicial", o card mostra um bloco destacado com:
+  - Email do usuário
+  - Senha em texto (com botão copiar)
+  - Aviso: "Compartilhe por canal seguro. O usuário será obrigado a trocá-la no primeiro login."
 
-### 4. Instrumentar mutações operacionais restantes no cliente
+### 5. UI — Diálogo "Resetar senha" (users.tsx)
 
-Auditar e adicionar log nos pontos que ainda não têm:
+Hoje só oferece link. Adicionar 2ª aba/opção "Definir senha manualmente":
+- Input de senha + gerar + copiar.
+- Submit → `setInitialPassword`.
+- Fecha mostrando a senha copiável e o mesmo aviso.
 
-- `src/components/targets/target-detail-sheet.tsx` — mudanças de status, fase, prioridade (hoje só uma chamada; garantir cobertura de todos os `update`).
-- `src/components/targets/collection-tab.tsx` — save de coleta / marcar completo.
-- `src/components/documents/document-base-tab.tsx` — já loga upload/extract; adicionar `document_deleted` se existir.
-- `src/routes/_authenticated/notificacoes.tsx` — `notification_marked_read` (se houver mutação).
-- `src/routes/_authenticated/reports.tsx` — download/visualização (`report_viewed`, `report_downloaded`).
-- Login bem-sucedido em `src/routes/auth.tsx` → `user_login` (hoje só logamos logout).
+### 6. Force change no primeiro login
 
-### 5. Enriquecer os detalhes já capturados
+- No layout `_authenticated/route.tsx`: após confirmar `auth.user`, carregar `profiles.must_change_password` e, se `true`, redirecionar para `/reset-password?forced=1` (o único destino permitido até a troca).
+- `/reset-password` já existe como rota pública; ajustar para:
+  - Detectar `forced=1` (ou apenas checar `must_change_password` via `getUser`).
+  - Título e mensagem: "Você precisa definir uma nova senha para continuar."
+  - **Não** exibir botão "voltar".
+  - Após `supabase.auth.updateUser({ password })` com sucesso, gravar `must_change_password = false` no profile do próprio usuário (RLS já permite), depois `navigate('/dashboard')`.
+  - Se a senha nova for igual à atual, o Supabase rejeita — mostrar mensagem clara.
 
-Padronizar payload de `details` para incluir sempre:
-- `ip` e `user_agent` (nas mutações client-side, capturar `navigator.userAgent`; server-side, pegar de `request.headers`)
-- Para updates: `changed_fields` com `{campo: {from, to}}` — usar snapshot antes/depois quando o handler já lê a row.
-- Para chamadas de IA: `provider`, `model`, `tokens_in`, `tokens_out`, `cost_estimate` (o `llm-router` já retorna esses dados).
+### 7. Logs adicionais
 
-### 6. UI de Logs — melhorias mínimas para tornar utilizável
+- `user_created_with_initial_password` (server, invite-user)
+- `password_reset_by_admin` (server, novo endpoint)
+- `password_changed_on_first_login` (client, no submit bem-sucedido do reset forçado)
 
-Em `src/routes/_authenticated/logs.tsx`:
+## Arquivos
 
-- Substituir o `<select>` nativo do filtro "Ação" pelo `Select` do shadcn (consistência).
-- Agrupar ações no filtro em categorias (Autenticação, Missão, Alvo, Documento, IA, Admin) — ajuda quando a lista crescer.
-- Coluna extra "Detalhes" resumida (ex.: `model=gpt-5 · tokens=1240` para eventos de IA) para não exigir expandir cada linha.
-- Botão "Exportar CSV" da página atual (útil para auditoria/compliance).
-- Filtro por `entity_type` (mission / target / user / document / report).
-
-### 7. Sem migration
-
-O schema de `activity_logs` já é flexível (`action` string, `details` jsonb). Nenhuma mudança de banco necessária.
-
-## Arquivos afetados
+**Migration:** coluna `must_change_password` em `profiles`.
 
 **Criar:**
-- `src/lib/activity-log.server.ts`
+- `src/lib/set-initial-password.functions.ts`
 
-**Editar (servidor):**
-- `src/lib/invite-user.functions.ts`
-- `src/lib/access-link.functions.ts`
-- `src/lib/mission-briefing.functions.ts`
-- `src/lib/mission-assistant.functions.ts`
-- `src/lib/ai-analysis.functions.ts`
-- `src/lib/report-request.functions.ts`
-- `src/lib/document-versions.functions.ts`
-- `src/lib/coordination-messages.functions.ts`
-- `src/lib/missions.functions.ts`
-- `src/lib/notifications.functions.ts`
-
-**Editar (cliente):**
-- `src/routes/_authenticated/users.tsx`
-- `src/routes/auth.tsx` (login)
-- `src/components/targets/target-detail-sheet.tsx`
-- `src/components/targets/collection-tab.tsx`
-- `src/routes/_authenticated/reports.tsx`
-- `src/routes/_authenticated/logs.tsx` (UI)
+**Editar:**
+- `src/lib/invite-user.functions.ts` — input opcional + branch novo
+- `src/routes/_authenticated/users.tsx` — toggle no CreateUserCard, aba no diálogo de reset, exibição da senha copiável
+- `src/routes/_authenticated/route.tsx` — checar `must_change_password` e redirecionar
+- `src/routes/reset-password.tsx` — modo forçado + apagar flag ao concluir
 
 ## Fora de escopo
 
-- Retenção/rotina de expurgo dos logs (definir só quando volume justificar).
-- Exportação para SIEM externo.
-- Assinatura/hash de integridade dos registros (se o requisito de compliance exigir, é uma etapa separada com migration).
+- Validador de força (deixamos só min 8; o usuário troca depois de qualquer forma).
+- Expiração da senha inicial (não faz sentido, ele troca no 1º login).
+- Auditar tentativas de burlar o redirect (o layout já cobre todas as rotas privadas).
