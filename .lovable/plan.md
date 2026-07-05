@@ -1,56 +1,59 @@
-## Fix security scan findings
+## 1. Login — mostrar/ocultar senha (`src/routes/auth.tsx`)
 
-Address the 2 Critical issues and 2 Warning issues from the security panel.
+- Adicionar botão ícone dentro do `Input` de senha (olho / olho cortado — `Eye` / `EyeOff` do `lucide-react`) que alterna `type="password"` ↔ `type="text"`.
+- Aplicar também no campo de senha do fluxo de signup, se existir na mesma tela.
+- Sem mudança de lógica de auth.
 
-### 1. Critical — Role check in `missionBriefingAssistant`
+## 2. Resetar senha do usuário (`/users`)
 
-**File:** `src/lib/mission-briefing.functions.ts`
+- Renomear a ação atual "Gerar link de acesso (1h)" para **"Resetar senha"** (mesmo `generateAccessLink` server fn — já usa recovery link válido por 1h que força nova senha em `/reset-password`).
+- Ícone: `KeyRound` no lugar de `Link2`.
+- Dialog resultante: manter link + copiar, e adicionar botão secundário **"Enviar por email"** que dispara `sendAccessEmail` para o mesmo usuário (evita duas ações separadas).
+- Sem migration nem mudança de backend.
 
-Add server-side role gate at the start of `.handler()`, before any admin-client write:
+## 3. Refazer layout de `/users` — Cards em grid
 
-```ts
-const [{ data: isContractor }, { data: isSuperadmin }] = await Promise.all([
-  context.supabase.rpc("has_role", { _user_id: context.userId, _role: "contractor" }),
-  context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
-]);
-if (!isContractor && !isSuperadmin) throw new Error("Forbidden");
+Substituir a tabela por um grid responsivo de cards (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3`), mantendo a paleta atual (bg `#060B14`, surface `#0D1526`, azul `#1D4ED8`, ciano `#06B6D4`).
+
+### Estrutura de cada card
+
+```text
+┌───────────────────────────────────────────────┐
+│ [Avatar]  Nome                         [⋯]    │
+│           email · organização                 │
+│                                               │
+│ [Badge Role]  [Badge Status]  criado em ...   │
+│                                               │
+│ ─────────────────────────────────────────     │
+│ Disponível para missões       [switch]        │  (só analyst)
+│ Visão Estratégica             [switch]        │  (sempre)
+│ ─────────────────────────────────────────     │
+│ Role:   [Select ▾]                            │
+│ [ Resetar senha ] [ Email ] [ Bloquear ]      │
+└───────────────────────────────────────────────┘
 ```
 
-Also gate `/missions/new` route: add `beforeLoad` in `src/routes/_authenticated/missions.new.tsx` that checks the same roles via `supabase.rpc("has_role", ...)` and `redirect({ to: "/dashboard" })` when neither role is present.
+Detalhes:
+- Avatar circular 40px com inicial, borda sutil `border-white/5`.
+- Header do card: nome em `font-semibold`, email/org em `text-xs text-muted-foreground`.
+- Badges de role mantém as cores atuais (`ROLE_BADGE`); status vira dot colorido (verde = active, vermelho = blocked) + label.
+- Toggles em linha com label à esquerda, `Switch` à direita, separados por `border-t border-border/50`.
+- Rodapé de ações: `Select` de role ocupando linha inteira; abaixo, 3 botões em grid `grid-cols-3` (Resetar senha / Email / Bloquear-Ativar).
+- Menu `⋯` (`DropdownMenu`) no canto superior direito para ações menos usadas: copiar email, copiar ID.
+- Estado bloqueado: card ganha `opacity-70` e badge vermelho.
 
-### 2. Critical — Self-escalation via `can_view_strategic`
+### Cabeçalho da página
+- Título "Usuários" + contador (`{filtered.length} de {rows.length}`).
+- Busca (mantida) + botão "Novo usuário" alinhados à direita.
+- Filtros rápidos por role em `ToggleGroup` (Todos / Superadmin / Coordenador / Cliente / Analista).
 
-Migration to tighten `profiles_self_update_safe`:
+### Estado vazio / loading
+- Loading: skeleton de 6 cards.
+- Vazio: card único centralizado com ícone e mensagem.
 
-```sql
-DROP POLICY IF EXISTS profiles_self_update_safe ON public.profiles;
-CREATE POLICY profiles_self_update_safe ON public.profiles
-FOR UPDATE TO authenticated
-USING (id = auth.uid())
-WITH CHECK (
-  id = auth.uid()
-  AND status IS NOT DISTINCT FROM (SELECT p.status FROM public.profiles p WHERE p.id = auth.uid())
-  AND accepts_missions IS NOT DISTINCT FROM (SELECT p.accepts_missions FROM public.profiles p WHERE p.id = auth.uid())
-  AND can_view_strategic IS NOT DISTINCT FROM (SELECT p.can_view_strategic FROM public.profiles p WHERE p.id = auth.uid())
-);
-```
+## Arquivos afetados
 
-### 3. Warnings — Restrict RLS policies from `public` to `authenticated`
+- `src/routes/auth.tsx` — toggle olho na senha.
+- `src/routes/_authenticated/users.tsx` — rewrite do render (mantém queries/mutations existentes), rename ação para "Resetar senha", filtros por role.
 
-Same migration, recreate the flagged policies with `TO authenticated` (conditions unchanged):
-
-- `mission_contractors`: `mc_analyst_read`, `mc_contractor_self_read`, `mc_superadmin_all`
-- `missions`: `missions_contractor_insert`, `missions_contractor_update`, `missions_superadmin_all`
-- `products`: `products_client_read`, `products_superadmin_all`
-- `notifications`: `notifications_self_read`, `notifications_self_update`
-
-For each: `DROP POLICY ... ; CREATE POLICY ... TO authenticated USING (...) [WITH CHECK (...)]` preserving the current expressions (read via `supabase--read_query` during build to avoid drift).
-
-### 4. Mark findings resolved
-
-After migration approved + code edit shipped, call `security--manage_security_finding` with `mark_as_fixed` for the 2 criticals and 2 warnings; leave the "activity_logs expected" info finding as-is (already noted as expected).
-
-### Out of scope
-
-- Dependency vulnerabilities (7) — separate review.
-- The ignored issues (2) shown in the panel.
+Sem migrations, sem mudança de backend, sem novas dependências.
