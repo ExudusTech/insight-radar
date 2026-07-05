@@ -17,6 +17,7 @@ const inputSchema = z.object({
   full_name: z.string().min(1),
   organization: z.string().optional(),
   role: z.enum(["contractor", "analyst", "superadmin", "coordinator"]),
+  initial_password: z.string().min(8).max(72).optional(),
 });
 
 export const inviteUser = createServerFn({ method: "POST" })
@@ -39,6 +40,7 @@ export const inviteUser = createServerFn({ method: "POST" })
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       email_confirm: true,
+      password: data.initial_password,
       user_metadata: {
         full_name: data.full_name,
         organization: data.organization ?? null,
@@ -72,7 +74,36 @@ export const inviteUser = createServerFn({ method: "POST" })
       throw new Error(`Usuário criado, mas falha ao atribuir role: ${roleInsertErr.message}`);
     }
 
-    // 4. Generate a password-setup link (recovery flow) and email it via Resend
+    // 4a. Modo "senha inicial": marca must_change_password e não envia email
+    if (data.initial_password) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({ must_change_password: true })
+        .eq("id", newUserId);
+
+      await logServerActivity({
+        userId: context.userId,
+        action: "user_created_with_initial_password",
+        entityType: "user",
+        entityId: newUserId,
+        details: {
+          email: data.email,
+          full_name: data.full_name,
+          organization: data.organization ?? null,
+          role: data.role,
+        },
+      });
+
+      return {
+        success: true as const,
+        userId: newUserId,
+        mode: "initial_password" as const,
+        emailSent: false,
+        emailError: null,
+      };
+    }
+
+    // 4b. Modo padrão: gera link de recovery e envia por email
     let emailSent = false;
     let emailError: string | null = null;
     try {
@@ -170,5 +201,11 @@ export const inviteUser = createServerFn({ method: "POST" })
       },
     });
 
-    return { success: true as const, userId: newUserId, emailSent, emailError };
+    return {
+      success: true as const,
+      userId: newUserId,
+      mode: "email_link" as const,
+      emailSent,
+      emailError,
+    };
   });
