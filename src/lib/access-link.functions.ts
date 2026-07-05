@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const input = z.object({ userId: z.string().uuid() });
 
@@ -62,6 +63,13 @@ export const generateAccessLink = createServerFn({ method: "POST" })
     const { email } = await lookupTarget(data.userId);
     const link = await buildRecoveryLink(email);
     // Supabase recovery links seguem o OTP_EXPIRY do projeto (default 3600s = 1h).
+    await logServerActivity({
+      userId: context.userId,
+      action: "password_reset_link_generated",
+      entityType: "user",
+      entityId: data.userId,
+      details: { target_email: email, expires_in_minutes: 60 },
+    });
     return { link, email, expiresInMinutes: 60 as const };
   });
 
@@ -121,5 +129,12 @@ export const sendAccessEmail = createServerFn({ method: "POST" })
       const body = await res.text();
       throw new Error(`Resend ${res.status}: ${body}`);
     }
+    await logServerActivity({
+      userId: context.userId,
+      action: "access_email_sent",
+      entityType: "user",
+      entityId: data.userId,
+      details: { target_email: email },
+    });
     return { success: true as const, email };
   });

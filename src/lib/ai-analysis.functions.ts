@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const MODEL = "claude-sonnet-4-5-20250929";
 
@@ -133,6 +134,21 @@ export const analyzeTarget = createServerFn({ method: "POST" })
       .single();
     if (rErr) throw rErr;
 
+    await logServerActivity({
+      userId: context.userId,
+      missionId: target.mission_id,
+      action: "ai_analysis_generated",
+      entityType: "target",
+      entityId: target.id,
+      details: {
+        report_id: report.id,
+        report_type: "individual",
+        provider: "anthropic",
+        model: MODEL,
+        target_name: target.name,
+      },
+    });
+
     return report;
   });
 
@@ -178,5 +194,19 @@ export const generateComparative = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw error;
+    await logServerActivity({
+      userId: context.userId,
+      missionId: data.missionId,
+      action: "ai_analysis_generated",
+      entityType: "mission",
+      entityId: data.missionId,
+      details: {
+        report_id: report.id,
+        report_type: "comparative",
+        provider: "anthropic",
+        model: MODEL,
+        targets_count: targets.length,
+      },
+    });
     return report;
   });

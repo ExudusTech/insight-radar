@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const InputSchema = z.object({
   mission_id: z.string().uuid(),
@@ -87,6 +88,19 @@ export const sendCoordinationMessage = createServerFn({ method: "POST" })
         message: preview,
       });
     if (notifErr) throw new Error(notifErr.message);
+
+    await logServerActivity({
+      userId,
+      missionId: data.mission_id,
+      action: "coordination_message_sent",
+      entityType: "coordination_message",
+      entityId: inserted.id,
+      details: {
+        recipient_id: data.receiver_id,
+        target_id: data.target_id ?? null,
+        length: data.content.trim().length,
+      },
+    });
 
     return { ok: true, id: inserted.id };
   });

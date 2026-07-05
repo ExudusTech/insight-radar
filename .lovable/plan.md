@@ -1,59 +1,104 @@
-## 1. Login — mostrar/ocultar senha (`src/routes/auth.tsx`)
+## Diagnóstico
 
-- Adicionar botão ícone dentro do `Input` de senha (olho / olho cortado — `Eye` / `EyeOff` do `lucide-react`) que alterna `type="password"` ↔ `type="text"`.
-- Aplicar também no campo de senha do fluxo de signup, se existir na mesma tela.
-- Sem mudança de lógica de auth.
+Só 4 tipos de eventos estão registrados no banco (`assistant_interaction`, `user_logout`, `mission_sent_for_acceptance`, `mission_created`). Existem ~30 mutações críticas no app que hoje não geram log — inclusive todas as ações administrativas e todas as chamadas de server function. "Rastreável" hoje é aspiracional; este plano fecha a lacuna.
 
-## 2. Resetar senha do usuário (`/users`)
+## O que fazer
 
-- Renomear a ação atual "Gerar link de acesso (1h)" para **"Resetar senha"** (mesmo `generateAccessLink` server fn — já usa recovery link válido por 1h que força nova senha em `/reset-password`).
-- Ícone: `KeyRound` no lugar de `Link2`.
-- Dialog resultante: manter link + copiar, e adicionar botão secundário **"Enviar por email"** que dispara `sendAccessEmail` para o mesmo usuário (evita duas ações separadas).
-- Sem migration nem mudança de backend.
+### 1. Helper de log no servidor
 
-## 3. Refazer layout de `/users` — Cards em grid
+Criar `src/lib/activity-log.server.ts` com `logActivityServer(supabaseClient, params)` — mesma assinatura do helper de browser, mas escreve via cliente Supabase autenticado passado como parâmetro (usa o `context.supabase` do `requireSupabaseAuth`, mantém RLS/atribuição correta ao `auth.uid()`).
 
-Substituir a tabela por um grid responsivo de cards (`grid-cols-1 md:grid-cols-2 xl:grid-cols-3`), mantendo a paleta atual (bg `#060B14`, surface `#0D1526`, azul `#1D4ED8`, ciano `#06B6D4`).
+Motivo: server functions hoje mutam sem loggar. Um helper client-side não roda no worker.
 
-### Estrutura de cada card
+### 2. Instrumentar server functions (`src/lib/*.functions.ts`)
 
-```text
-┌───────────────────────────────────────────────┐
-│ [Avatar]  Nome                         [⋯]    │
-│           email · organização                 │
-│                                               │
-│ [Badge Role]  [Badge Status]  criado em ...   │
-│                                               │
-│ ─────────────────────────────────────────     │
-│ Disponível para missões       [switch]        │  (só analyst)
-│ Visão Estratégica             [switch]        │  (sempre)
-│ ─────────────────────────────────────────     │
-│ Role:   [Select ▾]                            │
-│ [ Resetar senha ] [ Email ] [ Bloquear ]      │
-└───────────────────────────────────────────────┘
-```
+Adicionar `logActivityServer` no fim de cada handler bem-sucedido:
 
-Detalhes:
-- Avatar circular 40px com inicial, borda sutil `border-white/5`.
-- Header do card: nome em `font-semibold`, email/org em `text-xs text-muted-foreground`.
-- Badges de role mantém as cores atuais (`ROLE_BADGE`); status vira dot colorido (verde = active, vermelho = blocked) + label.
-- Toggles em linha com label à esquerda, `Switch` à direita, separados por `border-t border-border/50`.
-- Rodapé de ações: `Select` de role ocupando linha inteira; abaixo, 3 botões em grid `grid-cols-3` (Resetar senha / Email / Bloquear-Ativar).
-- Menu `⋯` (`DropdownMenu`) no canto superior direito para ações menos usadas: copiar email, copiar ID.
-- Estado bloqueado: card ganha `opacity-70` e badge vermelho.
+| Arquivo | Ação | Detalhes principais |
+|---|---|---|
+| `invite-user.functions.ts` | `user_invited` | invited_user_id, email, role, email_sent |
+| `access-link.functions.ts` (generate) | `password_reset_link_generated` | target_user_id, target_email, expires_at |
+| `access-link.functions.ts` (sendAccessEmail) | `access_email_sent` | target_user_id, target_email |
+| `mission-briefing.functions.ts` | `mission_briefing_generated` | mission_id, model, tokens |
+| `mission-assistant.functions.ts` | `mission_assistant_call` | mission_id, target_id, model, tokens |
+| `ai-analysis.functions.ts` | `ai_analysis_generated` | target_id, model, tokens, analysis_type |
+| `report-request.functions.ts` | `report_requested` / `report_generated` | mission_id, report_id, model |
+| `document-versions.functions.ts` | `document_version_created` / `document_frozen` | mission_id, version_id |
+| `coordination-messages.functions.ts` | `coordination_message_sent` | mission_id, recipient_id |
+| `missions.functions.ts` (todas as mutações) | `mission_created`, `mission_updated`, `mission_status_changed`, `mission_deleted`, `mission_analyst_assigned`, `mission_contractor_assigned` | mission_id + diff resumido |
+| `notifications.functions.ts` | `notification_dispatched` | recipient_id, type |
+| `llm-router-test.functions.ts` | (não logar — é debug) | — |
 
-### Cabeçalho da página
-- Título "Usuários" + contador (`{filtered.length} de {rows.length}`).
-- Busca (mantida) + botão "Novo usuário" alinhados à direita.
-- Filtros rápidos por role em `ToggleGroup` (Todos / Superadmin / Coordenador / Cliente / Analista).
+### 3. Instrumentar mutações admin no cliente (`src/routes/_authenticated/users.tsx`)
 
-### Estado vazio / loading
-- Loading: skeleton de 6 cards.
-- Vazio: card único centralizado com ícone e mensagem.
+Adicionar `logActivity` nas mutações que hoje não são rastreadas:
+
+- `toggleAccepts` → `analyst_availability_changed` (target_user_id, next)
+- `toggleStrategic` → `strategic_access_changed` (target_user_id, next)
+- `setRole` → `user_role_changed` (target_user_id, new_role)
+- `toggleStatus` → `user_status_changed` (target_user_id, from, to)
+
+Idem em `src/routes/_authenticated/clients.tsx` (se houver mutações — verificar durante execução).
+
+### 4. Instrumentar mutações operacionais restantes no cliente
+
+Auditar e adicionar log nos pontos que ainda não têm:
+
+- `src/components/targets/target-detail-sheet.tsx` — mudanças de status, fase, prioridade (hoje só uma chamada; garantir cobertura de todos os `update`).
+- `src/components/targets/collection-tab.tsx` — save de coleta / marcar completo.
+- `src/components/documents/document-base-tab.tsx` — já loga upload/extract; adicionar `document_deleted` se existir.
+- `src/routes/_authenticated/notificacoes.tsx` — `notification_marked_read` (se houver mutação).
+- `src/routes/_authenticated/reports.tsx` — download/visualização (`report_viewed`, `report_downloaded`).
+- Login bem-sucedido em `src/routes/auth.tsx` → `user_login` (hoje só logamos logout).
+
+### 5. Enriquecer os detalhes já capturados
+
+Padronizar payload de `details` para incluir sempre:
+- `ip` e `user_agent` (nas mutações client-side, capturar `navigator.userAgent`; server-side, pegar de `request.headers`)
+- Para updates: `changed_fields` com `{campo: {from, to}}` — usar snapshot antes/depois quando o handler já lê a row.
+- Para chamadas de IA: `provider`, `model`, `tokens_in`, `tokens_out`, `cost_estimate` (o `llm-router` já retorna esses dados).
+
+### 6. UI de Logs — melhorias mínimas para tornar utilizável
+
+Em `src/routes/_authenticated/logs.tsx`:
+
+- Substituir o `<select>` nativo do filtro "Ação" pelo `Select` do shadcn (consistência).
+- Agrupar ações no filtro em categorias (Autenticação, Missão, Alvo, Documento, IA, Admin) — ajuda quando a lista crescer.
+- Coluna extra "Detalhes" resumida (ex.: `model=gpt-5 · tokens=1240` para eventos de IA) para não exigir expandir cada linha.
+- Botão "Exportar CSV" da página atual (útil para auditoria/compliance).
+- Filtro por `entity_type` (mission / target / user / document / report).
+
+### 7. Sem migration
+
+O schema de `activity_logs` já é flexível (`action` string, `details` jsonb). Nenhuma mudança de banco necessária.
 
 ## Arquivos afetados
 
-- `src/routes/auth.tsx` — toggle olho na senha.
-- `src/routes/_authenticated/users.tsx` — rewrite do render (mantém queries/mutations existentes), rename ação para "Resetar senha", filtros por role.
+**Criar:**
+- `src/lib/activity-log.server.ts`
 
-Sem migrations, sem mudança de backend, sem novas dependências.
+**Editar (servidor):**
+- `src/lib/invite-user.functions.ts`
+- `src/lib/access-link.functions.ts`
+- `src/lib/mission-briefing.functions.ts`
+- `src/lib/mission-assistant.functions.ts`
+- `src/lib/ai-analysis.functions.ts`
+- `src/lib/report-request.functions.ts`
+- `src/lib/document-versions.functions.ts`
+- `src/lib/coordination-messages.functions.ts`
+- `src/lib/missions.functions.ts`
+- `src/lib/notifications.functions.ts`
+
+**Editar (cliente):**
+- `src/routes/_authenticated/users.tsx`
+- `src/routes/auth.tsx` (login)
+- `src/components/targets/target-detail-sheet.tsx`
+- `src/components/targets/collection-tab.tsx`
+- `src/routes/_authenticated/reports.tsx`
+- `src/routes/_authenticated/logs.tsx` (UI)
+
+## Fora de escopo
+
+- Retenção/rotina de expurgo dos logs (definir só quando volume justificar).
+- Exportação para SIEM externo.
+- Assinatura/hash de integridade dos registros (se o requisito de compliance exigir, é uma etapa separada com migration).
