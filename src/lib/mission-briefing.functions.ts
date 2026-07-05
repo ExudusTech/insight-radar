@@ -139,6 +139,14 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }) => {
+    const [{ data: isContractor }, { data: isSuperadmin }] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "contractor" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
+    ]);
+    if (!isContractor && !isSuperadmin) {
+      throw new Error("Forbidden: only contractors or superadmins can create missions");
+    }
+
     const { text } = await callLLM({
       task: "assistant",
       systemPrompt: SYSTEM_PROMPT,
