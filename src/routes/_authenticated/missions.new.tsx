@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +22,17 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/missions/new")({
+  beforeLoad: async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw redirect({ to: "/auth" });
+    const [{ data: isContractor }, { data: isSuperadmin }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: auth.user.id, _role: "contractor" }),
+      supabase.rpc("has_role", { _user_id: auth.user.id, _role: "superadmin" }),
+    ]);
+    if (!isContractor && !isSuperadmin) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
   component: NewMissionPage,
 });
 
