@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callLLM } from "@/lib/llm-router";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const ExtractInput = z.object({ versionId: z.string().uuid() });
 
@@ -98,6 +99,20 @@ export const extractMissionDocument = createServerFn({ method: "POST" })
       })
       .eq("id", data.versionId);
     if (updErr) throw updErr;
+
+    await logServerActivity({
+      userId: context.userId,
+      missionId: version.mission_id,
+      action: "document_extracted",
+      entityType: "document_version",
+      entityId: version.id,
+      details: {
+        file_name: version.file_name,
+        provider,
+        model,
+        chars: truncated.length,
+      },
+    });
 
     return { ok: true } as const;
   });
