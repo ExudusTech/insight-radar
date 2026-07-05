@@ -286,53 +286,21 @@ function UsersPage() {
               onToggleStrategic={(next) => toggleStrategic.mutate({ id: r.id, next })}
               onSetRole={(role) => setRole.mutate({ userId: r.id, role })}
               onToggleStatus={() => toggleStatus.mutate({ id: r.id, current: r.status })}
-              onResetPassword={() => genLinkMut.mutate(r.id)}
+              onResetPassword={() => setResetDialog({ userId: r.id, email: r.email ?? "" })}
               onSendEmail={() => sendEmailMut.mutate(r.id)}
-              resetPending={genLinkMut.isPending && genLinkMut.variables === r.id}
+              resetPending={false}
               emailPending={sendEmailMut.isPending && sendEmailMut.variables === r.id}
             />
           ))}
         </div>
       )}
 
-      <Dialog open={!!linkDialog} onOpenChange={(o) => !o && setLinkDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Resetar senha de {linkDialog?.email}</DialogTitle>
-            <DialogDescription>
-              Link válido por <strong>1 hora</strong>. Ao abrir, o usuário será obrigado a cadastrar uma nova senha.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2">
-            <Input readOnly value={linkDialog?.link ?? ""} onFocus={(e) => e.currentTarget.select()} />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={async () => {
-                if (linkDialog?.link) {
-                  await navigator.clipboard.writeText(linkDialog.link);
-                  toast.success("Link copiado");
-                }
-              }}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <DialogFooter className="sm:justify-between gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                if (linkDialog) sendEmailMut.mutate(linkDialog.userId);
-              }}
-              disabled={sendEmailMut.isPending}
-            >
-              {sendEmailMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-              Enviar por email
-            </Button>
-            <Button onClick={() => setLinkDialog(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResetPasswordDialog
+        target={resetDialog}
+        onClose={() => setResetDialog(null)}
+        genLink={genLink}
+        sendEmailMut={sendEmailMut}
+      />
     </div>
   );
 }
