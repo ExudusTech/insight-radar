@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { AppFooter } from "@/components/app-footer";
 import exudusLogo from "@/assets/exudus-logo-new.jpeg.asset.json";
 
@@ -96,6 +96,7 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -122,7 +123,14 @@ function SignInForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="signin-password">Senha</Label>
-        <Input id="signin-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        <PasswordInput
+          id="signin-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          show={showPassword}
+          onToggle={() => setShowPassword((v) => !v)}
+          placeholder="••••••••"
+        />
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -138,6 +146,7 @@ function SignUpForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -181,7 +190,14 @@ function SignUpForm() {
         </div>
         <div className="space-y-2 col-span-2">
           <Label htmlFor="su-pass">Senha</Label>
-          <Input id="su-pass" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput
+            id="su-pass"
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            show={showPassword}
+            onToggle={() => setShowPassword((v) => !v)}
+          />
         </div>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
@@ -189,5 +205,47 @@ function SignUpForm() {
         Criar conta
       </Button>
     </form>
+  );
+}
+
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  show,
+  onToggle,
+  placeholder,
+  minLength,
+}: {
+  id: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  show: boolean;
+  onToggle: () => void;
+  placeholder?: string;
+  minLength?: number;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? "text" : "password"}
+        required
+        minLength={minLength}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="pr-10"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        tabIndex={-1}
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
   );
 }
