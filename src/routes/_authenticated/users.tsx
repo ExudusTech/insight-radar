@@ -18,9 +18,11 @@ import {
 } from "@/components/ui/select";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon, RefreshCw, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inviteUser } from "@/lib/invite-user.functions";
 import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
+import { setInitialPassword } from "@/lib/set-initial-password.functions";
 import { logActivity } from "@/lib/activity-log";
 import {
   DropdownMenu,
@@ -196,12 +198,7 @@ function UsersPage() {
   });
 
   const genLink = useServerFn(generateAccessLink);
-  const [linkDialog, setLinkDialog] = useState<{ link: string; email: string; userId: string } | null>(null);
-  const genLinkMut = useMutation({
-    mutationFn: (userId: string) => genLink({ data: { userId } }).then((r) => ({ ...r, userId })),
-    onSuccess: (r) => setLinkDialog({ link: r.link, email: r.email, userId: r.userId }),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao gerar link"),
-  });
+  const [resetDialog, setResetDialog] = useState<{ userId: string; email: string } | null>(null);
 
   const filtered = rows.filter((r) => {
     if (roleFilter !== "all" && r.role !== roleFilter) return false;
@@ -289,53 +286,21 @@ function UsersPage() {
               onToggleStrategic={(next) => toggleStrategic.mutate({ id: r.id, next })}
               onSetRole={(role) => setRole.mutate({ userId: r.id, role })}
               onToggleStatus={() => toggleStatus.mutate({ id: r.id, current: r.status })}
-              onResetPassword={() => genLinkMut.mutate(r.id)}
+              onResetPassword={() => setResetDialog({ userId: r.id, email: r.email ?? "" })}
               onSendEmail={() => sendEmailMut.mutate(r.id)}
-              resetPending={genLinkMut.isPending && genLinkMut.variables === r.id}
+              resetPending={false}
               emailPending={sendEmailMut.isPending && sendEmailMut.variables === r.id}
             />
           ))}
         </div>
       )}
 
-      <Dialog open={!!linkDialog} onOpenChange={(o) => !o && setLinkDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Resetar senha de {linkDialog?.email}</DialogTitle>
-            <DialogDescription>
-              Link válido por <strong>1 hora</strong>. Ao abrir, o usuário será obrigado a cadastrar uma nova senha.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2">
-            <Input readOnly value={linkDialog?.link ?? ""} onFocus={(e) => e.currentTarget.select()} />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={async () => {
-                if (linkDialog?.link) {
-                  await navigator.clipboard.writeText(linkDialog.link);
-                  toast.success("Link copiado");
-                }
-              }}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-          <DialogFooter className="sm:justify-between gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                if (linkDialog) sendEmailMut.mutate(linkDialog.userId);
-              }}
-              disabled={sendEmailMut.isPending}
-            >
-              {sendEmailMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-              Enviar por email
-            </Button>
-            <Button onClick={() => setLinkDialog(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResetPasswordDialog
+        target={resetDialog}
+        onClose={() => setResetDialog(null)}
+        genLink={genLink}
+        sendEmailMut={sendEmailMut}
+      />
     </div>
   );
 }
@@ -521,7 +486,14 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
     organization: "",
     role: "analyst" as AppRole,
   });
-  const [lastCreated, setLastCreated] = useState<string | null>(null);
+  const [useInitialPassword, setUseInitialPassword] = useState(false);
+  const [initialPassword, setInitialPasswordValue] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [created, setCreated] = useState<
+    | { name: string; email: string; mode: "email_link"; emailSent: boolean; emailError: string | null }
+    | { name: string; email: string; mode: "initial_password"; password: string }
+    | null
+  >(null);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -531,18 +503,33 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
           full_name: form.full_name.trim(),
           organization: form.organization.trim() || undefined,
           role: form.role,
+          initial_password: useInitialPassword ? initialPassword : undefined,
         },
       }),
     onSuccess: (res) => {
-      if (res?.emailSent) {
-        toast.success(`Usuário ${form.full_name} criado. Email de acesso enviado.`);
+      const name = form.full_name;
+      const email = form.email.trim();
+      if (res?.mode === "initial_password") {
+        toast.success(`Usuário ${name} criado com senha inicial.`);
+        setCreated({ name, email, mode: "initial_password", password: initialPassword });
+      } else if (res?.emailSent) {
+        toast.success(`Usuário ${name} criado. Email de acesso enviado.`);
+        setCreated({ name, email, mode: "email_link", emailSent: true, emailError: null });
       } else {
         toast.warning(
-          `Usuário ${form.full_name} criado, mas o email falhou${res?.emailError ? `: ${res.emailError}` : ""}`,
+          `Usuário ${name} criado, mas o email falhou${res?.emailError ? `: ${res.emailError}` : ""}`,
         );
+        setCreated({
+          name,
+          email,
+          mode: "email_link",
+          emailSent: false,
+          emailError: res?.emailError ?? null,
+        });
       }
-      setLastCreated(form.full_name);
       setForm({ full_name: "", email: "", organization: "", role: "analyst" });
+      setInitialPasswordValue("");
+      setUseInitialPassword(false);
       onCreated();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao criar usuário"),
@@ -556,6 +543,10 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
           e.preventDefault();
           if (!form.full_name.trim() || !form.email.trim()) {
             toast.error("Nome e email são obrigatórios");
+            return;
+          }
+          if (useInitialPassword && initialPassword.length < 8) {
+            toast.error("A senha inicial deve ter pelo menos 8 caracteres.");
             return;
           }
           mutation.mutate();
@@ -597,23 +588,81 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
             </SelectContent>
           </Select>
         </Field>
+        <div className="sm:col-span-2 border-t border-border/50 pt-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium">Definir senha inicial</div>
+              <div className="text-xs text-muted-foreground">
+                Em vez de enviar link por email, você define a senha e compartilha manualmente. O usuário será obrigado a trocá-la no primeiro login.
+              </div>
+            </div>
+            <Switch checked={useInitialPassword} onCheckedChange={setUseInitialPassword} />
+          </div>
+          {useInitialPassword && (
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={showPwd ? "text" : "password"}
+                  value={initialPassword}
+                  onChange={(e) => setInitialPasswordValue(e.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  placeholder="Mínimo 8 caracteres"
+                  className="pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setInitialPasswordValue(generateStrongPassword(14));
+                  setShowPwd(true);
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                Gerar
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="sm:col-span-2 flex justify-end">
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? "Criando..." : "Criar usuário"}
           </Button>
         </div>
       </form>
-      {lastCreated && (
+      {created?.mode === "initial_password" && (
+        <div className="border border-amber-500/40 bg-amber-500/5 rounded-md p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-200/90">
+              <strong>{created.name}</strong> criado com senha inicial. Compartilhe as credenciais por canal seguro
+              (mensagem direta, telefone). O usuário será obrigado a definir uma nova senha no primeiro login.
+            </div>
+          </div>
+          <CopyRow label="Email" value={created.email} />
+          <CopyRow label="Senha" value={created.password} mono />
+          <Button type="button" variant="ghost" size="sm" onClick={() => setCreated(null)}>
+            Dispensar
+          </Button>
+        </div>
+      )}
+      {created?.mode === "email_link" && (
         <div className="text-xs text-muted-foreground border-t border-border pt-3">
-          ✓ <strong>{lastCreated}</strong> criado. O usuário ainda não tem senha — envie o link para redefinição:{" "}
-          <a
-            href="https://insights-radar.exudustech.com.br/auth"
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary underline"
-          >
-            insights-radar.exudustech.com.br/auth
-          </a>
+          {created.emailSent ? (
+            <>✓ <strong>{created.name}</strong> criado. Email de acesso enviado para {created.email}.</>
+          ) : (
+            <>⚠ <strong>{created.name}</strong> criado, mas o envio do email falhou{created.emailError ? `: ${created.emailError}` : ""}. Use "Resetar senha" na lista para tentar novamente ou definir uma senha manualmente.</>
+          )}
         </div>
       )}
     </Card>
@@ -626,5 +675,203 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label className="text-xs font-medium">{label}</Label>
       {children}
     </div>
+  );
+}
+
+function generateStrongPassword(len = 14): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let out = "";
+  for (let i = 0; i < len; i++) out += alphabet[arr[i] % alphabet.length];
+  return out;
+}
+
+function CopyRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-14 shrink-0">{label}</span>
+      <Input readOnly value={value} className={mono ? "font-mono text-sm" : ""} onFocus={(e) => e.currentTarget.select()} />
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={async () => {
+          await navigator.clipboard.writeText(value);
+          toast.success(`${label} copiado`);
+        }}
+      >
+        <Copy className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function ResetPasswordDialog({
+  target,
+  onClose,
+  genLink,
+  sendEmailMut,
+}: {
+  target: { userId: string; email: string } | null;
+  onClose: () => void;
+  genLink: ReturnType<typeof useServerFn<typeof generateAccessLink>>;
+  sendEmailMut: ReturnType<typeof useMutation<{ email: string }, Error, string>>;
+}) {
+  const setPwdFn = useServerFn(setInitialPassword);
+  const [tab, setTab] = useState<"link" | "manual">("manual");
+  const [link, setLink] = useState<string | null>(null);
+  const [linkPending, setLinkPending] = useState(false);
+  const [manualPwd, setManualPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [manualDone, setManualDone] = useState<string | null>(null);
+
+  const setPwdMut = useMutation({
+    mutationFn: () => setPwdFn({ data: { userId: target!.userId, password: manualPwd } }),
+    onSuccess: () => {
+      setManualDone(manualPwd);
+      setManualPwd("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  async function generate() {
+    if (!target) return;
+    setLinkPending(true);
+    try {
+      const r = await genLink({ data: { userId: target.userId } });
+      setLink(r.link);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar link");
+    } finally {
+      setLinkPending(false);
+    }
+  }
+
+  function handleOpenChange(o: boolean) {
+    if (!o) {
+      setLink(null);
+      setManualPwd("");
+      setManualDone(null);
+      setShowPwd(false);
+      setTab("manual");
+      onClose();
+    }
+  }
+
+  return (
+    <Dialog open={!!target} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Resetar senha de {target?.email}</DialogTitle>
+          <DialogDescription>
+            Em ambos os modos o usuário será obrigado a definir uma nova senha no primeiro login.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "link" | "manual")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Definir senha manualmente</TabsTrigger>
+            <TabsTrigger value="link">Gerar link por email</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="manual" className="space-y-3 mt-4">
+            {manualDone ? (
+              <div className="space-y-3">
+                <div className="text-xs text-amber-200/90 border border-amber-500/40 bg-amber-500/5 rounded-md p-3 flex gap-2">
+                  <ShieldAlert className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>Senha definida. Compartilhe por canal seguro — o usuário será obrigado a trocá-la no primeiro login.</span>
+                </div>
+                <CopyRow label="Email" value={target?.email ?? ""} />
+                <CopyRow label="Senha" value={manualDone} mono />
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPwd ? "text" : "password"}
+                      value={manualPwd}
+                      onChange={(e) => setManualPwd(e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      minLength={8}
+                      maxLength={72}
+                      className="pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwd((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setManualPwd(generateStrongPassword(14));
+                      setShowPwd(true);
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" /> Gerar
+                  </Button>
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={manualPwd.length < 8 || setPwdMut.isPending}
+                  onClick={() => setPwdMut.mutate()}
+                >
+                  {setPwdMut.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Definir senha
+                </Button>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="link" className="space-y-3 mt-4">
+            <p className="text-xs text-muted-foreground">
+              Gera um link Supabase (validade 1h, uso único). Atenção: scanners de email corporativo podem invalidá-lo antes do usuário clicar.
+            </p>
+            {link ? (
+              <>
+                <div className="flex gap-2">
+                  <Input readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(link);
+                      toast.success("Link copiado");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => target && sendEmailMut.mutate(target.userId)}
+                  disabled={sendEmailMut.isPending}
+                >
+                  {sendEmailMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Enviar por email
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={generate} disabled={linkPending}>
+                {linkPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <KeyRound className="h-4 w-4 mr-2" />}
+                Gerar link
+              </Button>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => handleOpenChange(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

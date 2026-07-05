@@ -1,6 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { currentUserQueryKey } from "@/hooks/use-current-user";
+import { logActivity } from "@/lib/activity-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,14 +17,20 @@ export const Route = createFileRoute("/reset-password")({
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [ready, setReady] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [forced, setForced] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("forced") === "1") setForced(true);
+    }
     // Supabase pode devolver erro no hash (#error=...&error_code=otp_expired&error_description=...)
     if (typeof window !== "undefined" && window.location.hash) {
       const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -61,11 +70,30 @@ function ResetPasswordPage() {
     }
     setSaving(true);
     const { error } = await supabase.auth.updateUser({ password });
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast.error(error.message);
       return;
     }
+    // Se estava em modo forçado, limpa a flag no profile
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth.user) {
+      await supabase
+        .from("profiles")
+        .update({ must_change_password: false })
+        .eq("id", auth.user.id);
+      if (forced) {
+        logActivity({
+          userId: auth.user.id,
+          action: "password_changed_on_first_login",
+          entityType: "user",
+          entityId: auth.user.id,
+          details: {},
+        });
+      }
+      qc.invalidateQueries({ queryKey: currentUserQueryKey });
+    }
+    setSaving(false);
     toast.success("Senha definida com sucesso.");
     navigate({ to: "/dashboard" });
   }
@@ -74,9 +102,13 @@ function ResetPasswordPage() {
     <div className="min-h-screen w-full grid place-items-center bg-sidebar text-sidebar-foreground p-6">
       <Card className="w-full max-w-md p-8 space-y-6">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold font-display">Definir nova senha</h1>
+          <h1 className="text-2xl font-bold font-display">
+            {forced ? "Troque sua senha para continuar" : "Definir nova senha"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Por segurança, cadastre uma nova senha para acessar o sistema.
+            {forced
+              ? "Você precisa definir uma nova senha antes de acessar o sistema."
+              : "Por segurança, cadastre uma nova senha para acessar o sistema."}
           </p>
         </div>
 

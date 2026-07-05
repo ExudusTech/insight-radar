@@ -902,6 +902,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          must_change_password: boolean
           organization: string | null
           phone: string | null
           status: Database["public"]["Enums"]["profile_status"]
@@ -915,6 +916,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          must_change_password?: boolean
           organization?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["profile_status"]
@@ -928,6 +930,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          must_change_password?: boolean
           organization?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["profile_status"]

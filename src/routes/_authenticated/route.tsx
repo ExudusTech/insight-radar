@@ -1,4 +1,5 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -19,8 +20,17 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedShell() {
   const { data: user, isLoading } = useCurrentUser();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const mustChange = user?.profile?.must_change_password === true;
 
-  if (isLoading) {
+  useEffect(() => {
+    if (mustChange) {
+      navigate({ to: "/reset-password", search: { forced: 1 } as never, replace: true });
+    }
+  }, [mustChange, navigate, location.pathname]);
+
+  if (isLoading || mustChange) {
     return (
       <div className="min-h-screen grid place-items-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
