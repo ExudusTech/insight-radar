@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 function escapeHtml(s: string): string {
   return s
@@ -153,6 +154,21 @@ export const inviteUser = createServerFn({ method: "POST" })
       emailError = err instanceof Error ? err.message : String(err);
       console.error("[inviteUser] Falha ao enviar email:", emailError);
     }
+
+    await logServerActivity({
+      userId: context.userId,
+      action: "user_invited",
+      entityType: "user",
+      entityId: newUserId,
+      details: {
+        email: data.email,
+        full_name: data.full_name,
+        organization: data.organization ?? null,
+        role: data.role,
+        email_sent: emailSent,
+        email_error: emailError,
+      },
+    });
 
     return { success: true as const, userId: newUserId, emailSent, emailError };
   });
