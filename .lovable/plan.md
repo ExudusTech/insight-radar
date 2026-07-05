@@ -1,44 +1,56 @@
-## Objetivo
+## Fix security scan findings
 
-Estabelecer um **marco de corte em 04/jul/2026** no `docs/relatorio-custos.md`, congelando os números atuais como baseline histórico e preparando o documento para medir separadamente o custo da(s) próxima(s) missão(ões) de teste.
+Address the 2 Critical issues and 2 Warning issues from the security panel.
 
-## Mudanças no `docs/relatorio-custos.md`
+### 1. Critical — Role check in `missionBriefingAssistant`
 
-1. **Cabeçalho** — atualizar:
-   - "Período coberto" vira `23/jun/2026 → 04/jul/2026 (marco de corte)`.
-   - Adicionar linha "Próximo período de medição: a partir de 05/jul/2026 (novos testes)".
+**File:** `src/lib/mission-briefing.functions.ts`
 
-2. **Nova seção 1 — "Marco de corte"** (antes do resumo executivo):
-   - Explicar que os números das seções 2–6 são snapshot congelado até 04/jul/2026.
-   - Toda missão criada a partir de agora entra na seção 9 (nova).
-   - Consulta de referência: `SELECT count(*) FROM missions WHERE created_at >= '2026-07-05'` e equivalentes para targets/collection_data/evidences/assistant_messages/llm_usage_logs.
+Add server-side role gate at the start of `.handler()`, before any admin-client write:
 
-3. **Seções 2–6** — manter conteúdo, apenas renumerar e marcar como "Baseline (até 04/jul/2026)".
+```ts
+const [{ data: isContractor }, { data: isSuperadmin }] = await Promise.all([
+  context.supabase.rpc("has_role", { _user_id: context.userId, _role: "contractor" }),
+  context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
+]);
+if (!isContractor && !isSuperadmin) throw new Error("Forbidden");
+```
 
-4. **Nova seção 9 — "Medição pós-corte (a partir de 05/jul/2026)"**:
-   - Tabela vazia com as mesmas colunas da seção 2 (categoria / créditos / USD) — a preencher.
-   - Tabela vazia de volumes operacionais espelhando a seção 3.
-   - Nota: como `llm_usage_logs` agora está instrumentado, o custo de IA in-app da nova missão será medido de forma exata (não estimada).
-   - Snippet SQL pronto para copiar/colar:
-     ```sql
-     SELECT provider, model, task,
-            sum(input_tokens) in_tok,
-            sum(output_tokens) out_tok,
-            sum(estimated_cost_usd) usd
-     FROM llm_usage_logs
-     WHERE created_at >= '2026-07-05'
-     GROUP BY 1,2,3 ORDER BY usd DESC;
-     ```
-   - Referência ao `credits--get_credit_balance` filtrado por `from=2026-07-05` para o lado Lovable.
+Also gate `/missions/new` route: add `beforeLoad` in `src/routes/_authenticated/missions.new.tsx` that checks the same roles via `supabase.rpc("has_role", ...)` and `redirect({ to: "/dashboard" })` when neither role is present.
 
-5. **Seção 8 (próximos passos)** — ajustar item 1 para apontar para a seção 9 como o local de registro dos próximos 30 dias.
+### 2. Critical — Self-escalation via `can_view_strategic`
 
-6. **Rodapé** — mudar data para `04/jul/2026 (marco de corte)`.
+Migration to tighten `profiles_self_update_safe`:
 
-## Não faz parte deste plano
+```sql
+DROP POLICY IF EXISTS profiles_self_update_safe ON public.profiles;
+CREATE POLICY profiles_self_update_safe ON public.profiles
+FOR UPDATE TO authenticated
+USING (id = auth.uid())
+WITH CHECK (
+  id = auth.uid()
+  AND status IS NOT DISTINCT FROM (SELECT p.status FROM public.profiles p WHERE p.id = auth.uid())
+  AND accepts_missions IS NOT DISTINCT FROM (SELECT p.accepts_missions FROM public.profiles p WHERE p.id = auth.uid())
+  AND can_view_strategic IS NOT DISTINCT FROM (SELECT p.can_view_strategic FROM public.profiles p WHERE p.id = auth.uid())
+);
+```
 
-- Não altera código, schema, nem `llm_usage_logs` (já instrumentado).
-- Não recomputa números do baseline — eles ficam exatamente como estão.
-- Não mexe no `relatorio-custos.csv` (é gerado a partir do markdown; se você quiser regenerar depois, me avisa).
+### 3. Warnings — Restrict RLS policies from `public` to `authenticated`
 
-Confirma que devo aplicar?
+Same migration, recreate the flagged policies with `TO authenticated` (conditions unchanged):
+
+- `mission_contractors`: `mc_analyst_read`, `mc_contractor_self_read`, `mc_superadmin_all`
+- `missions`: `missions_contractor_insert`, `missions_contractor_update`, `missions_superadmin_all`
+- `products`: `products_client_read`, `products_superadmin_all`
+- `notifications`: `notifications_self_read`, `notifications_self_update`
+
+For each: `DROP POLICY ... ; CREATE POLICY ... TO authenticated USING (...) [WITH CHECK (...)]` preserving the current expressions (read via `supabase--read_query` during build to avoid drift).
+
+### 4. Mark findings resolved
+
+After migration approved + code edit shipped, call `security--manage_security_finding` with `mark_as_fixed` for the 2 criticals and 2 warnings; leave the "activity_logs expected" info finding as-is (already noted as expected).
+
+### Out of scope
+
+- Dependency vulnerabilities (7) — separate review.
+- The ignored issues (2) shown in the panel.
