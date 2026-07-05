@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const NotificationSchema = z.object({
   user_id: z.string().uuid(),
@@ -95,5 +96,20 @@ export const sendNotifications = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin.from("notifications").insert(rows);
     if (error) throw new Error(error.message);
+    for (const n of rows) {
+      await logServerActivity({
+        userId,
+        missionId: n.mission_id ?? null,
+        action: "notification_dispatched",
+        entityType: "notification",
+        entityId: n.user_id,
+        details: {
+          recipient_id: n.user_id,
+          type: n.type,
+          target_id: n.target_id ?? null,
+          preview: n.message?.slice(0, 120) ?? null,
+        },
+      });
+    }
     return { ok: true, count: rows.length };
   });
