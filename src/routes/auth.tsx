@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { AppFooter } from "@/components/app-footer";
 import exudusLogo from "@/assets/exudus-logo-new.jpeg.asset.json";
+import { logActivity } from "@/lib/activity-log";
 
 export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
@@ -101,11 +102,23 @@ function SignInForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signIn, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       toast.error("Falha no login", { description: error.message });
       return;
+    }
+    if (signIn.user) {
+      logActivity({
+        userId: signIn.user.id,
+        action: "user_login",
+        entityType: "user",
+        entityId: signIn.user.id,
+        details: {
+          email: signIn.user.email,
+          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        },
+      });
     }
     toast.success("Bem-vindo de volta");
     navigate({ to: "/dashboard" });
