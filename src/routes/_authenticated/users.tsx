@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon } from "lucide-react";
 import { inviteUser } from "@/lib/invite-user.functions";
 import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
+import { logActivity } from "@/lib/activity-log";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -106,6 +107,15 @@ function UsersPage() {
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
+      if (me?.id) {
+        logActivity({
+          userId: me.id,
+          action: "analyst_availability_changed",
+          entityType: "user",
+          entityId: vars.id,
+          details: { target_user_id: vars.id, next: vars.next },
+        });
+      }
       toast.success(vars.next ? "Analista disponível para demandas" : "Analista bloqueado para novas demandas");
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
@@ -118,6 +128,15 @@ function UsersPage() {
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
+      if (me?.id) {
+        logActivity({
+          userId: me.id,
+          action: "strategic_access_changed",
+          entityType: "user",
+          entityId: vars.id,
+          details: { target_user_id: vars.id, next: vars.next },
+        });
+      }
       toast.success(vars.next ? "Acesso à Visão Estratégica concedido" : "Acesso à Visão Estratégica removido");
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
@@ -130,7 +149,16 @@ function UsersPage() {
       const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
+      if (me?.id) {
+        logActivity({
+          userId: me.id,
+          action: "user_role_changed",
+          entityType: "user",
+          entityId: vars.userId,
+          details: { target_user_id: vars.userId, new_role: vars.role },
+        });
+      }
       toast.success("Role atualizada");
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
@@ -142,8 +170,18 @@ function UsersPage() {
       const next = current === "blocked" ? "active" : "blocked";
       const { error } = await supabase.from("profiles").update({ status: next }).eq("id", id);
       if (error) throw error;
+      return { from: current ?? "active", to: next };
     },
-    onSuccess: () => {
+    onSuccess: (res, vars) => {
+      if (me?.id) {
+        logActivity({
+          userId: me.id,
+          action: "user_status_changed",
+          entityType: "user",
+          entityId: vars.id,
+          details: { target_user_id: vars.id, from: res.from, to: res.to },
+        });
+      }
       toast.success("Status atualizado");
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
