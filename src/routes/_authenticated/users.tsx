@@ -18,9 +18,11 @@ import {
 } from "@/components/ui/select";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon, RefreshCw, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inviteUser } from "@/lib/invite-user.functions";
 import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
+import { setInitialPassword } from "@/lib/set-initial-password.functions";
 import { logActivity } from "@/lib/activity-log";
 import {
   DropdownMenu,
