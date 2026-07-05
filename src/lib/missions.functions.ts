@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logServerActivity } from "@/lib/activity-log.server";
 
 const inputSchema = z.object({
   missionId: z.string().uuid(),
@@ -75,6 +76,15 @@ export const assignAnalystToMission = createServerFn({ method: "POST" })
       .from("mission_analysts")
       .insert({ mission_id: data.missionId, analyst_id: chosen });
     if (insErr) throw new Error(insErr.message);
+
+    await logServerActivity({
+      userId,
+      missionId: data.missionId,
+      action: "mission_analyst_assigned",
+      entityType: "mission",
+      entityId: data.missionId,
+      details: { analyst_id: chosen, pool_size: available.length },
+    });
 
     return { assignedId: chosen as string | null };
   });
