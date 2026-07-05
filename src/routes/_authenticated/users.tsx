@@ -198,12 +198,7 @@ function UsersPage() {
   });
 
   const genLink = useServerFn(generateAccessLink);
-  const [linkDialog, setLinkDialog] = useState<{ link: string; email: string; userId: string } | null>(null);
-  const genLinkMut = useMutation({
-    mutationFn: (userId: string) => genLink({ data: { userId } }).then((r) => ({ ...r, userId })),
-    onSuccess: (r) => setLinkDialog({ link: r.link, email: r.email, userId: r.userId }),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao gerar link"),
-  });
+  const [resetDialog, setResetDialog] = useState<{ userId: string; email: string } | null>(null);
 
   const filtered = rows.filter((r) => {
     if (roleFilter !== "all" && r.role !== roleFilter) return false;
