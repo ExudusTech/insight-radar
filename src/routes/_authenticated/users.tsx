@@ -16,18 +16,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCurrentUser, ROLE_LABEL, type AppRole } from "@/hooks/use-current-user";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, Link2, Copy } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, UserPlus, Search, Mail, KeyRound, Copy, MoreHorizontal, Users as UsersIcon } from "lucide-react";
 import { inviteUser } from "@/lib/invite-user.functions";
 import { sendAccessEmail, generateAccessLink } from "@/lib/access-link.functions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/users")({
@@ -67,6 +76,7 @@ function UsersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["admin", "users"],
@@ -148,26 +158,33 @@ function UsersPage() {
   });
 
   const genLink = useServerFn(generateAccessLink);
-  const [linkDialog, setLinkDialog] = useState<{ link: string; email: string } | null>(null);
+  const [linkDialog, setLinkDialog] = useState<{ link: string; email: string; userId: string } | null>(null);
   const genLinkMut = useMutation({
-    mutationFn: (userId: string) => genLink({ data: { userId } }),
-    onSuccess: (r) => setLinkDialog({ link: r.link, email: r.email }),
+    mutationFn: (userId: string) => genLink({ data: { userId } }).then((r) => ({ ...r, userId })),
+    onSuccess: (r) => setLinkDialog({ link: r.link, email: r.email, userId: r.userId }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao gerar link"),
   });
 
   const filtered = rows.filter((r) => {
+    if (roleFilter !== "all" && r.role !== roleFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
       (r.full_name ?? "").toLowerCase().includes(q) ||
-      (r.email ?? "").toLowerCase().includes(q)
+      (r.email ?? "").toLowerCase().includes(q) ||
+      (r.organization ?? "").toLowerCase().includes(q)
     );
   });
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filtered.length} de {rows.length} {rows.length === 1 ? "usuário" : "usuários"}
+          </p>
+        </div>
         <Button variant="outline" size="sm" onClick={() => setCreateOpen((v) => !v)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Novo usuário
@@ -177,154 +194,76 @@ function UsersPage() {
 
       {createOpen && <CreateUserCard onCreated={() => qc.invalidateQueries({ queryKey: ["admin", "users"] })} />}
 
-      <div className="relative">
-        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome ou email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, email ou organização..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <ToggleGroup
+          type="single"
+          value={roleFilter}
+          onValueChange={(v) => v && setRoleFilter(v as AppRole | "all")}
+          className="justify-start flex-wrap"
+        >
+          <ToggleGroupItem value="all" size="sm">Todos</ToggleGroupItem>
+          <ToggleGroupItem value="superadmin" size="sm">Superadmin</ToggleGroupItem>
+          <ToggleGroupItem value="coordinator" size="sm">Coordenador</ToggleGroupItem>
+          <ToggleGroupItem value="contractor" size="sm">Cliente</ToggleGroupItem>
+          <ToggleGroupItem value="analyst" size="sm">Analista</ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
-      <Card className="overflow-x-auto">
-        {isLoading ? (
-          <div className="grid place-items-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]"></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Organização</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <div className="h-8 w-8 rounded-full bg-muted grid place-items-center text-xs font-semibold text-foreground/80">
-                      {(r.full_name ?? r.email ?? "?").slice(0, 1).toUpperCase()}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{r.full_name ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.organization ?? "—"}</TableCell>
-                  <TableCell>
-                    {r.role ? (
-                      <Badge variant="outline" className={ROLE_BADGE[r.role]}>
-                        {ROLE_LABEL[r.role]}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">—</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={r.status === "blocked" ? "destructive" : "secondary"}>
-                      {r.status ?? "active"}
-                    </Badge>
-                    {r.role === "analyst" && me?.role === "superadmin" && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Switch
-                          checked={r.accepts_missions ?? true}
-                          onCheckedChange={(val) => toggleAccepts.mutate({ id: r.id, next: val })}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {r.accepts_missions ?? true ? "Disponível" : "Bloqueado"}
-                        </span>
-                      </div>
-                    )}
-                    {me?.role === "superadmin" && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Switch
-                          checked={r.can_view_strategic ?? false}
-                          onCheckedChange={(val) => toggleStrategic.mutate({ id: r.id, next: val })}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          Visão Estratégica
-                        </span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString("pt-BR") : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Enviar email de acesso"
-                        disabled={sendEmailMut.isPending && sendEmailMut.variables === r.id}
-                        onClick={() => sendEmailMut.mutate(r.id)}
-                      >
-                        {sendEmailMut.isPending && sendEmailMut.variables === r.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Mail className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Gerar link de acesso (1h)"
-                        disabled={genLinkMut.isPending && genLinkMut.variables === r.id}
-                        onClick={() => genLinkMut.mutate(r.id)}
-                      >
-                        {genLinkMut.isPending && genLinkMut.variables === r.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Link2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Select
-                        value={r.role ?? ""}
-                        onValueChange={(v) => setRole.mutate({ userId: r.id, role: v as AppRole })}
-                      >
-                        <SelectTrigger className="w-[150px] h-8">
-                          <SelectValue placeholder="Promover" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="superadmin">Superadmin</SelectItem>
-          <SelectItem value="coordinator">Coordenador</SelectItem>
-                          <SelectItem value="contractor">Cliente</SelectItem>
-                          <SelectItem value="analyst">Analista</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant={r.status === "blocked" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => toggleStatus.mutate({ id: r.id, current: r.status })}
-                      >
-                        {r.status === "blocked" ? "Ativar" : "Bloquear"}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                    Nenhum usuário encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="p-12 grid place-items-center text-center">
+          <UsersIcon className="h-8 w-8 text-muted-foreground mb-3" />
+          <div className="text-sm font-medium">Nenhum usuário encontrado</div>
+          <div className="text-xs text-muted-foreground mt-1">Ajuste a busca ou o filtro de role.</div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((r) => (
+            <UserCard
+              key={r.id}
+              row={r}
+              isSuperadmin={me?.role === "superadmin"}
+              onToggleAccepts={(next) => toggleAccepts.mutate({ id: r.id, next })}
+              onToggleStrategic={(next) => toggleStrategic.mutate({ id: r.id, next })}
+              onSetRole={(role) => setRole.mutate({ userId: r.id, role })}
+              onToggleStatus={() => toggleStatus.mutate({ id: r.id, current: r.status })}
+              onResetPassword={() => genLinkMut.mutate(r.id)}
+              onSendEmail={() => sendEmailMut.mutate(r.id)}
+              resetPending={genLinkMut.isPending && genLinkMut.variables === r.id}
+              emailPending={sendEmailMut.isPending && sendEmailMut.variables === r.id}
+            />
+          ))}
+        </div>
+      )}
 
       <Dialog open={!!linkDialog} onOpenChange={(o) => !o && setLinkDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Link de acesso para {linkDialog?.email}</DialogTitle>
+            <DialogTitle>Resetar senha de {linkDialog?.email}</DialogTitle>
             <DialogDescription>
               Link válido por <strong>1 hora</strong>. Ao abrir, o usuário será obrigado a cadastrar uma nova senha.
             </DialogDescription>
@@ -344,9 +283,195 @@ function UsersPage() {
               <Copy className="h-4 w-4" />
             </Button>
           </div>
+          <DialogFooter className="sm:justify-between gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (linkDialog) sendEmailMut.mutate(linkDialog.userId);
+              }}
+              disabled={sendEmailMut.isPending}
+            >
+              {sendEmailMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+              Enviar por email
+            </Button>
+            <Button onClick={() => setLinkDialog(null)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function UserCard({
+  row,
+  isSuperadmin,
+  onToggleAccepts,
+  onToggleStrategic,
+  onSetRole,
+  onToggleStatus,
+  onResetPassword,
+  onSendEmail,
+  resetPending,
+  emailPending,
+}: {
+  row: Row;
+  isSuperadmin: boolean;
+  onToggleAccepts: (next: boolean) => void;
+  onToggleStrategic: (next: boolean) => void;
+  onSetRole: (role: AppRole) => void;
+  onToggleStatus: () => void;
+  onResetPassword: () => void;
+  onSendEmail: () => void;
+  resetPending: boolean;
+  emailPending: boolean;
+}) {
+  const blocked = row.status === "blocked";
+  const initial = (row.full_name ?? row.email ?? "?").slice(0, 1).toUpperCase();
+  return (
+    <Card
+      className={`p-5 flex flex-col gap-4 transition-opacity ${blocked ? "opacity-70" : ""}`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted grid place-items-center text-sm font-semibold text-foreground/80 border border-white/5 shrink-0">
+          {initial}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold truncate">{row.full_name ?? "—"}</div>
+          <div className="text-xs text-muted-foreground truncate">{row.email}</div>
+          {row.organization && (
+            <div className="text-xs text-muted-foreground/80 truncate">{row.organization}</div>
+          )}
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={async () => {
+                if (row.email) {
+                  await navigator.clipboard.writeText(row.email);
+                  toast.success("Email copiado");
+                }
+              }}
+            >
+              Copiar email
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigator.clipboard.writeText(row.id);
+                toast.success("ID copiado");
+              }}
+            >
+              Copiar ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onToggleStatus}>
+              {blocked ? "Ativar usuário" : "Bloquear usuário"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {row.role ? (
+          <Badge variant="outline" className={ROLE_BADGE[row.role]}>
+            {ROLE_LABEL[row.role]}
+          </Badge>
+        ) : (
+          <Badge variant="outline">Sem role</Badge>
+        )}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${blocked ? "bg-red-500" : "bg-emerald-500"}`}
+          />
+          {blocked ? "Bloqueado" : "Ativo"}
+        </div>
+        {row.created_at && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {new Date(row.created_at).toLocaleDateString("pt-BR")}
+          </span>
+        )}
+      </div>
+
+      {isSuperadmin && (
+        <div className="border-t border-border/50 pt-3 space-y-2">
+          {row.role === "analyst" && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-foreground/80">Disponível para missões</span>
+              <Switch
+                checked={row.accepts_missions ?? true}
+                onCheckedChange={onToggleAccepts}
+              />
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-foreground/80">Visão Estratégica</span>
+            <Switch
+              checked={row.can_view_strategic ?? false}
+              onCheckedChange={onToggleStrategic}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-border/50 pt-3 space-y-2 mt-auto">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-12">Role</span>
+          <Select
+            value={row.role ?? ""}
+            onValueChange={(v) => onSetRole(v as AppRole)}
+          >
+            <SelectTrigger className="h-8 flex-1">
+              <SelectValue placeholder="Definir" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="superadmin">Superadmin</SelectItem>
+              <SelectItem value="coordinator">Coordenador</SelectItem>
+              <SelectItem value="contractor">Cliente</SelectItem>
+              <SelectItem value="analyst">Analista</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onResetPassword}
+            disabled={resetPending}
+          >
+            {resetPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <KeyRound className="h-3.5 w-3.5 mr-1" />
+            )}
+            Senha
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSendEmail}
+            disabled={emailPending}
+          >
+            {emailPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Mail className="h-3.5 w-3.5 mr-1" />
+            )}
+            Email
+          </Button>
+          <Button
+            variant={blocked ? "default" : "outline"}
+            size="sm"
+            onClick={onToggleStatus}
+          >
+            {blocked ? "Ativar" : "Bloquear"}
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
