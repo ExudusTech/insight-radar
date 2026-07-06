@@ -73,14 +73,11 @@ function NewMissionPage() {
               </button>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Converse com a IA para montar o escopo — ou envie um briefing / preencha manualmente.
+              Converse com a IA para montar o escopo — anexe um briefing no próprio chat, ou preencha manualmente.
             </p>
             <div className="mt-3 flex gap-2 text-xs">
               <ModeButton active={mode === "ai"} onClick={() => setMode("ai")}>
-                <Sparkles className="h-3 w-3" /> Chat com IA
-              </ModeButton>
-              <ModeButton active={mode === "upload"} onClick={() => setMode("upload")}>
-                <FileUp className="h-3 w-3" /> Enviar briefing
+                <Bot className="h-3 w-3" /> Chat com IA
               </ModeButton>
               <ModeButton active={mode === "manual"} onClick={() => setMode("manual")}>
                 Formulário manual
