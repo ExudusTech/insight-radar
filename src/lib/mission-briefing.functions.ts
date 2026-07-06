@@ -153,6 +153,29 @@ function isValidDate(d?: string | null): d is string {
   return /^\d{4}-\d{2}-\d{2}$/.test(d);
 }
 
+async function saveBriefingMessages(
+  admin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")["supabaseAdmin"] extends infer T ? T : never>> extends never ? never : never,
+  missionId: string,
+  userId: string,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<void>;
+async function saveBriefingMessages(
+  admin: { from: (t: string) => { insert: (rows: unknown) => Promise<{ error: unknown }> } },
+  missionId: string,
+  userId: string,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<void> {
+  if (!messages.length) return;
+  const rows = messages.map((m) => ({
+    mission_id: missionId,
+    user_id: userId,
+    role: m.role,
+    content: m.content,
+  }));
+  const { error } = await admin.from("briefing_messages").insert(rows);
+  if (error) console.warn("[briefing_messages] insert failed", error);
+}
+
 export const missionBriefingAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
