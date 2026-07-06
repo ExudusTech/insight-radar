@@ -13,16 +13,11 @@ Extraia do documento e retorne JSON com:
   "collection_blocks": { "A": string, "B": string, "C": string, "D": string, "E": string, "F": string, "G": string },
   "ethical_rules": string, "approach_type": string, "deadline_first": string, "deadline_final": string,
   "entregavel_esperado": string,
-  "canais_obrigatorios": string[],
-  "cobertura_canais": "360" | "selecionado" | "",
   "profundidade_autorizada": "observacao" | "contato" | "qualificacao" | "reuniao" | "contratacao" | "" }
 O campo entregavel_esperado descreve o resultado final tangível que o cliente espera obter (ex: "proposta comercial recebida do concorrente", "tabela de preços", "deck de vendas"). Se o documento não descrever isso, retorne string vazia.
 
-CANAIS DE ABORDAGEM (canais_obrigatorios): se o documento mencionar canais de abordagem de QUALQUER forma — lista estruturada, narrativa, exemplos, orientações operacionais ("abordar via Instagram DM", "seguir fluxo de WhatsApp", "solicitar orçamento pelo site") — extraia-os como canais_obrigatorios. Faça inferência contextual, não apenas match literal. Valores aceitos (normalize para estes exatos): "Instagram DM", "WhatsApp", "Email", "Site", "LinkedIn", "Ligação", "Reunião online", "Formulário". Se realmente não houver menção alguma a canais, retorne array vazio.
-
 PROFUNDIDADE AUTORIZADA (profundidade_autorizada): identifique até onde o analista pode ir no funil do concorrente. "observacao" = apenas observar/monitorar sem contato. "contato" = primeiro contato/mensagem inicial. "qualificacao" = conversa qualificadora, perguntas de descoberta. "reuniao" = agendar/participar de reunião ou demo. "contratacao" = simular contratação real. Se ambíguo, retorne string vazia.
 
-COBERTURA DE CANAIS (cobertura_canais): "360" = todos os canais disponíveis do concorrente devem ser explorados. "selecionado" = apenas os canais listados em canais_obrigatorios. Se ambíguo, retorne string vazia.
 Retorne apenas o JSON válido, sem markdown, sem texto adicional.`;
 
 async function extractTextFromBuffer(buf: ArrayBuffer, fileName: string): Promise<string> {

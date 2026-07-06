@@ -191,8 +191,6 @@ export async function updateMissionFromExtraction(
     approach_type?: string;
     ethical_rules?: string;
     entregavel_esperado?: string;
-    canais_obrigatorios?: string[] | null;
-    cobertura_canais?: string | null;
     profundidade_autorizada?: string | null;
   },
 ) {
@@ -204,8 +202,6 @@ export async function updateMissionFromExtraction(
     approach_type?: string;
     ethical_rules?: string;
     entregavel_esperado?: string;
-    canais_obrigatorios?: string[];
-    cobertura_canais?: string;
     profundidade_autorizada?: string;
   } = {};
   if (extracted.objective) patch.objective = extracted.objective;
@@ -215,9 +211,6 @@ export async function updateMissionFromExtraction(
   if (extracted.approach_type) patch.approach_type = extracted.approach_type;
   if (extracted.ethical_rules) patch.ethical_rules = extracted.ethical_rules;
   if (extracted.entregavel_esperado) patch.entregavel_esperado = extracted.entregavel_esperado;
-  if (extracted.canais_obrigatorios && extracted.canais_obrigatorios.length > 0)
-    patch.canais_obrigatorios = extracted.canais_obrigatorios;
-  if (extracted.cobertura_canais) patch.cobertura_canais = extracted.cobertura_canais;
   if (extracted.profundidade_autorizada)
     patch.profundidade_autorizada = extracted.profundidade_autorizada;
   if (Object.keys(patch).length === 0) return;
