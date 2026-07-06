@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,16 +12,25 @@ import { AppFooter } from "@/components/app-footer";
 import exudusLogo from "@/assets/exudus-logo-new.jpeg.asset.json";
 import { logActivity } from "@/lib/activity-log";
 
+const REDIRECT_AFTER_HYDRATION_MS = 1_000;
+
 export const Route = createFileRoute("/auth")({
-  beforeLoad: async () => {
-    if (typeof window === "undefined") return;
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/dashboard" });
-  },
   component: AuthPage,
 });
 
 function AuthPage() {
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) {
+        setTimeout(() => window.location.replace("/dashboard"), REDIRECT_AFTER_HYDRATION_MS);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       <div className="flex flex-1 min-h-0">

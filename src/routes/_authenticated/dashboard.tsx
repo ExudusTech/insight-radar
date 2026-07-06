@@ -4,7 +4,7 @@ import { useCurrentUser, ROLE_LABEL } from "@/hooks/use-current-user";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Target, FolderOpen, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Target, FolderOpen, AlertTriangle, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ContractorDashboard } from "@/components/dashboard/contractor-dashboard";
 
@@ -13,8 +13,22 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading } = useCurrentUser();
+
+  if (isLoading) {
+    return (
+      <div className="grid min-h-[40vh] place-items-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (user?.role === "contractor") return <ContractorDashboard />;
+
+  return <StaffDashboard user={user} />;
+}
+
+function StaffDashboard({ user }: { user: ReturnType<typeof useCurrentUser>["data"] }) {
   const greeting = user?.profile?.full_name?.split(" ")[0] ?? "";
   const { data: kpis } = useQuery({
     queryKey: ["dashboard", "kpis"],
