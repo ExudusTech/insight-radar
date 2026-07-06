@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callLLM } from "@/lib/llm-router";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -64,6 +66,7 @@ A cada resposta sua, no final da mensagem (após o texto conversacional), inclua
 REGRAS:
 - Seja conversacional e direto. Aceite respostas incompletas e peça complemento suavemente.
 - Infira categoria dos concorrentes pelo contexto.
+- Ao interpretar datas mencionadas pelo cliente sem ano explícito (ex: "17 de julho", "próxima sexta"), sempre assuma o ano 2026. Nunca assuma ano anterior ao atual (2026). Se a data resultante com ano 2026 ainda estiver no passado, pergunte ao cliente para confirmar o ano.
 - **NUNCA** preencha \`canais_obrigatorios\` ou \`cobertura_canais\` com base no documento. Só preencha depois que o cliente responder explicitamente à pergunta de canal de abordagem.
 - \`cobertura_canais\` só pode ser "360" se o cliente pedir explicitamente para explorar todos os canais do concorrente. Padrão: "selecionado".
 - Se o prazo extraído for anterior a hoje, trate como vazio e peça um novo prazo antes do resumo final.
@@ -150,6 +153,27 @@ function extractScopeBlock(text: string): { cleanText: string; scope: BriefingSc
 function isValidDate(d?: string | null): d is string {
   if (!d) return false;
   return /^\d{4}-\d{2}-\d{2}$/.test(d);
+}
+
+async function saveBriefingMessages(
+  admin: SupabaseClient<Database>,
+  missionId: string,
+  userId: string,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<void> {
+  if (!messages.length) return;
+  const rows = messages.map((m) => ({
+    mission_id: missionId,
+    user_id: userId,
+    role: m.role,
+    content: m.content,
+  }));
+  try {
+    const { error } = await admin.from("briefing_messages").insert(rows);
+    if (error) console.warn("[briefing_messages] insert failed", error);
+  } catch (e) {
+    console.warn("[briefing_messages] insert threw", e);
+  }
 }
 
 export const missionBriefingAssistant = createServerFn({ method: "POST" })
@@ -247,6 +271,8 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
         details: { source: "briefing_chat_post_upload", fields: Object.keys(updates) },
       });
 
+      await saveBriefingMessages(supabaseAdmin, data.existingMissionId, context.userId, data.messages);
+
       return {
         text: cleanText || "Missão atualizada com sucesso!",
         missionCreated: true as const,
@@ -313,6 +339,8 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       entity_id: mission.id,
       details: { source: "briefing_chat", name: payload.title ?? null },
     });
+
+    await saveBriefingMessages(supabaseAdmin, mission.id, context.userId, data.messages);
 
     return {
       text: cleanText || "Missão criada com sucesso!",
