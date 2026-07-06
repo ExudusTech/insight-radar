@@ -59,11 +59,10 @@ function NewMissionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [missionName, setMissionName] = useState<string>("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
-  const [reviewState, setReviewState] = useState<null | {
+  const [postUpload, setPostUpload] = useState<null | {
     missionId: string;
-    canais_obrigatorios: string[];
-    profundidade_autorizada: string;
-    entregavel_esperado: string;
+    initialMessages: ChatMsg[];
+    extractedContext: string;
   }>(null);
 
   async function handleFile(file: File) {
@@ -128,25 +127,39 @@ function NewMissionPage() {
       await freezeVersion(version.id);
       await createTargetsFromExtraction(version.id);
 
-      // Gate: check critical fields before redirect
-      const { data: created } = await supabase
-        .from("missions")
-        .select("canais_obrigatorios, profundidade_autorizada, entregavel_esperado")
-        .eq("id", mission.id)
-        .single();
-      const canais = (created?.canais_obrigatorios ?? []) as string[];
-      const prof = (created?.profundidade_autorizada ?? "") as string;
-      const entreg = (created?.entregavel_esperado ?? "") as string;
-      if (canais.length === 0 || !prof || !entreg.trim()) {
-        setStatus("done");
-        setReviewState({
-          missionId: mission.id,
-          canais_obrigatorios: canais,
-          profundidade_autorizada: prof,
-          entregavel_esperado: entreg,
-        });
-        return;
-      }
+      // Fetch back all extracted mission fields + targets to seed the IA conversation.
+      const [{ data: created }, { data: tgts }] = await Promise.all([
+        supabase
+          .from("missions")
+          .select(
+            "name, description, objective, deadline_final, canais_obrigatorios, cobertura_canais, profundidade_autorizada, entregavel_esperado, restricoes",
+          )
+          .eq("id", mission.id)
+          .single(),
+        supabase
+          .from("targets")
+          .select("name, instagram, site, whatsapp, category")
+          .eq("mission_id", mission.id),
+      ]);
+
+      const { summary, context, missing } = buildExtractionSummary(created, tgts ?? []);
+      const openingLine = missing.length > 0
+        ? `Li seu documento! Aqui está o que consegui identificar — mas ainda preciso confirmar alguns pontos com você antes de lançar a missão:`
+        : `Li seu documento! Identifiquei os dados abaixo. Posso lançar a missão com essas configurações, ou há algo que precise ajustar?`;
+      const followUp = missing.length > 0
+        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m) => `- ${m}`).join("\n")}`
+        : "";
+
+      setPostUpload({
+        missionId: mission.id,
+        initialMessages: [
+          { role: "assistant", content: `${openingLine}\n\n${summary}${followUp}` },
+        ],
+        extractedContext: context,
+      });
+      setStatus("done");
+      setMode("ai");
+      return;
     } catch (e) {
       console.error("[missions.new] extraction/freeze failed:", e);
       toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
@@ -215,6 +228,9 @@ function NewMissionPage() {
       ) : mode === "ai" ? (
         <AiChatMode
           missionName={missionName}
+          existingMissionId={postUpload?.missionId}
+          initialMessages={postUpload?.initialMessages}
+          extractedContext={postUpload?.extractedContext}
           onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })}
         />
       ) : mode === "upload" ? (
@@ -233,21 +249,6 @@ function NewMissionPage() {
         <div className="space-y-4">
           <MissionForm initialName={missionName} />
         </div>
-      )}
-
-      {reviewState && (
-        <MissingFieldsDialog
-          state={reviewState}
-          onCancel={() => {
-            const id = reviewState.missionId;
-            setReviewState(null);
-            navigate({ to: "/missions/$missionId", params: { missionId: id } });
-          }}
-          onSaved={(id) => {
-            setReviewState(null);
-            navigate({ to: "/missions/$missionId", params: { missionId: id } });
-          }}
-        />
       )}
     </div>
   );
