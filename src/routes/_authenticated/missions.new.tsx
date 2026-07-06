@@ -496,6 +496,100 @@ const PROFUNDIDADE_LABEL: Record<string, string> = {
   contratacao: "Contratação real",
 };
 
+type ExtractedMission = {
+  name?: string | null;
+  description?: string | null;
+  objective?: string | null;
+  deadline_final?: string | null;
+  canais_obrigatorios?: string[] | null;
+  cobertura_canais?: string | null;
+  profundidade_autorizada?: string | null;
+  entregavel_esperado?: string | null;
+  restricoes?: string | null;
+};
+
+type ExtractedTarget = {
+  name: string | null;
+  instagram: string | null;
+  site: string | null;
+  whatsapp: string | null;
+  category: string | null;
+};
+
+function buildExtractionSummary(
+  mission: ExtractedMission | null,
+  targets: ExtractedTarget[],
+): { summary: string; context: string; missing: string[] } {
+  const lines: string[] = [];
+  const ctxParts: string[] = [];
+  const missing: string[] = [];
+
+  const objective = mission?.objective ?? mission?.description ?? "";
+  if (objective.trim()) {
+    lines.push(`- **Objetivo:** ${objective.trim()}`);
+    ctxParts.push(`Objetivo: ${objective.trim()}`);
+  } else {
+    missing.push("Objetivo principal da pesquisa");
+  }
+
+  if (targets.length > 0) {
+    const names = targets
+      .map((t) => t.name || t.instagram || t.site || t.whatsapp)
+      .filter(Boolean)
+      .slice(0, 8);
+    const extra = targets.length > names.length ? ` (+${targets.length - names.length})` : "";
+    lines.push(`- **Concorrentes (${targets.length}):** ${names.join(", ")}${extra}`);
+    ctxParts.push(`Concorrentes: ${targets.map((t) => t.name || t.instagram || t.site).filter(Boolean).join(", ")}`);
+  } else {
+    missing.push("Lista de concorrentes a mapear");
+  }
+
+  const canais = mission?.canais_obrigatorios ?? [];
+  const cobertura = mission?.cobertura_canais ?? "";
+  if (cobertura === "360") {
+    lines.push(`- **Canais:** Cobertura 360° (todos os canais disponíveis)`);
+    ctxParts.push(`Cobertura de canais: 360`);
+  } else if (canais.length > 0) {
+    lines.push(`- **Canais obrigatórios:** ${canais.join(", ")}`);
+    ctxParts.push(`Canais obrigatórios: ${canais.join(", ")}`);
+  } else {
+    missing.push("Canais de abordagem (360° ou lista específica)");
+  }
+
+  if (mission?.profundidade_autorizada) {
+    const label = PROFUNDIDADE_LABEL[mission.profundidade_autorizada] ?? mission.profundidade_autorizada;
+    lines.push(`- **Profundidade autorizada:** ${label}`);
+    ctxParts.push(`Profundidade: ${mission.profundidade_autorizada}`);
+  } else {
+    missing.push("Profundidade autorizada (observação, contato, qualificação, reunião ou contratação)");
+  }
+
+  if (mission?.entregavel_esperado?.trim()) {
+    lines.push(`- **Entregável esperado:** ${mission.entregavel_esperado.trim()}`);
+    ctxParts.push(`Entregável esperado: ${mission.entregavel_esperado.trim()}`);
+  } else {
+    missing.push("Entregável esperado (ex: proposta comercial, tabela de preços, deck de vendas)");
+  }
+
+  if (mission?.deadline_final) {
+    lines.push(`- **Prazo final:** ${mission.deadline_final}`);
+    ctxParts.push(`Prazo: ${mission.deadline_final}`);
+  } else {
+    missing.push("Prazo final para entrega");
+  }
+
+  if (mission?.restricoes?.trim()) {
+    lines.push(`- **Restrições:** ${mission.restricoes.trim()}`);
+    ctxParts.push(`Restrições: ${mission.restricoes.trim()}`);
+  }
+
+  return {
+    summary: lines.join("\n") || "_(nenhum campo foi extraído com clareza)_",
+    context: ctxParts.join("\n"),
+    missing,
+  };
+}
+
 function ScopePreview({ scope }: { scope: BriefingScope | null }) {
   const empty = !scope || (
     !scope.objetivo &&
