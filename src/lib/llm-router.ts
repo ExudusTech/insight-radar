@@ -328,18 +328,22 @@ export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
     }
 
     if (shouldFallback(result.status, result.rawBody)) {
-      const msg = `${cfg.provider}/${cfg.model}: ${result.status} — ${result.rawBody.slice(0, 200)}`;
-      errors.push(msg);
-      console.warn(`[llm-router] ${msg} — trying next in chain`);
+      const internalMsg = `${cfg.provider}/${cfg.model}: ${result.status} — ${result.rawBody.slice(0, 200)}`;
+      errors.push(`${cfg.provider}/${cfg.model}: ${result.status}`);
+      console.warn(`[llm-router] ${internalMsg} — trying next in chain`);
       continue;
     }
 
-    throw new Error(
-      `Erro LLM (${cfg.provider}/${cfg.model}): ${result.status} — ${result.rawBody.slice(0, 300)}`,
-    );
+    console.error("[llm-router] provider error", {
+      provider: cfg.provider,
+      model: cfg.model,
+      task,
+      status: result.status,
+      body: result.rawBody.slice(0, 500),
+    });
+    throw new Error("Serviço de IA temporariamente indisponível. Tente novamente em instantes.");
   }
 
-  throw new Error(
-    `Todos os provedores LLM falharam para task="${task}":\n${errors.join("\n")}`,
-  );
+  console.error("[llm-router] all providers failed", { task, errors });
+  throw new Error("Serviço de IA temporariamente indisponível. Tente novamente em instantes.");
 }
