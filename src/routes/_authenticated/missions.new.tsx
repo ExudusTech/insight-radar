@@ -72,7 +72,7 @@ function NewMissionPage() {
         target_label: "Concorrente",
         analyst_ids: [],
         contractor_ids: [],
-        contractor_id: user.role === "contractor" ? user.id : null,
+        contractor_id: user.id,
       });
     } catch (e) {
       console.error("[missions.new] createMission failed:", e);
