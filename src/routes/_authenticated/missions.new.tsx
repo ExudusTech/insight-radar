@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, FileUp, Loader2, Sparkles, AlertTriangle, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Bot, User, CheckCircle2, Target as TargetIcon, Radio, Calendar, ShieldAlert, Mic, MicOff, Pencil, Paperclip, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
+import { updateMissionFromExtraction } from "@/lib/missions.queries";
 import { createMissionServer } from "@/lib/missions.functions";
 import {
   uploadAndCreateVersion,
@@ -41,136 +37,17 @@ export const Route = createFileRoute("/_authenticated/missions/new")({
   component: NewMissionPage,
 });
 
-type UploadStatus = "idle" | "uploading" | "extracting" | "done" | "error";
-type Mode = "ai" | "upload" | "manual";
+type Mode = "ai" | "manual";
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 const INITIAL_ASSISTANT_MESSAGE =
-  "Olá! Vou ajudá-lo a criar uma nova missão de inteligência competitiva. Para começar: qual é o **principal objetivo** desta pesquisa?";
+  "Olá! Vou ajudá-lo a criar uma nova missão de inteligência competitiva.\n\nAntes de começarmos: você tem algum **documento de briefing** (PDF ou DOCX) para me enviar? Clique no ícone de 📎 clipe abaixo para anexar — eu leio e extraio tudo automaticamente. Se preferir, é só me responder por aqui que faço as perguntas uma a uma.";
 
 function NewMissionPage() {
   const navigate = useNavigate();
-  const { data: user } = useCurrentUser();
-  const extractFn = useServerFn(extractMissionDocument);
-  const createMissionFn = useServerFn(createMissionServer);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>("ai");
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [missionName, setMissionName] = useState<string>("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
-  const [postUpload, setPostUpload] = useState<null | {
-    missionId: string;
-    initialMessages: ChatMsg[];
-    extractedContext: string;
-  }>(null);
-
-  async function handleFile(file: File) {
-    if (!/\.(pdf|docx)$/i.test(file.name)) {
-      toast.error("Apenas PDF ou DOCX");
-      return;
-    }
-    if (!user?.id) return;
-
-    setErrorMsg(null);
-    setStatus("uploading");
-
-    let mission: Awaited<ReturnType<typeof createMission>> | null = null;
-
-    try {
-      const result = await createMissionFn({
-        data: {
-          name: missionName.trim() || "Nova missão",
-          target_label: "Concorrente",
-        },
-      });
-      mission = { id: result.missionId } as Awaited<ReturnType<typeof createMission>>;
-    } catch (e) {
-      console.error("[missions.new] createMission failed:", e);
-      const msg = (e as any)?.message ?? String(e) ?? "Erro ao criar missão no banco";
-      setStatus("error");
-      setErrorMsg(`Passo 1/4 (criar missão): ${msg}`);
-      toast.error(msg);
-      return;
-    }
-
-    let version: Awaited<ReturnType<typeof uploadAndCreateVersion>> | null = null;
-
-    try {
-      version = await uploadAndCreateVersion({
-        missionId: mission.id,
-        file,
-        authorId: user.id,
-        docType: "base",
-      });
-    } catch (e) {
-      console.error("[missions.new] uploadAndCreateVersion failed:", e);
-      const msg = (e as any)?.message ?? String(e) ?? "Erro ao enviar arquivo";
-      setStatus("error");
-      setErrorMsg(`Passo 2/4 (upload): ${msg}`);
-      toast.error(msg);
-      return;
-    }
-
-    setStatus("extracting");
-    try {
-      await extractFn({ data: { versionId: version.id } });
-      const { data: ver } = await supabase
-        .from("document_versions")
-        .select("extracted_data")
-        .eq("id", version.id)
-        .single();
-      const extracted = (ver?.extracted_data ?? {}) as Parameters<
-        typeof updateMissionFromExtraction
-      >[1];
-      await updateMissionFromExtraction(mission.id, extracted);
-      await freezeVersion(version.id);
-      await createTargetsFromExtraction(version.id);
-
-      // Fetch back all extracted mission fields + targets to seed the IA conversation.
-      const [{ data: created }, { data: tgts }] = await Promise.all([
-        supabase
-          .from("missions")
-          .select(
-            "name, description, objective, deadline_final, canais_obrigatorios, cobertura_canais, profundidade_autorizada, entregavel_esperado, restricoes",
-          )
-          .eq("id", mission.id)
-          .single(),
-        supabase
-          .from("targets")
-          .select("name, instagram, site, whatsapp, category")
-          .eq("mission_id", mission.id),
-      ]);
-
-      const { summary, context, missing } = buildExtractionSummary(created, tgts ?? []);
-      const openingLine = missing.length > 0
-        ? `Li seu documento! Aqui está o que consegui identificar — mas ainda preciso confirmar alguns pontos com você antes de lançar a missão:`
-        : `Li seu documento! Identifiquei os dados abaixo. Posso lançar a missão com essas configurações, ou há algo que precise ajustar?`;
-      const followUp = missing.length > 0
-        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m: string) => `- ${m}`).join("\n")}`
-        : "";
-
-      setPostUpload({
-        missionId: mission.id,
-        initialMessages: [
-          { role: "assistant", content: `${openingLine}\n\n${summary}${followUp}` },
-        ],
-        extractedContext: context,
-      });
-      setStatus("done");
-      setMode("ai");
-      return;
-    } catch (e) {
-      console.error("[missions.new] extraction/freeze failed:", e);
-      toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
-    }
-
-    setStatus("done");
-    setTimeout(
-      () => navigate({ to: "/missions/$missionId", params: { missionId: mission!.id } }),
-      800,
-    );
-  }
 
   return (
     <div className={`${mode === "ai" ? "max-w-6xl" : "max-w-3xl"} mx-auto w-full space-y-6`}>
@@ -228,22 +105,7 @@ function NewMissionPage() {
       ) : mode === "ai" ? (
         <AiChatMode
           missionName={missionName}
-          existingMissionId={postUpload?.missionId}
-          initialMessages={postUpload?.initialMessages}
-          extractedContext={postUpload?.extractedContext}
           onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })}
-        />
-      ) : mode === "upload" ? (
-        <UploadMode
-          status={status}
-          errorMsg={errorMsg}
-          fileRef={fileRef}
-          onFile={handleFile}
-          onSwitchManual={() => setMode("manual")}
-          onRetry={() => {
-            setStatus("idle");
-            setErrorMsg(null);
-          }}
         />
       ) : (
         <div className="space-y-4">
