@@ -11,6 +11,8 @@ const MessageSchema = z.object({
 const InputSchema = z.object({
   messages: z.array(MessageSchema).min(1),
   missionName: z.string().trim().min(1).optional(),
+  existingMissionId: z.string().uuid().optional(),
+  extractedContext: z.string().trim().min(1).optional(),
 });
 
 const SYSTEM_PROMPT = `Você é um assistente especializado em criação de missões de inteligência competitiva para o Radar de Mercado IA.
@@ -147,9 +149,26 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       throw new Error("Forbidden: only contractors or superadmins can create missions");
     }
 
+    // If updating an existing draft, validate the user owns it.
+    if (data.existingMissionId) {
+      const { data: m, error } = await context.supabase
+        .from("missions")
+        .select("id, contractor_id")
+        .eq("id", data.existingMissionId)
+        .maybeSingle();
+      if (error || !m) throw new Error("Missão não encontrada");
+      if (!isSuperadmin && m.contractor_id !== context.userId) {
+        throw new Error("Sem permissão para editar esta missão");
+      }
+    }
+
+    const systemPrompt = data.extractedContext
+      ? `${SYSTEM_PROMPT}\n\nCONTEXTO JÁ EXTRAÍDO DE UM DOCUMENTO ENVIADO PELO CLIENTE (use isto como base, valide com o cliente, e complete os campos ausentes antes de emitir o bloco CRIAR_MISSAO):\n${data.extractedContext}`
+      : SYSTEM_PROMPT;
+
     const { text } = await callLLM({
       task: "assistant",
-      systemPrompt: SYSTEM_PROMPT,
+      systemPrompt,
       messages: data.messages,
       maxTokens: 1800,
       tracking: {
@@ -170,6 +189,66 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
     const canais = Array.isArray(payload.canais_obrigatorios)
       ? payload.canais_obrigatorios.filter((c) => typeof c === "string" && c.trim().length > 0)
       : [];
+
+    // Update existing draft mission instead of creating a new one.
+    if (data.existingMissionId) {
+      const updates: {
+        name?: string;
+        description?: string | null;
+        objective?: string | null;
+        deadline_final?: string | null;
+        profundidade_autorizada?: string;
+        cobertura_canais?: string;
+        canais_obrigatorios?: string[];
+        restricoes?: string | null;
+        entregavel_esperado?: string;
+      } = {};
+      if (payload.title?.trim()) updates.name = payload.title.trim();
+      if (payload.description !== undefined) {
+        updates.description = payload.description ?? null;
+        updates.objective = payload.description ?? null;
+      }
+      if (isValidDate(payload.deadline)) updates.deadline_final = payload.deadline;
+      if (payload.profundidade) updates.profundidade_autorizada = payload.profundidade;
+      if (payload.cobertura_canais) updates.cobertura_canais = payload.cobertura_canais;
+      if (canais.length > 0) updates.canais_obrigatorios = canais;
+      if (payload.restricoes !== undefined) updates.restricoes = payload.restricoes ?? null;
+      if (payload.entregavel_esperado?.trim()) updates.entregavel_esperado = payload.entregavel_esperado.trim();
+
+      if (Object.keys(updates).length > 0) {
+        const { error: uErr } = await supabaseAdmin
+          .from("missions")
+          .update(updates)
+          .eq("id", data.existingMissionId);
+        if (uErr) throw uErr;
+      }
+
+      await supabaseAdmin.from("activity_logs").insert({
+        mission_id: data.existingMissionId,
+        user_id: context.userId,
+        action: "mission_updated",
+        entity_type: "mission",
+        entity_id: data.existingMissionId,
+        details: { source: "briefing_chat_post_upload", fields: Object.keys(updates) },
+      });
+
+      return {
+        text: cleanText || "Missão atualizada com sucesso!",
+        missionCreated: true as const,
+        missionId: data.existingMissionId,
+        scope,
+        preview: {
+          title: payload.title ?? null,
+          description: payload.description ?? null,
+          deadline: isValidDate(payload.deadline) ? payload.deadline : null,
+          profundidade: payload.profundidade ?? null,
+          cobertura_canais: payload.cobertura_canais ?? null,
+          canais_obrigatorios: canais,
+          targets: [],
+          restricoes: payload.restricoes ?? null,
+        },
+      };
+    }
 
     const { data: mission, error: mErr } = await supabaseAdmin
       .from("missions")

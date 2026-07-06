@@ -59,11 +59,10 @@ function NewMissionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [missionName, setMissionName] = useState<string>("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
-  const [reviewState, setReviewState] = useState<null | {
+  const [postUpload, setPostUpload] = useState<null | {
     missionId: string;
-    canais_obrigatorios: string[];
-    profundidade_autorizada: string;
-    entregavel_esperado: string;
+    initialMessages: ChatMsg[];
+    extractedContext: string;
   }>(null);
 
   async function handleFile(file: File) {
@@ -128,25 +127,39 @@ function NewMissionPage() {
       await freezeVersion(version.id);
       await createTargetsFromExtraction(version.id);
 
-      // Gate: check critical fields before redirect
-      const { data: created } = await supabase
-        .from("missions")
-        .select("canais_obrigatorios, profundidade_autorizada, entregavel_esperado")
-        .eq("id", mission.id)
-        .single();
-      const canais = (created?.canais_obrigatorios ?? []) as string[];
-      const prof = (created?.profundidade_autorizada ?? "") as string;
-      const entreg = (created?.entregavel_esperado ?? "") as string;
-      if (canais.length === 0 || !prof || !entreg.trim()) {
-        setStatus("done");
-        setReviewState({
-          missionId: mission.id,
-          canais_obrigatorios: canais,
-          profundidade_autorizada: prof,
-          entregavel_esperado: entreg,
-        });
-        return;
-      }
+      // Fetch back all extracted mission fields + targets to seed the IA conversation.
+      const [{ data: created }, { data: tgts }] = await Promise.all([
+        supabase
+          .from("missions")
+          .select(
+            "name, description, objective, deadline_final, canais_obrigatorios, cobertura_canais, profundidade_autorizada, entregavel_esperado, restricoes",
+          )
+          .eq("id", mission.id)
+          .single(),
+        supabase
+          .from("targets")
+          .select("name, instagram, site, whatsapp, category")
+          .eq("mission_id", mission.id),
+      ]);
+
+      const { summary, context, missing } = buildExtractionSummary(created, tgts ?? []);
+      const openingLine = missing.length > 0
+        ? `Li seu documento! Aqui está o que consegui identificar — mas ainda preciso confirmar alguns pontos com você antes de lançar a missão:`
+        : `Li seu documento! Identifiquei os dados abaixo. Posso lançar a missão com essas configurações, ou há algo que precise ajustar?`;
+      const followUp = missing.length > 0
+        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m: string) => `- ${m}`).join("\n")}`
+        : "";
+
+      setPostUpload({
+        missionId: mission.id,
+        initialMessages: [
+          { role: "assistant", content: `${openingLine}\n\n${summary}${followUp}` },
+        ],
+        extractedContext: context,
+      });
+      setStatus("done");
+      setMode("ai");
+      return;
     } catch (e) {
       console.error("[missions.new] extraction/freeze failed:", e);
       toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
@@ -215,6 +228,9 @@ function NewMissionPage() {
       ) : mode === "ai" ? (
         <AiChatMode
           missionName={missionName}
+          existingMissionId={postUpload?.missionId}
+          initialMessages={postUpload?.initialMessages}
+          extractedContext={postUpload?.extractedContext}
           onCreated={(id) => navigate({ to: "/missions/$missionId", params: { missionId: id } })}
         />
       ) : mode === "upload" ? (
@@ -233,21 +249,6 @@ function NewMissionPage() {
         <div className="space-y-4">
           <MissionForm initialName={missionName} />
         </div>
-      )}
-
-      {reviewState && (
-        <MissingFieldsDialog
-          state={reviewState}
-          onCancel={() => {
-            const id = reviewState.missionId;
-            setReviewState(null);
-            navigate({ to: "/missions/$missionId", params: { missionId: id } });
-          }}
-          onSaved={(id) => {
-            setReviewState(null);
-            navigate({ to: "/missions/$missionId", params: { missionId: id } });
-          }}
-        />
       )}
     </div>
   );
@@ -321,18 +322,27 @@ function NameGate({
 
 function AiChatMode({
   missionName,
+  existingMissionId,
+  initialMessages,
+  extractedContext,
   onCreated,
 }: {
   missionName: string;
+  existingMissionId?: string;
+  initialMessages?: ChatMsg[];
+  extractedContext?: string;
   onCreated: (missionId: string) => void;
 }) {
   const briefingFn = useServerFn(missionBriefingAssistant);
-  const initialAssistantMessage = missionName
-    ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
-    : INITIAL_ASSISTANT_MESSAGE;
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "assistant", content: initialAssistantMessage },
-  ]);
+  const defaultOpening: ChatMsg = {
+    role: "assistant",
+    content: missionName
+      ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
+      : INITIAL_ASSISTANT_MESSAGE,
+  };
+  const [messages, setMessages] = useState<ChatMsg[]>(
+    initialMessages && initialMessages.length > 0 ? initialMessages : [defaultOpening],
+  );
   const [scope, setScope] = useState<BriefingScope | null>(null);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -361,7 +371,12 @@ function AiChatMode({
     setPending(true);
     try {
       const res = await briefingFn({
-        data: { messages: next, missionName: missionName || undefined },
+        data: {
+          messages: next,
+          missionName: missionName || undefined,
+          existingMissionId,
+          extractedContext,
+        },
       });
       setMessages((cur) => [...cur, { role: "assistant", content: res.text }]);
       if (res.scope) setScope(res.scope);
@@ -480,6 +495,100 @@ const PROFUNDIDADE_LABEL: Record<string, string> = {
   reuniao: "Reunião",
   contratacao: "Contratação real",
 };
+
+type ExtractedMission = {
+  name?: string | null;
+  description?: string | null;
+  objective?: string | null;
+  deadline_final?: string | null;
+  canais_obrigatorios?: string[] | null;
+  cobertura_canais?: string | null;
+  profundidade_autorizada?: string | null;
+  entregavel_esperado?: string | null;
+  restricoes?: string | null;
+};
+
+type ExtractedTarget = {
+  name: string | null;
+  instagram: string | null;
+  site: string | null;
+  whatsapp: string | null;
+  category: string | null;
+};
+
+function buildExtractionSummary(
+  mission: ExtractedMission | null,
+  targets: ExtractedTarget[],
+): { summary: string; context: string; missing: string[] } {
+  const lines: string[] = [];
+  const ctxParts: string[] = [];
+  const missing: string[] = [];
+
+  const objective = mission?.objective ?? mission?.description ?? "";
+  if (objective.trim()) {
+    lines.push(`- **Objetivo:** ${objective.trim()}`);
+    ctxParts.push(`Objetivo: ${objective.trim()}`);
+  } else {
+    missing.push("Objetivo principal da pesquisa");
+  }
+
+  if (targets.length > 0) {
+    const names = targets
+      .map((t) => t.name || t.instagram || t.site || t.whatsapp)
+      .filter(Boolean)
+      .slice(0, 8);
+    const extra = targets.length > names.length ? ` (+${targets.length - names.length})` : "";
+    lines.push(`- **Concorrentes (${targets.length}):** ${names.join(", ")}${extra}`);
+    ctxParts.push(`Concorrentes: ${targets.map((t) => t.name || t.instagram || t.site).filter(Boolean).join(", ")}`);
+  } else {
+    missing.push("Lista de concorrentes a mapear");
+  }
+
+  const canais = mission?.canais_obrigatorios ?? [];
+  const cobertura = mission?.cobertura_canais ?? "";
+  if (cobertura === "360") {
+    lines.push(`- **Canais:** Cobertura 360° (todos os canais disponíveis)`);
+    ctxParts.push(`Cobertura de canais: 360`);
+  } else if (canais.length > 0) {
+    lines.push(`- **Canais obrigatórios:** ${canais.join(", ")}`);
+    ctxParts.push(`Canais obrigatórios: ${canais.join(", ")}`);
+  } else {
+    missing.push("Canais de abordagem (360° ou lista específica)");
+  }
+
+  if (mission?.profundidade_autorizada) {
+    const label = PROFUNDIDADE_LABEL[mission.profundidade_autorizada] ?? mission.profundidade_autorizada;
+    lines.push(`- **Profundidade autorizada:** ${label}`);
+    ctxParts.push(`Profundidade: ${mission.profundidade_autorizada}`);
+  } else {
+    missing.push("Profundidade autorizada (observação, contato, qualificação, reunião ou contratação)");
+  }
+
+  if (mission?.entregavel_esperado?.trim()) {
+    lines.push(`- **Entregável esperado:** ${mission.entregavel_esperado.trim()}`);
+    ctxParts.push(`Entregável esperado: ${mission.entregavel_esperado.trim()}`);
+  } else {
+    missing.push("Entregável esperado (ex: proposta comercial, tabela de preços, deck de vendas)");
+  }
+
+  if (mission?.deadline_final) {
+    lines.push(`- **Prazo final:** ${mission.deadline_final}`);
+    ctxParts.push(`Prazo: ${mission.deadline_final}`);
+  } else {
+    missing.push("Prazo final para entrega");
+  }
+
+  if (mission?.restricoes?.trim()) {
+    lines.push(`- **Restrições:** ${mission.restricoes.trim()}`);
+    ctxParts.push(`Restrições: ${mission.restricoes.trim()}`);
+  }
+
+  return {
+    summary: lines.join("\n") || "_(nenhum campo foi extraído com clareza)_",
+    context: ctxParts.join("\n"),
+    missing,
+  };
+}
 
 function ScopePreview({ scope }: { scope: BriefingScope | null }) {
   const empty = !scope || (
