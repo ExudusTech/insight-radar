@@ -529,15 +529,11 @@ function buildExtractionSummary(
   }
 
   const canais = mission?.canais_obrigatorios ?? [];
-  const cobertura = mission?.cobertura_canais ?? "";
-  if (cobertura === "360") {
-    lines.push(`- **Canais:** Cobertura 360° (todos os canais disponíveis)`);
-    ctxParts.push(`Cobertura de canais: 360`);
-  } else if (canais.length > 0) {
-    lines.push(`- **Canais obrigatórios:** ${canais.join(", ")}`);
-    ctxParts.push(`Canais obrigatórios: ${canais.join(", ")}`);
-  } else {
-    missing.push("Canais de abordagem (360° ou lista específica)");
+  // Canais NUNCA aparecem no resumo — o cliente SEMPRE deve confirmar explicitamente
+  missing.push("Canal de abordagem ativo (por qual canal o analista deve iniciar o contato com cada concorrente?)");
+  // Passa como contexto para a IA, mas não exibe
+  if (canais.length > 0) {
+    ctxParts.push(`CONTEXTO (não mostrar ao cliente): documento menciona canais ${canais.join(", ")} como possíveis — mas aguardar confirmação explícita do cliente.`);
   }
 
   if (mission?.profundidade_autorizada) {
@@ -556,8 +552,16 @@ function buildExtractionSummary(
   }
 
   if (mission?.deadline_final) {
-    lines.push(`- **Prazo final:** ${mission.deadline_final}`);
-    ctxParts.push(`Prazo: ${mission.deadline_final}`);
+    const deadlineDate = new Date(mission.deadline_final);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      missing.push(`Prazo (o encontrado no documento — ${mission.deadline_final} — já passou, precisamos de uma nova data)`);
+      ctxParts.push(`CONTEXTO: prazo extraído ${mission.deadline_final} está vencido — perguntar novo prazo ao cliente.`);
+    } else {
+      lines.push(`- **Prazo final:** ${mission.deadline_final}`);
+      ctxParts.push(`Prazo: ${mission.deadline_final}`);
+    }
   } else {
     missing.push("Prazo final para entrega");
   }
