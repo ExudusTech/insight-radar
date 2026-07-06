@@ -89,6 +89,27 @@ export type CreateMissionInput = {
 
 export async function createMission(input: CreateMissionInput) {
   const { analyst_ids, contractor_ids = [], ...rest } = input;
+
+  // Defense-in-depth: RLS `missions_contractor_insert` requires
+  // `contractor_id = auth.uid()` when the caller is a contractor.
+  // Force it here so any caller (form, upload, AI flows) is safe even
+  // if the payload omits contractor_id.
+  const { data: sessionForInsert } = await supabase.auth.getSession();
+  const currentUserId = sessionForInsert?.session?.user?.id ?? null;
+  if (currentUserId) {
+    const { data: isContractor } = await supabase.rpc("has_role", {
+      _user_id: currentUserId,
+      _role: "contractor",
+    });
+    const { data: isSuperadmin } = await supabase.rpc("has_role", {
+      _user_id: currentUserId,
+      _role: "superadmin",
+    });
+    if (isContractor && !isSuperadmin) {
+      rest.contractor_id = currentUserId;
+    }
+  }
+
   const { data: mission, error } = await supabase
     .from("missions")
     .insert({ ...rest })
