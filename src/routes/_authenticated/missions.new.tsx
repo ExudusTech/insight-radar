@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
@@ -55,6 +59,12 @@ function NewMissionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [missionName, setMissionName] = useState<string>("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
+  const [reviewState, setReviewState] = useState<null | {
+    missionId: string;
+    canais_obrigatorios: string[];
+    profundidade_autorizada: string;
+    entregavel_esperado: string;
+  }>(null);
 
   async function handleFile(file: File) {
     if (!/\.(pdf|docx)$/i.test(file.name)) {
@@ -117,6 +127,26 @@ function NewMissionPage() {
       await updateMissionFromExtraction(mission.id, extracted);
       await freezeVersion(version.id);
       await createTargetsFromExtraction(version.id);
+
+      // Gate: check critical fields before redirect
+      const { data: created } = await supabase
+        .from("missions")
+        .select("canais_obrigatorios, profundidade_autorizada, entregavel_esperado")
+        .eq("id", mission.id)
+        .single();
+      const canais = (created?.canais_obrigatorios ?? []) as string[];
+      const prof = (created?.profundidade_autorizada ?? "") as string;
+      const entreg = (created?.entregavel_esperado ?? "") as string;
+      if (canais.length === 0 || !prof || !entreg.trim()) {
+        setStatus("done");
+        setReviewState({
+          missionId: mission.id,
+          canais_obrigatorios: canais,
+          profundidade_autorizada: prof,
+          entregavel_esperado: entreg,
+        });
+        return;
+      }
     } catch (e) {
       console.error("[missions.new] extraction/freeze failed:", e);
       toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
@@ -203,6 +233,21 @@ function NewMissionPage() {
         <div className="space-y-4">
           <MissionForm initialName={missionName} />
         </div>
+      )}
+
+      {reviewState && (
+        <MissingFieldsDialog
+          state={reviewState}
+          onCancel={() => {
+            const id = reviewState.missionId;
+            setReviewState(null);
+            navigate({ to: "/missions/$missionId", params: { missionId: id } });
+          }}
+          onSaved={(id) => {
+            setReviewState(null);
+            navigate({ to: "/missions/$missionId", params: { missionId: id } });
+          }}
+        />
       )}
     </div>
   );
@@ -625,5 +670,149 @@ function UploadMode({
         </button>
       </div>
     </div>
+  );
+}
+
+const CANAL_OPTIONS = [
+  "Instagram DM",
+  "WhatsApp",
+  "Email",
+  "Site",
+  "LinkedIn",
+  "Ligação",
+  "Reunião online",
+  "Formulário",
+] as const;
+
+const PROFUNDIDADE_OPTIONS: { value: string; label: string }[] = [
+  { value: "observacao", label: "Observação (sem contato)" },
+  { value: "contato", label: "Primeiro contato" },
+  { value: "qualificacao", label: "Qualificação" },
+  { value: "reuniao", label: "Reunião / demo" },
+  { value: "contratacao", label: "Contratação real" },
+];
+
+function MissingFieldsDialog({
+  state,
+  onCancel,
+  onSaved,
+}: {
+  state: {
+    missionId: string;
+    canais_obrigatorios: string[];
+    profundidade_autorizada: string;
+    entregavel_esperado: string;
+  };
+  onCancel: () => void;
+  onSaved: (missionId: string) => void;
+}) {
+  const [canais, setCanais] = useState<string[]>(state.canais_obrigatorios ?? []);
+  const [profundidade, setProfundidade] = useState<string>(state.profundidade_autorizada ?? "");
+  const [entregavel, setEntregavel] = useState<string>(state.entregavel_esperado ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const missingCanais = canais.length === 0;
+  const missingProf = !profundidade;
+  const missingEntreg = !entregavel.trim();
+  const canSubmit = !missingCanais && !missingProf && !missingEntreg && !saving;
+
+  function toggleCanal(c: string) {
+    setCanais((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }
+
+  async function save() {
+    if (!canSubmit) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("missions")
+        .update({
+          canais_obrigatorios: canais,
+          profundidade_autorizada: profundidade,
+          entregavel_esperado: entregavel.trim(),
+        })
+        .eq("id", state.missionId);
+      if (error) throw error;
+      toast.success("Campos salvos.");
+      onSaved(state.missionId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Revise os campos obrigatórios
+          </DialogTitle>
+          <DialogDescription>
+            A IA não encontrou as informações abaixo no documento. Preencha antes de continuar.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          <div className="space-y-2">
+            <Label className={missingCanais ? "text-destructive" : ""}>
+              Canais obrigatórios de abordagem
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              {CANAL_OPTIONS.map((c) => (
+                <label key={c} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={canais.includes(c)}
+                    onCheckedChange={() => toggleCanal(c)}
+                  />
+                  <span>{c}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className={missingProf ? "text-destructive" : ""}>
+              Profundidade autorizada
+            </Label>
+            <Select value={profundidade} onValueChange={setProfundidade}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione até onde o analista pode ir" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROFUNDIDADE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className={missingEntreg ? "text-destructive" : ""}>
+              Entregável esperado
+            </Label>
+            <Textarea
+              value={entregavel}
+              onChange={(e) => setEntregavel(e.target.value)}
+              rows={3}
+              placeholder="Ex: proposta comercial recebida, tabela de preços, deck de vendas..."
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel} disabled={saving}>
+            Pular e abrir missão
+          </Button>
+          <Button onClick={save} disabled={!canSubmit}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Salvar e continuar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
