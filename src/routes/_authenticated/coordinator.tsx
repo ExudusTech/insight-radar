@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowRight, ChevronDown, ChevronRight, Clock, MessageCircle } from "lucide-react";
@@ -41,6 +41,15 @@ import {
 import { MISSION_STATUS_LABEL } from "@/lib/target-status";
 
 export const Route = createFileRoute("/_authenticated/coordinator")({
+  beforeLoad: async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw redirect({ to: "/auth" });
+    const [{ data: isCoord }, { data: isAdmin }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: auth.user.id, _role: "coordinator" }),
+      supabase.rpc("has_role", { _user_id: auth.user.id, _role: "superadmin" }),
+    ]);
+    if (!isCoord && !isAdmin) throw redirect({ to: "/dashboard" });
+  },
   component: CoordinatorDashboard,
 });
 
