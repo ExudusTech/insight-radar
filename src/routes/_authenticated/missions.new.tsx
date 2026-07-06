@@ -552,8 +552,16 @@ function buildExtractionSummary(
   }
 
   if (mission?.deadline_final) {
-    lines.push(`- **Prazo final:** ${mission.deadline_final}`);
-    ctxParts.push(`Prazo: ${mission.deadline_final}`);
+    const deadlineDate = new Date(mission.deadline_final);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      missing.push(`Prazo (o encontrado no documento — ${mission.deadline_final} — já passou, precisamos de uma nova data)`);
+      ctxParts.push(`CONTEXTO: prazo extraído ${mission.deadline_final} está vencido — perguntar novo prazo ao cliente.`);
+    } else {
+      lines.push(`- **Prazo final:** ${mission.deadline_final}`);
+      ctxParts.push(`Prazo: ${mission.deadline_final}`);
+    }
   } else {
     missing.push("Prazo final para entrega");
   }
