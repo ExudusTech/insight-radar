@@ -59,6 +59,12 @@ function NewMissionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [missionName, setMissionName] = useState<string>("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
+  const [reviewState, setReviewState] = useState<null | {
+    missionId: string;
+    canais_obrigatorios: string[];
+    profundidade_autorizada: string;
+    entregavel_esperado: string;
+  }>(null);
 
   async function handleFile(file: File) {
     if (!/\.(pdf|docx)$/i.test(file.name)) {
@@ -121,6 +127,26 @@ function NewMissionPage() {
       await updateMissionFromExtraction(mission.id, extracted);
       await freezeVersion(version.id);
       await createTargetsFromExtraction(version.id);
+
+      // Gate: check critical fields before redirect
+      const { data: created } = await supabase
+        .from("missions")
+        .select("canais_obrigatorios, profundidade_autorizada, entregavel_esperado")
+        .eq("id", mission.id)
+        .single();
+      const canais = (created?.canais_obrigatorios ?? []) as string[];
+      const prof = (created?.profundidade_autorizada ?? "") as string;
+      const entreg = (created?.entregavel_esperado ?? "") as string;
+      if (canais.length === 0 || !prof || !entreg.trim()) {
+        setStatus("done");
+        setReviewState({
+          missionId: mission.id,
+          canais_obrigatorios: canais,
+          profundidade_autorizada: prof,
+          entregavel_esperado: entreg,
+        });
+        return;
+      }
     } catch (e) {
       console.error("[missions.new] extraction/freeze failed:", e);
       toast.warning("Não consegui extrair tudo automaticamente. Edite os campos manualmente.");
@@ -207,6 +233,21 @@ function NewMissionPage() {
         <div className="space-y-4">
           <MissionForm initialName={missionName} />
         </div>
+      )}
+
+      {reviewState && (
+        <MissingFieldsDialog
+          state={reviewState}
+          onCancel={() => {
+            const id = reviewState.missionId;
+            setReviewState(null);
+            navigate({ to: "/missions/$missionId", params: { missionId: id } });
+          }}
+          onSaved={(id) => {
+            setReviewState(null);
+            navigate({ to: "/missions/$missionId", params: { missionId: id } });
+          }}
+        />
       )}
     </div>
   );
