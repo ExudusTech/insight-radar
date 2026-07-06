@@ -192,7 +192,17 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
 
     // Update existing draft mission instead of creating a new one.
     if (data.existingMissionId) {
-      const updates: Record<string, unknown> = {};
+      const updates: {
+        name?: string;
+        description?: string | null;
+        objective?: string | null;
+        deadline_final?: string | null;
+        profundidade_autorizada?: string;
+        cobertura_canais?: string;
+        canais_obrigatorios?: string[];
+        restricoes?: string | null;
+        entregavel_esperado?: string;
+      } = {};
       if (payload.title?.trim()) updates.name = payload.title.trim();
       if (payload.description !== undefined) {
         updates.description = payload.description ?? null;
