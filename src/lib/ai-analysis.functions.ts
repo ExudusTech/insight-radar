@@ -80,7 +80,8 @@ async function callClaude(system: string, user: string): Promise<unknown> {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Claude API: ${res.status} ${body.slice(0, 300)}`);
+    console.error("[ai-analysis] Claude API error", { status: res.status, body: body.slice(0, 500) });
+    throw new Error("Serviço de IA temporariamente indisponível. Tente novamente em instantes.");
   }
   const json = (await res.json()) as { content?: Array<{ text?: string }> };
   const text = json.content?.[0]?.text ?? "";
