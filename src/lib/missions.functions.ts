@@ -7,6 +7,43 @@ const inputSchema = z.object({
   missionId: z.string().uuid(),
 });
 
+const CreateMissionInputSchema = z.object({
+  name: z.string().trim().min(1),
+  target_label: z.string().default("Concorrente"),
+});
+
+export const createMissionServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => CreateMissionInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: mission, error } = await supabaseAdmin
+      .from("missions")
+      .insert({
+        name: data.name,
+        target_label: data.target_label,
+        status: "draft",
+        created_by: context.userId,
+        contractor_id: context.userId,
+      })
+      .select("id")
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    await logServerActivity({
+      userId: context.userId,
+      missionId: mission.id,
+      action: "mission_created",
+      entityType: "mission",
+      entityId: mission.id,
+      details: { source: "upload_briefing", name: data.name },
+    });
+
+    return { missionId: mission.id };
+  });
+
 export const assignAnalystToMission = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => inputSchema.parse(data))
