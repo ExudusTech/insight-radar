@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callLLM } from "@/lib/llm-router";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -154,7 +156,7 @@ function isValidDate(d?: string | null): d is string {
 }
 
 async function saveBriefingMessages(
-  admin: { from: (t: "briefing_messages") => { insert: (rows: Array<{ mission_id: string; user_id: string; role: string; content: string }>) => Promise<{ error: unknown }> } },
+  admin: SupabaseClient<Database>,
   missionId: string,
   userId: string,
   messages: Array<{ role: "user" | "assistant"; content: string }>,
