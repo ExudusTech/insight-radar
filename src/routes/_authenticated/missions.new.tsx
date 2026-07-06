@@ -147,7 +147,7 @@ function NewMissionPage() {
         ? `Li seu documento! Aqui está o que consegui identificar — mas ainda preciso confirmar alguns pontos com você antes de lançar a missão:`
         : `Li seu documento! Identifiquei os dados abaixo. Posso lançar a missão com essas configurações, ou há algo que precise ajustar?`;
       const followUp = missing.length > 0
-        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m) => `- ${m}`).join("\n")}`
+        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m: string) => `- ${m}`).join("\n")}`
         : "";
 
       setPostUpload({
