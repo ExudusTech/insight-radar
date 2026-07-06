@@ -24,6 +24,7 @@ import {
   Check,
   CalendarClock,
   Lock,
+  MessageSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 import { DatePickerField, parseLocalDate } from "@/components/ui/date-picker";
@@ -52,6 +53,7 @@ import { ChannelRotationCard } from "@/components/missions/channel-rotation-card
 import { ContractorOverview } from "@/components/missions/contractor-overview";
 import { isPreAcceptance } from "@/lib/target-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { briefingMessagesKey, listBriefingMessages } from "@/lib/briefing-messages.queries";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -198,6 +200,8 @@ function MissionOverview() {
             </p>
           </Card>
         )}
+
+        <BriefingConversationCard missionId={missionId} />
       </div>
       <div className="space-y-5">
         {currentUser?.role === "superadmin" && (
