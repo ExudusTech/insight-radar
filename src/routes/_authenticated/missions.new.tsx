@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { MissionForm } from "@/components/missions/mission-form";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createMission, updateMissionFromExtraction } from "@/lib/missions.queries";
+import { createMissionServer } from "@/lib/missions.functions";
 import {
   uploadAndCreateVersion,
   freezeVersion,
@@ -47,6 +48,7 @@ function NewMissionPage() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
   const extractFn = useServerFn(extractMissionDocument);
+  const createMissionFn = useServerFn(createMissionServer);
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>("ai");
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -67,13 +69,13 @@ function NewMissionPage() {
     let mission: Awaited<ReturnType<typeof createMission>> | null = null;
 
     try {
-      mission = await createMission({
-        name: missionName.trim() || "Nova missão",
-        target_label: "Concorrente",
-        analyst_ids: [],
-        contractor_ids: [],
-        contractor_id: user.id,
+      const result = await createMissionFn({
+        data: {
+          name: missionName.trim() || "Nova missão",
+          target_label: "Concorrente",
+        },
       });
+      mission = { id: result.missionId } as Awaited<ReturnType<typeof createMission>>;
     } catch (e) {
       console.error("[missions.new] createMission failed:", e);
       const msg = (e as any)?.message ?? String(e) ?? "Erro ao criar missão no banco";
