@@ -275,6 +275,44 @@ function KV({ k, v }: { k: string; v: string | null | undefined }) {
   );
 }
 
+function BriefingConversationCard({ missionId }: { missionId: string }) {
+  const { data: messages = [] } = useQuery({
+    queryKey: briefingMessagesKey(missionId),
+    queryFn: () => listBriefingMessages(missionId),
+  });
+
+  if (messages.length === 0) return null;
+
+  return (
+    <Card className="p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Conversa de Briefing
+        </h2>
+      </div>
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function EditableField({
   label,
   value,
