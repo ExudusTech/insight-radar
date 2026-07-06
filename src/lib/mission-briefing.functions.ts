@@ -248,6 +248,8 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
         details: { source: "briefing_chat_post_upload", fields: Object.keys(updates) },
       });
 
+      await saveBriefingMessages(supabaseAdmin, data.existingMissionId, context.userId, data.messages);
+
       return {
         text: cleanText || "Missão atualizada com sucesso!",
         missionCreated: true as const,
