@@ -107,8 +107,6 @@ export async function createMission(input: CreateMissionInput) {
     });
     if (isContractor && !isSuperadmin) {
       rest.contractor_id = currentUserId;
-    } else if (!rest.contractor_id) {
-      rest.contractor_id = currentUserId;
     }
   }
 
