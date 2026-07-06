@@ -317,6 +317,8 @@ export const missionBriefingAssistant = createServerFn({ method: "POST" })
       details: { source: "briefing_chat", name: payload.title ?? null },
     });
 
+    await saveBriefingMessages(supabaseAdmin, mission.id, context.userId, data.messages);
+
     return {
       text: cleanText || "Missão criada com sucesso!",
       missionCreated: true as const,
