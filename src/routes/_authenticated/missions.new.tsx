@@ -529,11 +529,19 @@ function buildExtractionSummary(
   }
 
   const canais = mission?.canais_obrigatorios ?? [];
-  // Canais NUNCA aparecem no resumo — o cliente SEMPRE deve confirmar explicitamente
-  missing.push("Canal de abordagem ativo (por qual canal o analista deve iniciar o contato com cada concorrente?)");
-  // Passa como contexto para a IA, mas não exibe
+  // Canais sempre ficam em `missing` (precisam confirmação explícita do cliente),
+  // mas quando extraídos do documento, viram sugestão a confirmar.
   if (canais.length > 0) {
-    ctxParts.push(`CONTEXTO (não mostrar ao cliente): documento menciona canais ${canais.join(", ")} como possíveis — mas aguardar confirmação explícita do cliente.`);
+    missing.push(
+      `Canal de abordagem ativo — o documento menciona ${canais.join(", ")}: confirma esses canais ou quer ajustar?`,
+    );
+    ctxParts.push(
+      `Canais sugeridos pelo documento (aguardando confirmação do cliente): ${canais.join(", ")}`,
+    );
+  } else {
+    missing.push(
+      "Canal de abordagem ativo (não identificado no documento — qual canal o analista deve usar?)",
+    );
   }
 
   if (mission?.profundidade_autorizada) {

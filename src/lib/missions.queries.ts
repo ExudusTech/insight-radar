@@ -192,6 +192,7 @@ export async function updateMissionFromExtraction(
     ethical_rules?: string;
     entregavel_esperado?: string;
     profundidade_autorizada?: string | null;
+    canais_obrigatorios?: string[] | null;
   },
 ) {
   const patch: {
@@ -203,6 +204,7 @@ export async function updateMissionFromExtraction(
     ethical_rules?: string;
     entregavel_esperado?: string;
     profundidade_autorizada?: string;
+    canais_obrigatorios?: string[];
   } = {};
   if (extracted.objective) patch.objective = extracted.objective;
   if (extracted.segment) patch.segment = extracted.segment;
@@ -213,6 +215,8 @@ export async function updateMissionFromExtraction(
   if (extracted.entregavel_esperado) patch.entregavel_esperado = extracted.entregavel_esperado;
   if (extracted.profundidade_autorizada)
     patch.profundidade_autorizada = extracted.profundidade_autorizada;
+  if (extracted.canais_obrigatorios && extracted.canais_obrigatorios.length > 0)
+    patch.canais_obrigatorios = extracted.canais_obrigatorios;
   if (Object.keys(patch).length === 0) return;
   const { error } = await supabase.from("missions").update(patch).eq("id", missionId);
   if (error) throw error;

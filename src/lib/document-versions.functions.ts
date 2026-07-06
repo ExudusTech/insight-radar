@@ -13,8 +13,11 @@ Extraia do documento e retorne JSON com:
   "collection_blocks": { "A": string, "B": string, "C": string, "D": string, "E": string, "F": string, "G": string },
   "ethical_rules": string, "approach_type": string, "deadline_first": string, "deadline_final": string,
   "entregavel_esperado": string,
+  "canais_obrigatorios": string[],
   "profundidade_autorizada": "observacao" | "contato" | "qualificacao" | "reuniao" | "contratacao" | "" }
 O campo entregavel_esperado descreve o resultado final tangível que o cliente espera obter (ex: "proposta comercial recebida do concorrente", "tabela de preços", "deck de vendas"). Se o documento não descrever isso, retorne string vazia.
+
+CANAIS DE ABORDAGEM (canais_obrigatorios): se o documento mencionar canais específicos de abordagem ou contato — WhatsApp, Instagram DM, Email, Site, LinkedIn, Ligação, Reunião online, Formulário — extraia a lista. Normalize para os valores exatos aceitos: "Instagram DM", "WhatsApp", "Email", "Site", "LinkedIn", "Ligação", "Reunião online", "Formulário". Se não houver menção clara a canais, retorne array vazio. NUNCA retorne "360" ou inferir cobertura total — apenas liste os canais explicitamente mencionados.
 
 PROFUNDIDADE AUTORIZADA (profundidade_autorizada): identifique até onde o analista pode ir no funil do concorrente. "observacao" = apenas observar/monitorar sem contato. "contato" = primeiro contato/mensagem inicial. "qualificacao" = conversa qualificadora, perguntas de descoberta. "reuniao" = agendar/participar de reunião ou demo. "contratacao" = simular contratação real. Se ambíguo, retorne string vazia.
 
