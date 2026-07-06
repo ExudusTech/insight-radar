@@ -181,33 +181,32 @@ function NameGate({
 
 function AiChatMode({
   missionName,
-  existingMissionId,
-  initialMessages,
-  extractedContext,
   onCreated,
 }: {
   missionName: string;
-  existingMissionId?: string;
-  initialMessages?: ChatMsg[];
-  extractedContext?: string;
   onCreated: (missionId: string) => void;
 }) {
   const briefingFn = useServerFn(missionBriefingAssistant);
+  const createMissionFn = useServerFn(createMissionServer);
+  const extractFn = useServerFn(extractMissionDocument);
+  const { data: user } = useCurrentUser();
   const defaultOpening: ChatMsg = {
     role: "assistant",
     content: missionName
-      ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
+      ? `Ótimo! Vamos montar a missão "**${missionName}**".\n\nAntes de começarmos: você tem algum **documento de briefing** (PDF ou DOCX) para me enviar? Clique no ícone de 📎 clipe abaixo para anexar — eu leio e extraio tudo automaticamente. Se preferir, é só me responder por aqui que faço as perguntas uma a uma.`
       : INITIAL_ASSISTANT_MESSAGE,
   };
-  const [messages, setMessages] = useState<ChatMsg[]>(
-    initialMessages && initialMessages.length > 0 ? initialMessages : [defaultOpening],
-  );
+  const [messages, setMessages] = useState<ChatMsg[]>([defaultOpening]);
   const [scope, setScope] = useState<BriefingScope | null>(null);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [uploadStage, setUploadStage] = useState<null | "uploading" | "extracting">(null);
+  const [missionId, setMissionId] = useState<string | null>(null);
+  const [extractedContext, setExtractedContext] = useState<string | undefined>(undefined);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const { listening, start: startMic, stop: stopMic } = useSpeechRecognition((text) => {
     setInput((prev) => (prev ? prev + " " + text : text));
     setTimeout(() => textareaRef.current?.focus(), 0);
@@ -215,7 +214,7 @@ function AiChatMode({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, pending]);
+  }, [messages, pending, uploadStage]);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -233,7 +232,7 @@ function AiChatMode({
         data: {
           messages: next,
           missionName: missionName || undefined,
-          existingMissionId,
+          existingMissionId: missionId ?? undefined,
           extractedContext,
         },
       });
@@ -253,12 +252,105 @@ function AiChatMode({
     }
   }
 
+  async function handleAttach(file: File) {
+    if (!/\.(pdf|docx)$/i.test(file.name)) {
+      toast.error("Apenas PDF ou DOCX");
+      return;
+    }
+    if (!user?.id || pending || uploadStage || createdId) return;
+
+    setMessages((cur) => [
+      ...cur,
+      { role: "user", content: `📎 Anexei o briefing: **${file.name}**` },
+    ]);
+    setUploadStage("uploading");
+
+    try {
+      // 1. Create draft mission if not already created
+      let mid = missionId;
+      if (!mid) {
+        const result = await createMissionFn({
+          data: { name: missionName.trim() || "Nova missão", target_label: "Concorrente" },
+        });
+        mid = result.missionId;
+        setMissionId(mid);
+      }
+
+      // 2. Upload document version
+      const version = await uploadAndCreateVersion({
+        missionId: mid,
+        file,
+        authorId: user.id,
+        docType: "base",
+      });
+
+      // 3. Extract
+      setUploadStage("extracting");
+      await extractFn({ data: { versionId: version.id } });
+
+      const { data: ver } = await supabase
+        .from("document_versions")
+        .select("extracted_data")
+        .eq("id", version.id)
+        .single();
+      const extracted = (ver?.extracted_data ?? {}) as Parameters<
+        typeof updateMissionFromExtraction
+      >[1];
+      await updateMissionFromExtraction(mid, extracted);
+      await freezeVersion(version.id);
+      await createTargetsFromExtraction(version.id);
+
+      // 4. Fetch back and build summary for the chat
+      const [{ data: created }, { data: tgts }] = await Promise.all([
+        supabase
+          .from("missions")
+          .select(
+            "name, description, objective, deadline_final, canais_obrigatorios, cobertura_canais, profundidade_autorizada, entregavel_esperado, restricoes",
+          )
+          .eq("id", mid)
+          .single(),
+        supabase
+          .from("targets")
+          .select("name, instagram, site, whatsapp, category")
+          .eq("mission_id", mid),
+      ]);
+
+      const { summary, context, missing } = buildExtractionSummary(created, tgts ?? []);
+      const openingLine = missing.length > 0
+        ? "Li seu documento! Aqui está o que consegui identificar — mas ainda preciso confirmar alguns pontos com você antes de lançar a missão:"
+        : "Li seu documento! Identifiquei os dados abaixo. Posso lançar a missão com essas configurações, ou há algo que precise ajustar?";
+      const followUp = missing.length > 0
+        ? `\n\n**Preciso que você me ajude com:**\n${missing.map((m: string) => `- ${m}`).join("\n")}`
+        : "";
+
+      setExtractedContext(context);
+      setMessages((cur) => [
+        ...cur,
+        { role: "assistant", content: `${openingLine}\n\n${summary}${followUp}` },
+      ]);
+      toast.success("Documento processado!");
+    } catch (e) {
+      console.error("[missions.new] attach failed:", e);
+      const msg = e instanceof Error ? e.message : "Erro ao processar documento";
+      toast.error(msg);
+      setMessages((cur) => [
+        ...cur,
+        { role: "assistant", content: `⚠️ Não consegui processar o documento: ${msg}. Podemos continuar aqui pelo chat mesmo — me conte sobre a missão.` },
+      ]);
+    } finally {
+      setUploadStage(null);
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    }
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
     }
   }
+
+  const busy = pending || !!uploadStage;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -272,6 +364,17 @@ function AiChatMode({
               <Bot className="h-4 w-4" />
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Pensando…</span>
+            </div>
+          )}
+          {uploadStage && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <FileText className="h-4 w-4" />
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>
+                {uploadStage === "uploading"
+                  ? "Enviando documento…"
+                  : "Lendo e extraindo dados do briefing…"}
+              </span>
             </div>
           )}
           {createdId && (
@@ -289,14 +392,36 @@ function AiChatMode({
         </div>
         <div className="border-t bg-muted/20 p-3">
           <div className="flex gap-2 items-end">
+            <input
+              type="file"
+              ref={fileRef}
+              accept=".pdf,.docx"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleAttach(f);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy || !!createdId}
+              title="Anexar briefing (PDF ou DOCX)"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={createdId ? "Missão criada — abra para editar detalhes." : "Digite sua resposta… (Enter para enviar)"}
+              placeholder={createdId ? "Missão criada — abra para editar detalhes." : "Digite sua resposta… (ou anexe um briefing 📎)"}
               rows={2}
-              disabled={pending || !!createdId}
+              disabled={busy || !!createdId}
               className="resize-none flex-1"
             />
             <Button
@@ -305,12 +430,12 @@ function AiChatMode({
               size="icon"
               className="h-10 w-10"
               onClick={listening ? stopMic : startMic}
-              disabled={pending || !!createdId}
+              disabled={busy || !!createdId}
               title={listening ? "Parar gravação" : "Falar (pt-BR)"}
             >
               {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
-            <Button onClick={send} disabled={pending || !input.trim() || !!createdId} size="icon" className="h-10 w-10">
+            <Button onClick={send} disabled={busy || !input.trim() || !!createdId} size="icon" className="h-10 w-10">
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
