@@ -322,18 +322,27 @@ function NameGate({
 
 function AiChatMode({
   missionName,
+  existingMissionId,
+  initialMessages,
+  extractedContext,
   onCreated,
 }: {
   missionName: string;
+  existingMissionId?: string;
+  initialMessages?: ChatMsg[];
+  extractedContext?: string;
   onCreated: (missionId: string) => void;
 }) {
   const briefingFn = useServerFn(missionBriefingAssistant);
-  const initialAssistantMessage = missionName
-    ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
-    : INITIAL_ASSISTANT_MESSAGE;
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    { role: "assistant", content: initialAssistantMessage },
-  ]);
+  const defaultOpening: ChatMsg = {
+    role: "assistant",
+    content: missionName
+      ? `Ótimo! Vamos montar a missão "**${missionName}**". Para começar: qual é o **principal objetivo** desta pesquisa?`
+      : INITIAL_ASSISTANT_MESSAGE,
+  };
+  const [messages, setMessages] = useState<ChatMsg[]>(
+    initialMessages && initialMessages.length > 0 ? initialMessages : [defaultOpening],
+  );
   const [scope, setScope] = useState<BriefingScope | null>(null);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -362,7 +371,12 @@ function AiChatMode({
     setPending(true);
     try {
       const res = await briefingFn({
-        data: { messages: next, missionName: missionName || undefined },
+        data: {
+          messages: next,
+          missionName: missionName || undefined,
+          existingMissionId,
+          extractedContext,
+        },
       });
       setMessages((cur) => [...cur, { role: "assistant", content: res.text }]);
       if (res.scope) setScope(res.scope);
