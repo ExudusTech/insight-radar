@@ -154,13 +154,7 @@ function isValidDate(d?: string | null): d is string {
 }
 
 async function saveBriefingMessages(
-  admin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")["supabaseAdmin"] extends infer T ? T : never>> extends never ? never : never,
-  missionId: string,
-  userId: string,
-  messages: Array<{ role: "user" | "assistant"; content: string }>,
-): Promise<void>;
-async function saveBriefingMessages(
-  admin: { from: (t: string) => { insert: (rows: unknown) => Promise<{ error: unknown }> } },
+  admin: { from: (t: "briefing_messages") => { insert: (rows: Array<{ mission_id: string; user_id: string; role: string; content: string }>) => Promise<{ error: unknown }> } },
   missionId: string,
   userId: string,
   messages: Array<{ role: "user" | "assistant"; content: string }>,
@@ -172,8 +166,12 @@ async function saveBriefingMessages(
     role: m.role,
     content: m.content,
   }));
-  const { error } = await admin.from("briefing_messages").insert(rows);
-  if (error) console.warn("[briefing_messages] insert failed", error);
+  try {
+    const { error } = await admin.from("briefing_messages").insert(rows);
+    if (error) console.warn("[briefing_messages] insert failed", error);
+  } catch (e) {
+    console.warn("[briefing_messages] insert threw", e);
+  }
 }
 
 export const missionBriefingAssistant = createServerFn({ method: "POST" })
