@@ -55,6 +55,7 @@ import {
   evidencesByTargetKey,
   listEvidencesByTarget,
 } from "@/lib/evidences.queries";
+import { supabase } from "@/integrations/supabase/client";
 import {
   TARGET_STATUS_LABEL,
   TARGET_STATUS_ORDER,
@@ -141,6 +142,20 @@ export function TargetDetailSheet({
     queryFn: () => listEvidencesByTarget(targetId!),
     enabled: !!targetId && open,
   });
+  const missionId = (target as { mission_id?: string } | undefined)?.mission_id ?? null;
+  const { data: missionCanaisData } = useQuery({
+    queryKey: ["missions", "canais", missionId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("missions")
+        .select("canais_obrigatorios")
+        .eq("id", missionId!)
+        .maybeSingle();
+      return (data?.canais_obrigatorios ?? []) as string[];
+    },
+    enabled: !!missionId,
+  });
+  const missionCanais = missionCanaisData ?? [];
 
   const blocksDone = countCompleteBlocks(collectionRows);
   const lastInteraction = interactions[0];
