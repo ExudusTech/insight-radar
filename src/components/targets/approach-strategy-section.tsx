@@ -42,11 +42,13 @@ export function ApproachStrategySection({
   canalAbordagem,
   personaLead,
   readonly,
+  missionCanais,
 }: {
   targetId: string;
   canalAbordagem: string | null;
   personaLead: unknown;
   readonly?: boolean;
+  missionCanais?: string[] | null;
 }) {
   const qc = useQueryClient();
   const initialPersona = parsePersona(personaLead);
@@ -70,6 +72,9 @@ export function ApproachStrategySection({
   if (readonly) {
     const personaNome = parsePersona(personaLead).nome ?? nome;
     const personaContexto = parsePersona(personaLead).contexto ?? contexto;
+    const targetCanais = parseCanais(canalAbordagem);
+    const usingFallback = targetCanais.length === 0 && (missionCanais?.length ?? 0) > 0;
+    const displayCanais = targetCanais.length > 0 ? targetCanais : (missionCanais ?? []);
     return (
       <div className="space-y-3 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 p-4">
         <div className="flex items-center gap-2">
@@ -79,16 +84,23 @@ export function ApproachStrategySection({
           </h3>
           <Lock className="h-3 w-3 text-muted-foreground ml-auto" />
         </div>
-        {canalAbordagem ? (
-          <div className="flex flex-wrap gap-1.5">
-            {parseCanais(canalAbordagem).map((c) => (
-              <span
-                key={c}
-                className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
-              >
-                {c}
-              </span>
-            ))}
+        {displayCanais.length > 0 ? (
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1.5">
+              {displayCanais.map((c) => (
+                <span
+                  key={c}
+                  className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+            {usingFallback && (
+              <p className="text-[11px] text-muted-foreground italic">
+                Usando canais gerais da missão (nenhum canal específico definido para este alvo).
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground italic">Canais não definidos no briefing.</p>
