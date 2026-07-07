@@ -284,6 +284,7 @@ export function TargetDetailSheet({
                     targetId={target.id}
                     canalAbordagem={(target as { canal_abordagem?: string | null }).canal_abordagem ?? null}
                     personaLead={(target as { persona_lead?: unknown }).persona_lead ?? null}
+                    missionCanais={missionCanais}
                   />
                 ) : (
                   <ApproachStrategySection
@@ -291,6 +292,7 @@ export function TargetDetailSheet({
                     canalAbordagem={(target as { canal_abordagem?: string | null }).canal_abordagem ?? null}
                     personaLead={(target as { persona_lead?: unknown }).persona_lead ?? null}
                     readonly
+                    missionCanais={missionCanais}
                   />
                 )}
                 <Section title="Metadados">
