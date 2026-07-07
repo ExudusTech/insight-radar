@@ -1,0 +1,2 @@
+CREATE POLICY "profiles_coordinator_read" ON public.profiles FOR SELECT USING (public.current_user_role() = 'coordinator'::public.app_role);
+CREATE POLICY "user_roles_coordinator_read" ON public.user_roles FOR SELECT USING (public.current_user_role() = 'coordinator'::public.app_role);
