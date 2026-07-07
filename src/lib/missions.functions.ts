@@ -85,18 +85,6 @@ export const assignAnalystToMission = createServerFn({ method: "POST" })
     if (availErr) throw new Error(availErr.message);
     if (!available || available.length === 0) return { assignedId: null };
 
-    // Check for existing assignment to avoid duplicate constraint violation
-    const { data: existing } = await supabaseAdmin
-      .from("mission_analysts")
-      .select("analyst_id")
-      .eq("mission_id", data.missionId)
-      .maybeSingle();
-
-    if (existing) {
-      // Already has an assigned analyst; do not reassign
-      return { assignedId: existing.analyst_id };
-    }
-
     const counts = await Promise.all(
       available.map(async (a) => {
         const { count } = await supabaseAdmin
