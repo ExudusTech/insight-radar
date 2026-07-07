@@ -101,6 +101,7 @@ export function TargetDetailSheet({
     ],
     coordinator: [
       { value: "overview", label: "Visão Geral", icon: LayoutDashboard },
+      { value: "assistant", label: "Assistente", icon: Sparkles },
       { value: "collection", label: "Coleta", icon: ClipboardList },
       { value: "timeline", label: "Timeline", icon: Clock },
       { value: "evidences", label: "Evidências", icon: Paperclip },
