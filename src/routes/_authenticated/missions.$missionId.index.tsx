@@ -54,6 +54,14 @@ import { ContractorOverview } from "@/components/missions/contractor-overview";
 import { isPreAcceptance } from "@/lib/target-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { briefingMessagesKey, listBriefingMessages } from "@/lib/briefing-messages.queries";
+import { listProfilesWithRole } from "@/lib/missions.queries";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/missions/$missionId/")({
   component: MissionOverview,
@@ -87,13 +95,23 @@ function MissionOverview() {
 
   const preAcceptance = isPreAcceptance(mission.status);
   const canEditBriefing =
-    preAcceptance && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
+    preAcceptance &&
+    (currentUser?.role === "contractor" ||
+      currentUser?.role === "superadmin" ||
+      currentUser?.role === "coordinator");
   const canStartMission =
-    currentUser?.role === "contractor" || currentUser?.role === "superadmin";
+    currentUser?.role === "contractor" ||
+    currentUser?.role === "superadmin" ||
+    currentUser?.role === "coordinator";
   const canEditDetails =
-    preAcceptance && (currentUser?.role === "contractor" || currentUser?.role === "superadmin");
+    preAcceptance &&
+    (currentUser?.role === "contractor" ||
+      currentUser?.role === "superadmin" ||
+      currentUser?.role === "coordinator");
   const isAnalystOfMission =
     !!currentUser && analysts.some((a) => a.analyst_id === currentUser.id);
+  const canAssignAnalysts =
+    currentUser?.role === "superadmin" || currentUser?.role === "coordinator";
   const showLockedBanner =
     !preAcceptance && currentUser?.role === "contractor";
 
@@ -227,6 +245,12 @@ function MissionOverview() {
             </>
           )}
           {product && <KV k="Produto / Serviço" v={product.name} />}
+          <KV
+            k="Criada em"
+            v={new Date(mission.created_at).toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })}
+          />
           {extraContractors.length > 0 && (
             <div className="text-sm">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Acesso adicional</div>
@@ -260,7 +284,80 @@ function MissionOverview() {
               })}
             </div>
           )}
+          {canAssignAnalysts && (
+            <AssignAnalystControl
+              missionId={missionId}
+              alreadyAssigned={analysts.map((a) => a.analyst_id)}
+            />
+          )}
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function AssignAnalystControl({
+  missionId,
+  alreadyAssigned,
+}: {
+  missionId: string;
+  alreadyAssigned: string[];
+}) {
+  const qc = useQueryClient();
+  const [selected, setSelected] = useState<string>("");
+  const { data: analystProfiles = [] } = useQuery({
+    queryKey: ["profiles", "with-role", "analyst"],
+    queryFn: () => listProfilesWithRole("analyst"),
+  });
+  const available = analystProfiles.filter((p) => !alreadyAssigned.includes(p.id));
+
+  const mut = useMutation({
+    mutationFn: async (analystId: string) => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("mission_analysts")
+        .insert({ mission_id: missionId, analyst_id: analystId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Analista atribuído.");
+      setSelected("");
+      qc.invalidateQueries({ queryKey: missionAnalystsKey(missionId) });
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao atribuir"),
+  });
+
+  return (
+    <div className="pt-2 border-t border-border/50 space-y-2">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        Atribuir analista
+      </div>
+      <div className="flex gap-2">
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger className="h-8 text-xs flex-1">
+            <SelectValue placeholder="Selecionar analista..." />
+          </SelectTrigger>
+          <SelectContent>
+            {available.length === 0 ? (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                Nenhum analista disponível
+              </div>
+            ) : (
+              available.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.full_name || p.email || p.id.slice(0, 8)}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          onClick={() => selected && mut.mutate(selected)}
+          disabled={!selected || mut.isPending}
+        >
+          {mut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Atribuir"}
+        </Button>
       </div>
     </div>
   );
