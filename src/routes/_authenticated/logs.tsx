@@ -428,7 +428,7 @@ function LogsPage() {
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(r.created_at).toLocaleString("pt-BR")}
+                        {new Date(r.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </TableCell>
                       <TableCell className="text-sm">{userLabel}</TableCell>
                       <TableCell>
