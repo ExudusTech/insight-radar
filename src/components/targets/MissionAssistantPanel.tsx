@@ -127,7 +127,7 @@ export function MissionAssistantPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("missions")
-        .select("entregavel_esperado")
+        .select("entregavel_esperado, canais_obrigatorios")
         .eq("id", missionId)
         .maybeSingle();
       if (error) throw error;
@@ -135,7 +135,41 @@ export function MissionAssistantPanel({
     },
   });
   const entregavel = missionMeta?.entregavel_esperado?.trim() || null;
+  const missionCanais = (missionMeta?.canais_obrigatorios ?? []) as string[];
   const canalAbordagem = (targetData as { canal_abordagem?: string | null } | null | undefined)?.canal_abordagem;
+
+  const analystIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          messages
+            .filter((m) => m.role === "user" && m.analyst_id)
+            .map((m) => m.analyst_id as string),
+        ),
+      ),
+    [messages],
+  );
+  const { data: analystProfiles = [] } = useQuery({
+    queryKey: ["profiles", "by-ids", analystIds],
+    queryFn: async () => {
+      if (analystIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", analystIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: analystIds.length > 0,
+  });
+  const analystNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of analystProfiles) {
+      map.set(p.id, p.full_name || p.email || "Analista");
+    }
+    return map;
+  }, [analystProfiles]);
+
   const filledByBlock = countFilledFieldsByBlock(collectionRows);
   const requiredCompletion = calcRequiredCompletion(collectionRows);
 
@@ -421,13 +455,22 @@ export function MissionAssistantPanel({
 
       {!canalAbordagem && (
         <div className="px-3 pt-3">
-          <Alert className="border-amber-500/50 bg-amber-500/10">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <AlertDescription className="text-amber-600 dark:text-amber-400 text-sm">
-              Canal de abordagem não definido para este alvo. A IA usará orientações gerais da missão.
-              {user?.role === "superadmin" && " Configure os canais na aba Visão Geral."}
-            </AlertDescription>
-          </Alert>
+          {missionCanais.length > 0 ? (
+            <Alert className="border-primary/40 bg-primary/5">
+              <AlertDescription className="text-foreground/80 text-sm">
+                Usando canais gerais da missão: {missionCanais.join(", ")}.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-amber-600 dark:text-amber-400 text-sm">
+                Canal de abordagem não definido para este alvo nem para a missão. A IA usará
+                orientações gerais.
+                {user?.role === "superadmin" && " Configure os canais na aba Visão Geral."}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       )}
 
@@ -570,7 +613,14 @@ export function MissionAssistantPanel({
                 {m.content && m.content !== "[imagem]" ? m.content : null}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {new Date(m.created_at).toLocaleTimeString("pt-BR", {
+                {m.role === "assistant"
+                  ? "IA"
+                  : (m.analyst_id && analystNameById.get(m.analyst_id)) || "Analista"}
+                {" · "}
+                {new Date(m.created_at).toLocaleString("pt-BR", {
+                  timeZone: "America/Sao_Paulo",
+                  day: "2-digit",
+                  month: "2-digit",
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
