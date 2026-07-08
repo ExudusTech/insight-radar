@@ -178,7 +178,8 @@ export const inviteUser = createServerFn({ method: "POST" })
 
       if (!resendRes.ok) {
         const errBody = await resendRes.text();
-        throw new Error(`Resend ${resendRes.status}: ${errBody}`);
+        console.error("[Resend] invite email failed", { status: resendRes.status, body: errBody });
+        throw new Error("Falha ao enviar email. Tente novamente.");
       }
       emailSent = true;
     } catch (err) {
