@@ -127,7 +127,8 @@ export const sendAccessEmail = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`Resend ${res.status}: ${body}`);
+      console.error("[Resend] access-link email failed", { status: res.status, body });
+      throw new Error("Falha ao enviar email. Tente novamente.");
     }
     await logServerActivity({
       userId: context.userId,

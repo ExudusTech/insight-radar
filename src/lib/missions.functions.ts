@@ -16,6 +16,15 @@ export const createMissionServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => CreateMissionInputSchema.parse(data))
   .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const [{ data: isContractor }, { data: isSuperadmin }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "contractor" }),
+      supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
+    ]);
+    if (!isContractor && !isSuperadmin) {
+      throw new Error("Forbidden");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: mission, error } = await supabaseAdmin
