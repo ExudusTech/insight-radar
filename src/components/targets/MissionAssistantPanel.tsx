@@ -102,9 +102,18 @@ export function MissionAssistantPanel({
   const callGenerateMeetingScript = useServerFn(generateMeetingScript);
   const callRequestBrief = useServerFn(requestCompetitorBrief);
   const [input, setInput] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, 200);
+    el.style.height = `${Math.max(next, 56)}px`;
+  }, [input]);
   const { listening, start: startMic, stop: stopMic } = useSpeechRecognition((text) => {
     setInput((prev) => (prev ? prev + " " + text : text));
   });
@@ -178,52 +187,58 @@ export function MissionAssistantPanel({
   }, [messages.length]);
 
   const sendMut = useMutation({
-    mutationFn: async (payload: { userMessage: string | null; file: File | null }) => {
+    mutationFn: async (payload: { userMessage: string | null; files: File[] }) => {
       if (!user?.id) throw new Error("Sem usuário");
-      const { userMessage, file } = payload;
+      const { userMessage, files } = payload;
       const history = messages.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
 
-      let imageBase64: string | null = null;
-      let imageMimeType: string | null = null;
-      let imagePath: string | null = null;
-
-      if (file) {
-        imageMimeType = file.type || "image/jpeg";
-        imageBase64 = await fileToBase64(file);
+      const uploaded: { path: string; mime: string; base64: string }[] = [];
+      for (const file of files) {
+        const mime = file.type || "image/jpeg";
+        const base64 = await fileToBase64(file);
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-        imagePath = `${missionId}/${targetId}/assistant/${Date.now()}.${ext}`;
+        const path = `${missionId}/${targetId}/assistant/${Date.now()}-${uploaded.length}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("mission-evidences")
-          .upload(imagePath, file, { contentType: imageMimeType, upsert: false });
+          .upload(path, file, { contentType: mime, upsert: false });
         if (upErr) throw upErr;
-        // Registrar também como evidência para aparecer na aba Evidências
         const { error: evErr } = await supabase.from("evidences").insert({
           mission_id: missionId,
           target_id: targetId,
           evidence_type: "screenshot",
-          file_url: imagePath,
+          file_url: path,
           caption: userMessage?.trim() || "Enviado pelo chat do assistente",
           tags: ["assistant_chat"],
           captured_at: new Date().toISOString(),
           created_by: user.id,
         });
         if (evErr) console.error("[assistant] falha ao registrar evidência:", evErr);
+        uploaded.push({ path, mime, base64 });
       }
 
-      if ((userMessage && userMessage.trim()) || file) {
+      const firstImage = uploaded[0] ?? null;
+      const imageBase64 = firstImage?.base64 ?? null;
+      const imageMimeType = firstImage?.mime ?? null;
+
+      if ((userMessage && userMessage.trim()) || uploaded.length > 0) {
         await saveAssistantMessage({
           missionId,
           targetId,
           block: ASSISTANT_UNIFIED_BLOCK,
           analystId: user.id,
           role: "user",
-          content: userMessage?.trim() || (file ? "[imagem]" : ""),
-          metadata: imagePath
-            ? { image_path: imagePath, image_mime: imageMimeType }
-            : undefined,
+          content: userMessage?.trim() || (uploaded.length > 0 ? "[imagem]" : ""),
+          metadata:
+            uploaded.length > 0
+              ? {
+                  image_path: uploaded[0].path,
+                  image_mime: uploaded[0].mime,
+                  image_paths: uploaded.map((u) => u.path),
+                }
+              : undefined,
         });
       }
       const res = await callAssistant({
@@ -261,8 +276,8 @@ export function MissionAssistantPanel({
     },
     onSuccess: ({ message, blockUpdates, timelineEventDetected }) => {
       setInput("");
-      setImageFile(null);
-      setImagePreview(null);
+      setImageFiles([]);
+      setImagePreviews([]);
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
       qc.invalidateQueries({ queryKey: evidencesByTargetKey(targetId) });
       if (timelineEventDetected) {
@@ -366,39 +381,45 @@ export function MissionAssistantPanel({
 
   const handleSend = () => {
     if (sendMut.isPending) return;
-    if (!input.trim() && !imageFile) return;
-    sendMut.mutate({ userMessage: input || null, file: imageFile });
+    if (!input.trim() && imageFiles.length === 0) return;
+    sendMut.mutate({ userMessage: input || null, files: imageFiles });
   };
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Imagem muito grande (máx 8MB)");
-      return;
+  const addFiles = (files: File[]) => {
+    for (const file of files) {
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error(`Imagem muito grande (máx 8MB): ${file.name}`);
+        continue;
+      }
+      setImageFiles((prev) => [...prev, file]);
+      const reader = new FileReader();
+      reader.onload = () =>
+        setImagePreviews((prev) => [...prev, reader.result as string]);
+      reader.readAsDataURL(file);
     }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    addFiles(files);
+  };
+
+  const removeImageAt = (idx: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = Array.from(e.clipboardData.items);
-    const imageItem = items.find((item) => item.type.startsWith("image/"));
-    if (imageItem) {
+    const imageFilesFromPaste = items
+      .filter((item) => item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => !!f);
+    if (imageFilesFromPaste.length > 0) {
       e.preventDefault();
-      const file = imageItem.getAsFile();
-      if (!file) return;
-      if (file.size > 8 * 1024 * 1024) {
-        toast.error("Imagem muito grande (máx 8MB)");
-        return;
-      }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
+      addFiles(imageFilesFromPaste);
     }
   };
 
@@ -637,24 +658,25 @@ export function MissionAssistantPanel({
 
       {messages.length > 0 && (
         <div className="px-3 py-2 border-t space-y-2">
-          {imagePreview && (
-            <div className="relative inline-block">
-              <img
-                src={imagePreview}
-                alt="preview"
-                className="max-h-24 rounded border"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setImageFile(null);
-                  setImagePreview(null);
-                }}
-                className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5"
-                aria-label="Remover imagem"
-              >
-                <X className="h-3 w-3" />
-              </button>
+          {imagePreviews.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {imagePreviews.map((src, idx) => (
+                <div key={idx} className="relative inline-block">
+                  <img
+                    src={src}
+                    alt={`preview ${idx + 1}`}
+                    className="max-h-24 rounded border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImageAt(idx)}
+                    className="absolute -top-2 -right-2 bg-background border rounded-full p-0.5"
+                    aria-label="Remover imagem"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
           <div className="flex items-end gap-2">
@@ -668,6 +690,7 @@ export function MissionAssistantPanel({
               id={`img-upload-${targetId}`}
               type="file"
               accept="image/*"
+              multiple
               className="hidden"
               onChange={handleImageSelect}
             />
@@ -684,6 +707,7 @@ export function MissionAssistantPanel({
             {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </button>
           <Textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -693,14 +717,14 @@ export function MissionAssistantPanel({
               }
             }}
             onPaste={handlePaste}
-            rows={1}
+            rows={2}
             placeholder="Relate o que encontrou, cole uma conversa ou Ctrl+V para colar um print..."
-            className="min-h-9 max-h-24 text-sm resize-none"
+            className="min-h-[56px] max-h-[200px] text-sm resize-none overflow-y-auto"
           />
           <Button
             size="sm"
             onClick={handleSend}
-            disabled={(!input.trim() && !imageFile) || sendMut.isPending}
+            disabled={(!input.trim() && imageFiles.length === 0) || sendMut.isPending}
           >
             {sendMut.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
