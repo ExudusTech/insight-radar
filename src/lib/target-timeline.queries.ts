@@ -13,7 +13,12 @@ export type TimelineEventType =
   | "follow_up_recebido"
   | "negociacao"
   | "encerramento"
-  | "outro";
+  | "outro"
+  | "interacao_iniciada"
+  | "screenshot_enviado"
+  | "extracao_campos"
+  | "roteiro_gerado"
+  | "parecer_solicitado";
 
 export const TIMELINE_EVENT_TYPES: TimelineEventType[] = [
   "contato_inicial",
@@ -71,4 +76,23 @@ export async function createManualTimelineEvent(params: {
       source: "manual",
     },
   });
+}
+
+export async function createSystemTimelineEvent(params: {
+  missionId: string;
+  targetId: string;
+  eventType: TimelineEventType;
+  description: string;
+  createdBy: string;
+}) {
+  const { error } = await supabase.from("target_timeline_events").insert({
+    mission_id: params.missionId,
+    target_id: params.targetId,
+    event_type: params.eventType,
+    description: params.description,
+    event_date: new Date().toISOString().slice(0, 10),
+    source: "system",
+    created_by: params.createdBy,
+  });
+  if (error) console.warn("[timeline] system event insert failed", error);
 }
