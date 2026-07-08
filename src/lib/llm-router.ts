@@ -75,7 +75,6 @@ export interface AttemptInfo {
   model: string;
   status: number;
   ok: boolean;
-  bodySnippet: string;
 }
 
 interface ProviderConfig {
