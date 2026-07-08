@@ -785,34 +785,53 @@ function BlockProgress({
   );
 }
 
-function MessageImage({ metadata }: { metadata: { image_path?: string } | null }) {
-  const path = metadata?.image_path;
-  const [url, setUrl] = useState<string | null>(null);
+function MessageImage({
+  metadata,
+}: {
+  metadata: { image_path?: string; image_paths?: string[] } | null;
+}) {
+  const paths = metadata?.image_paths?.length
+    ? metadata.image_paths
+    : metadata?.image_path
+      ? [metadata.image_path]
+      : [];
+  const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!path) return;
+    if (paths.length === 0) return;
     let active = true;
-    supabase.storage
-      .from("mission-evidences")
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => {
-        if (active && data?.signedUrl) setUrl(data.signedUrl);
-      });
+    Promise.all(
+      paths.map((p) =>
+        supabase.storage
+          .from("mission-evidences")
+          .createSignedUrl(p, 3600)
+          .then(({ data }) => [p, data?.signedUrl ?? ""] as const),
+      ),
+    ).then((entries) => {
+      if (!active) return;
+      const next: Record<string, string> = {};
+      for (const [p, u] of entries) if (u) next[p] = u;
+      setUrls(next);
+    });
     return () => {
       active = false;
     };
-  }, [path]);
-  if (!path) return null;
-  if (!url) {
-    return (
-      <div className="h-24 w-32 rounded bg-muted animate-pulse mb-1" />
-    );
-  }
+  }, [paths.join("|")]);
+  if (paths.length === 0) return null;
   return (
-    <img
-      src={url}
-      alt="evidência"
-      className="max-w-full max-h-64 rounded border mb-1"
-    />
+    <div className="flex flex-wrap gap-1 mb-1">
+      {paths.map((p) =>
+        urls[p] ? (
+          <img
+            key={p}
+            src={urls[p]}
+            alt="evidência"
+            className="max-w-full max-h-64 rounded border"
+          />
+        ) : (
+          <div key={p} className="h-24 w-32 rounded bg-muted animate-pulse" />
+        ),
+      )}
+    </div>
   );
 }
 
