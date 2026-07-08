@@ -32,6 +32,7 @@ import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { getTarget } from "@/lib/targets.queries";
 import { evidencesByTargetKey } from "@/lib/evidences.queries";
 import { timelineEventsByTargetKey } from "@/lib/target-timeline.queries";
+import { createSystemTimelineEvent } from "@/lib/target-timeline.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
