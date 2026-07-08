@@ -15,6 +15,9 @@ import {
   Pin,
   Sparkles,
   User,
+  Activity,
+  Image as ImageIcon,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,7 @@ import {
   timelineEventsByTargetKey,
   type TimelineEventType,
 } from "@/lib/target-timeline.queries";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 const EVENT_CONFIG: Record<
@@ -52,6 +56,11 @@ const EVENT_CONFIG: Record<
   negociacao:         { label: "Negociação",         icon: RefreshCw,     color: "text-indigo-600", bgColor: "bg-indigo-50" },
   encerramento:       { label: "Encerrado",          icon: CheckCircle,   color: "text-slate-600",  bgColor: "bg-slate-50" },
   outro:              { label: "Evento",             icon: Pin,           color: "text-gray-600",   bgColor: "bg-gray-50" },
+  interacao_iniciada: { label: "Interação iniciada", icon: Activity,      color: "text-slate-600",  bgColor: "bg-slate-50" },
+  screenshot_enviado: { label: "Screenshot enviado", icon: ImageIcon,     color: "text-blue-500",   bgColor: "bg-blue-50"  },
+  extracao_campos:    { label: "Extração de campos", icon: Database,      color: "text-violet-600", bgColor: "bg-violet-50"},
+  roteiro_gerado:     { label: "Roteiro de reunião", icon: FileText,      color: "text-teal-600",   bgColor: "bg-teal-50"  },
+  parecer_solicitado: { label: "Parecer solicitado", icon: Bell,          color: "text-orange-600", bgColor: "bg-orange-50"},
 };
 
 function todayISO() {
@@ -76,6 +85,25 @@ export function TargetTimeline({
     queryKey: timelineEventsByTargetKey(targetId),
     queryFn: () => listTimelineEvents(targetId),
   });
+
+  const creatorIds = Array.from(
+    new Set(events.map((e) => e.created_by).filter((v): v is string => !!v)),
+  );
+  const { data: creatorProfiles = [] } = useQuery({
+    queryKey: ["profiles", "by-ids", "timeline", creatorIds],
+    queryFn: async () => {
+      if (creatorIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", creatorIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: creatorIds.length > 0,
+  });
+  const nameById = new Map<string, string>();
+  for (const p of creatorProfiles) nameById.set(p.id, p.full_name || p.email || "Analista");
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -176,6 +204,8 @@ export function TargetTimeline({
             const cfg = EVENT_CONFIG[ev.event_type as TimelineEventType] ?? EVENT_CONFIG.outro;
             const Icon = cfg.icon;
             const isAi = ev.source === "ai";
+            const isSystem = ev.source === "system";
+            const analystName = ev.created_by ? nameById.get(ev.created_by) ?? null : null;
             return (
               <li key={ev.id} className="ml-6">
                 <span
@@ -194,17 +224,24 @@ export function TargetTimeline({
                     variant="outline"
                     className={cn(
                       "text-[10px] gap-1",
-                      isAi ? "border-primary/40 text-primary" : "border-muted-foreground/40",
+                      isAi
+                        ? "border-primary/40 text-primary"
+                        : "border-muted-foreground/40",
                     )}
                   >
                     {isAi ? <Sparkles className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
-                    {isAi ? "IA" : "Manual"}
+                    {isAi ? "IA" : isSystem ? "Sistema" : "Manual"}
                   </Badge>
                   <span className="text-xs text-muted-foreground ml-auto">
                     {new Date(ev.event_date).toLocaleDateString("pt-BR")}
                   </span>
                 </div>
                 <p className="text-sm mt-1 whitespace-pre-wrap">{ev.description}</p>
+                {(analystName || isAi || isSystem) && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {analystName ?? "—"} · {isAi ? "detectado pela IA" : isSystem ? "sistema" : "manual"}
+                  </p>
+                )}
               </li>
             );
           })}
