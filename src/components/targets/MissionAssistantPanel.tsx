@@ -32,6 +32,7 @@ import { targetDetailKey, targetsByMissionKey } from "@/lib/targets.queries";
 import { getTarget } from "@/lib/targets.queries";
 import { evidencesByTargetKey } from "@/lib/evidences.queries";
 import { timelineEventsByTargetKey } from "@/lib/target-timeline.queries";
+import { createSystemTimelineEvent } from "@/lib/target-timeline.queries";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -274,13 +275,15 @@ export function MissionAssistantPanel({
         timelineEventDetected: res.timelineEventDetected,
       };
     },
-    onSuccess: ({ message, blockUpdates, timelineEventDetected }) => {
+    onSuccess: ({ message, blockUpdates, timelineEventDetected }, variables) => {
+      const wasFirst = messages.length === 0;
+      const filesCount = variables.files.length;
       setInput("");
       setImageFiles([]);
       setImagePreviews([]);
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
       qc.invalidateQueries({ queryKey: evidencesByTargetKey(targetId) });
-      if (timelineEventDetected) {
+      if (timelineEventDetected || filesCount > 0 || wasFirst) {
         qc.invalidateQueries({ queryKey: timelineEventsByTargetKey(targetId) });
       }
       if (blockUpdates) {
@@ -289,6 +292,24 @@ export function MissionAssistantPanel({
         qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
       }
       if (user?.id) {
+        if (filesCount > 0) {
+          void createSystemTimelineEvent({
+            missionId,
+            targetId,
+            eventType: "screenshot_enviado",
+            description: `${filesCount} screenshot(s) enviado(s) ao chat`,
+            createdBy: user.id,
+          });
+        }
+        if (wasFirst) {
+          void createSystemTimelineEvent({
+            missionId,
+            targetId,
+            eventType: "interacao_iniciada",
+            description: "Primeira interação com o assistente de pesquisa",
+            createdBy: user.id,
+          });
+        }
         logActivity({
           userId: user.id,
           missionId,
@@ -330,6 +351,19 @@ export function MissionAssistantPanel({
       qc.invalidateQueries({ queryKey: collectionByTargetKey(targetId) });
       qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
       qc.invalidateQueries({ queryKey: targetsByMissionKey(missionId) });
+      if (user?.id) {
+        void createSystemTimelineEvent({
+          missionId,
+          targetId,
+          eventType: "extracao_campos",
+          description:
+            count > 0
+              ? `Extração executada: ${count} campo(s) atualizados do histórico`
+              : "Extração executada: nenhum campo novo identificado",
+          createdBy: user.id,
+        });
+        qc.invalidateQueries({ queryKey: timelineEventsByTargetKey(targetId) });
+      }
       if (count > 0) {
         toast.success(`${count} campo(s) extraído(s) e salvo(s) com sucesso!`);
       } else {
@@ -360,6 +394,16 @@ export function MissionAssistantPanel({
       toast.success("Roteiro de reunião gerado e salvo em Documentos.");
       qc.invalidateQueries({ queryKey: assistantMessagesKey(targetId) });
       qc.invalidateQueries({ queryKey: targetDetailKey(targetId) });
+      if (user?.id) {
+        void createSystemTimelineEvent({
+          missionId,
+          targetId,
+          eventType: "roteiro_gerado",
+          description: "Roteiro de reunião gerado e salvo em Documentos",
+          createdBy: user.id,
+        });
+        qc.invalidateQueries({ queryKey: timelineEventsByTargetKey(targetId) });
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao gerar roteiro"),
   });
@@ -374,6 +418,16 @@ export function MissionAssistantPanel({
         toast.success("Solicitação enviada ao coordenador.");
       } else {
         toast.warning("Nenhum coordenador cadastrado para receber a solicitação.");
+      }
+      if (user?.id) {
+        void createSystemTimelineEvent({
+          missionId,
+          targetId,
+          eventType: "parecer_solicitado",
+          description: "Parecer solicitado ao coordenador",
+          createdBy: user.id,
+        });
+        qc.invalidateQueries({ queryKey: timelineEventsByTargetKey(targetId) });
       }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao enviar solicitação"),
