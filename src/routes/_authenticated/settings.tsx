@@ -28,7 +28,7 @@ function SettingsPage() {
     scenarioId: string;
     provider: string;
     model: string;
-    attempts: Array<{ provider: string; model: string; status: number; ok: boolean; bodySnippet: string }>;
+    attempts: Array<{ provider: string; model: string; status: number; ok: boolean }>;
   } | null>(null);
 
   type Scenario = {
@@ -158,9 +158,6 @@ function SettingsPage() {
                     <span className={a.ok ? "text-emerald-500" : "text-rose-500"}>
                       [{a.status}] {a.provider}/{a.model}
                     </span>
-                    {!a.ok && a.bodySnippet && (
-                      <div className="pl-4 text-muted-foreground break-all">{a.bodySnippet}</div>
-                    )}
                   </div>
                 ))}
               </div>

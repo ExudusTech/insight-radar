@@ -75,7 +75,6 @@ export interface AttemptInfo {
   model: string;
   status: number;
   ok: boolean;
-  bodySnippet: string;
 }
 
 interface ProviderConfig {
@@ -300,7 +299,6 @@ export async function callLLM(params: LLMCallParams): Promise<LLMCallResult> {
       model: cfg.model,
       status: result.status,
       ok: result.status >= 200 && result.status < 300,
-      bodySnippet: result.rawBody.slice(0, 300),
     });
 
     if (result.status >= 200 && result.status < 300) {
