@@ -612,7 +612,7 @@ export function MissionAssistantPanel({
           <WelcomeScreen
             targetName={targetName}
             loading={sendMut.isPending}
-            onStart={() => sendMut.mutate({ userMessage: null, file: null })}
+            onStart={() => sendMut.mutate({ userMessage: null, files: [] })}
           />
         ) : (
           messages.map((m) => (
